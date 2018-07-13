@@ -99,15 +99,14 @@ SPRITEPOINTERS:
 	dc.w	$94,$d0		; DdfStop
 	dc.w	$102,0		; BplCon1
 	dc.w	$104,0		; BplCon2
-	dc.w	$108,0		; Bpl1Mod  INTERLEAVED MODE!
-	dc.w	$10a,0		; Bpl2Mod  INTERLEAVED MODE!
+	dc.w	$108,0		; Bpl1Mod
+	dc.w	$10a,0		; Bpl2Mod
 
 	dc.w	$100,bpls*$1000+$200	; bplcon0 - bitplane lowres
 
 BPLPOINTERS:
 	dc.w $e0,$0000,$e2,$0000	;first bitplane
 	
-TEXT_COLORS:
 	dc.w $0180,$0000
 	dc.w $0182,$0000
 	
