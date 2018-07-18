@@ -121,7 +121,7 @@ POINTBP:
 Main:
 	WAITVB	Main
 
-	bsr.w	move_stars
+	bsr.s	move_stars
 	bsr.w	show_text	
 WaitRm:
 	RMOUSE WaitRm
@@ -221,7 +221,7 @@ TEXT_LENGTH	= TEXT_COLS*TEXT_ROWS
 TEXT_COUNT	= 2		
 DELAY_TEXT	= 50*2	; delay between text phase
 
-text_vb_counter	dc.w	0		; vertical blank counter
+text_vb_counter	dc.w	DELAY_TEXT		; vertical blank counter
 text_phase	dc.w	0		; text phase counter
 text_anim_in_progress	dc.w	0	; text animation in progress FLAG
 text_offset_pointer	dc.l	0	; address pointer to displayed text
@@ -230,8 +230,8 @@ text_message_counter	dc.w	0	; current text counter
 show_text:
 	btst	#0,text_anim_in_progress
 	bne.s	do_text_animation
-	addq.w	#1,text_vb_counter
-	cmpi.w	#DELAY_TEXT,text_vb_counter
+	subq.w	#1,text_vb_counter
+	tst	text_vb_counter
 	beq.s	prepare_next_phase
 	rts
 prepare_next_phase:
@@ -245,8 +245,10 @@ do_text_animation:
 	beq.s	print_new_text
 	cmpi.b	#2,d0
 	beq.w	fade_in_quick
-	btst	#0,d0
-	bne.w	fade_out_quick
+	cmpi.b	#3,d0
+	beq.w	fade_out_quick
+	cmpi.b	#4,d0
+	beq.w	clear_text
 	rts
 	
 print_new_text:	
@@ -258,8 +260,9 @@ print_new_text:
 	move.l	d0,text_offset_pointer
 	lea	SCREEN+TEXT_VOFFSET,a3	; load bitplane on A3
 	bsr.s	print_text	; print text on BITPLANE	
-	bclr	#0,text_anim_in_progress
-	bra.w	prepare_next_phase
+	bclr	#0,text_anim_in_progress	
+	move.w	#1,text_vb_counter
+	rts
 	
 ***************************************************************************
 *	print text routine 						  *
@@ -301,7 +304,7 @@ print_char:
 
 	;	40*(bpls-1) skip all bitplane line (excluding the first one)
 	;	(40*FONT_HEIGHT)*bpls	distance between row
-	add.w	#ScrBpl*(bpls-1)+(ScrBpl*FONT_HEIGHT)*bpls,a3	; print x chars each line
+	add.w	#ScrBpl*(bpls-1)+(ScrBpl*FONT_HEIGHT)*bpls,a3	; jump to next bitplane line
 
 	dbra	d3,print_row	;  go to next row
 	
@@ -338,8 +341,6 @@ TEXT_2:	        ;         11111111112
 
 	
 ;**************************************
-	
-TAB_COLOR_SIZE = 3
 
 tabpointer:
 	dc.l	TAB_COLOR_1-2
@@ -363,8 +364,11 @@ fade_in_quick:
 	move.w	68(a0),8(a1)	
 	rts
 end_fade_in_quick:
-	bclr	#0,text_anim_in_progress	
+	bclr	#0,text_anim_in_progress
+	move.w	#DELAY_TEXT, text_vb_counter
 	rts
+
+;TAB_COLOR_SIZE = 3
 	
 ;fade_in:
 ;	cmp.w	#17,fade_phase
@@ -435,9 +439,13 @@ fade_out_quick:
 	move.w	(a0),(a1)
 	move.w	34(a0),4(a1)
 	move.w	68(a0),8(a1)		
+	rts			
+end_fade_out_quick:	
+	move.w	#1,text_vb_counter
+	bclr	#0,text_anim_in_progress
 	rts
-			
-end_fade_out_quick:
+	
+clear_text:
 	BLTWAIT BWT2
 		
 	move.w	#$0100,$dff040	 ; BLTCON0: enable destination D (only write)
@@ -449,11 +457,12 @@ end_fade_out_quick:
 	bclr	#0,text_anim_in_progress
 	clr.b	text_phase
 	cmp.b	#TEXT_COUNT, text_message_counter
-	bne.w	exit_fade_out_quick
+	bne.w	exit_clear_text
 .reset_text_loop
 	clr.l	text_offset_pointer
-	clr.b	text_message_counter
-exit_fade_out_quick:
+	clr.b	text_message_counter	
+exit_clear_text:
+	move.w	#DELAY_TEXT, text_vb_counter
 	rts
 
 ;TabColoriPic:
