@@ -43,7 +43,7 @@ ScrBpl	=w/8	; Screen line size (bytes)
 
 bpls = 2	; bitplanes enabled
 
-
+wbl = 303
 
 BLTWAIT	MACRO
 	tst $dff002	;for compatibility
@@ -76,9 +76,17 @@ RMOUSE	MACRO
 WAITVB	MACRO
 	move.l	$dff004,d0		; wait
 	and.l	#$0001ff00,d0		; for
-	cmp.l	#303<<8,d0		; rasterline 303
+	cmp.l	#wbl<<8,d0		; rasterline 303
 	;cmp.l	#$2c<<8,d0		; enable for COPPER MONITOR
 	bne.s	\1
+	ENDM
+
+WAITVB2	MACRO
+	move.l	$dff004,d0		; wait
+	and.l	#$0001ff00,d0		; for
+	cmp.l	#wbl<<8,d0		; rasterline 303
+	;cmp.l	#$2c<<8,d0		; enable for COPPER MONITOR
+	beq.s	\1
 	ENDM
 
 	
@@ -125,10 +133,14 @@ Main:
 ;	***** COPPER MONITOR
 ;	move.w	#$F00, $dff180
 
-	bsr.s	move_stars
+	bsr.s	move_tb_margin_bars
+	bsr.w	move_stars
 	bsr.w	show_text	
 
 ;	move.w	#0, $dff180
+
+Wait	WAITVB2 Wait
+
 WaitRm:
 	RMOUSE WaitRm
 
@@ -139,7 +151,53 @@ WaitRm:
 	
 	rts
 
+
+BAR_MOVE_VB_DELAY = 3
+
+bar_move_counter:	dc.w	BAR_MOVE_VB_DELAY
+
+move_tb_margin_bars:
+
+	move.w	bar_move_counter, d0
+	subq	#1, d0
+	tst	d0
+	bne.s	exit_margin_bar	
 	
+	move	#BAR_MOVE_VB_DELAY, d0	; reset counter
+	lea TOP_MARGIN_BAR, a0
+	bsr.s	rolling_color_hbar
+	lea BOTTOM_MARGIN_BAR, a0
+	bsr.s	rolling_color_hbar
+	
+exit_margin_bar:
+	move.w	d0, bar_move_counter
+	rts
+
+****************************************************************************
+*	rolling color routine						   *
+*	<INPUT>								   *
+*	A0 = HORIZONTAL BAR	(STARTING FROM FIRST COLOR		   *
+****************************************************************************
+
+rolling_color_hbar:	
+	
+	move.w	2+8(a0),2+0(a0)	; 07
+	move.w	2+16(a0),2+8(a0)	; 17
+	move.w	2+24(a0),2+16(a0)	; 27
+	move.w	2+32(a0),2+24(a0)	; 37
+	move.w	2+40(a0),2+32(a0)	; 47
+	move.w	2+48(a0),2+40(a0)	; 57
+	move.w	2+56(a0),2+48(a0)	; 67
+	move.w	2+64(a0),2+56(a0)	; 77
+	move.w	2+72(a0),2+64(a0)	; 87
+	move.w	2+80(a0),2+72(a0)	; 97
+	move.w	2+88(a0),2+80(a0)	; a7
+	move.w	2+96(a0),2+88(a0)	; b7
+	move.w	2+104(a0),2+96(a0)	; c7
+	move.w	2+112(a0),2+104(a0)	; d7
+	move.w	2+0(a0),2+112(a0)	; e7
+
+	rts
 
 
 ****************************************************************************
@@ -147,7 +205,7 @@ WaitRm:
 *									   *
 ****************************************************************************
 
-STAR_MOVE_DELAY = 3
+STAR_MOVE_DELAY = 2
 star_move_progress	dc.w	0
 
 
@@ -569,12 +627,99 @@ BPLPOINTERS:
 	dc.w $e4,$0000,$e6,$0000	;bitplane 2
 	
 	dc.w $0180,$0000
+
+	dc.w $01a2,$0ddd	; color17 sprite0
+
+	dc.w $4207,$fffe
+TOP_MARGIN_BAR:
+	dc.w $0180,$0032
+	dc.w $4217,$fffe
+	dc.w $0180,$0042
+	dc.w $4227,$fffe
+	dc.w $0180,$0052
+	dc.w $4237,$fffe
+	dc.w $0180,$0062
+	dc.w $4247,$fffe
+	dc.w $0180,$0082
+	dc.w $4257,$fffe
+	dc.w $0180,$0592
+	dc.w $4267,$fffe
+	dc.w $0180,$09a2
+	dc.w $4277,$fffe
+	dc.w $0180,$0ac2
+	dc.w $4287,$fffe
+	dc.w $0180,$09a2
+	dc.w $4297,$fffe
+	dc.w $0180,$0592
+	dc.w $42a7,$fffe
+	dc.w $0180,$0082
+	dc.w $42b7,$fffe
+	dc.w $0180,$0062
+	dc.w $42c7,$fffe
+	dc.w $0180,$0052
+	dc.w $42d7,$fffe
+	dc.w $0180,$0042
+	dc.w $42e7,$fffe
+	dc.w $0180,$0032
+ETOP_MARGIN_BAR:
+	dc.w $4307,$fffe
+	dc.w $0180,$0000
+
+
+
 TEXT_COLORS:
 	dc.w $0182,$0000
 	dc.w $0184,$0000
 	dc.w $0186,$0000
+
+;	GREEN
+;	dc.w $0182,$08f6
+;	dc.w $0184,$04b2
+;	dc.w $0186,$0270
+
+	dc.w $ffdf,$fffe
+
+	dc.w $1207,$fffe
+BOTTOM_MARGIN_BAR:
+	dc.w $0180,$0302
+	dc.w $1217,$fffe
+	dc.w $0180,$0402
+	dc.w $1227,$fffe
+	dc.w $0180,$0502
+	dc.w $1237,$fffe
+	dc.w $0180,$0602
+	dc.w $1247,$fffe
+	dc.w $0180,$0802
+	dc.w $1257,$fffe
+	dc.w $0180,$0952
+	dc.w $1267,$fffe
+	dc.w $0180,$0a92
+	dc.w $1277,$fffe
+	dc.w $0180,$0ca2
+	dc.w $1287,$fffe
+	dc.w $0180,$0a92
+	dc.w $1297,$fffe
+	dc.w $0180,$0952
+	dc.w $12a7,$fffe
+	dc.w $0180,$0802
+	dc.w $12b7,$fffe
+	dc.w $0180,$0602
+	dc.w $12c7,$fffe
+	dc.w $0180,$0502
+	dc.w $12d7,$fffe
+	dc.w $0180,$0402
+	dc.w $12e7,$fffe
+	dc.w $0180,$0302
+EBOTTOM_MARGIN_BAR:
+	dc.w $1307,$fffe
+	dc.w $0180,$0000
+
+
+;	dc.w $1207,$fffe
+;	dc.w $0180,$00f2
+;	dc.w $1307,$fffe
+;	dc.w $0180,$0000
 	
-	dc.w $01a2,$0ddd	; color17 sprite0
 	
 	dc.w	$FFFF,$FFFE	; End of copperlist
 
@@ -596,20 +741,21 @@ TEXT_COLORS:
 ; SPRITE DATA:
 ; $1000	$0000	where 1 is the pixel of the start
 ;
-; notice the sprite beyond $FF vertical position
+; be aware the sprite beyond $FF vertical position
 ; must have SPR0CTL bit 2 and 1 set ($06 or %0110) 
 
 	
 SPRITE:
-	dc.w    $307A,$3100,$1000,$0000,$3220,$3300,$1000,$0000
-	dc.w    $34C0,$3500,$1000,$0000,$3650,$3700,$1000,$0000
-	dc.w    $3842,$3900,$1000,$0000,$3A6D,$3B00,$1000,$0000
-	dc.w    $3CA2,$3D00,$1000,$0000,$3E9C,$3F00,$1000,$0000
-	dc.w    $40DA,$4100,$1000,$0000,$4243,$4300,$1000,$0000
-	dc.w    $445A,$4500,$1000,$0000,$4615,$4700,$1000,$0000
-	dc.w    $4845,$4900,$1000,$0000,$4A68,$4B00,$1000,$0000
-	dc.w    $4CB8,$4D00,$1000,$0000,$4EB4,$4F00,$1000,$0000
-	dc.w    $5082,$5100,$1000,$0000,$5292,$5300,$1000,$0000
+	;dc.w    $307A,$3100,$1000,$0000,$3220,$3300,$1000,$0000
+	;dc.w    $34C0,$3500,$1000,$0000,$3650,$3700,$1000,$0000
+	;dc.w    $3842,$3900,$1000,$0000,$3A6D,$3B00,$1000,$0000
+	;dc.w    $3CA2,$3D00,$1000,$0000,$3E9C,$3F00,$1000,$0000
+	;dc.w    $40DA,$4100,$1000,$0000,$4243,$4300,$1000,$0000
+	;dc.w    $445A,$4500,$1000,$0000,$4615,$4700,$1000,$0000
+	;dc.w    $4845,$4900,$1000,$0000,$4A68,$4B00,$1000,$0000
+	;dc.w    $4CB8,$4D00,$1000,$0000,$4EB4,$4F00,$1000,$0000
+	;dc.w    $5082,$5100,$1000,$0000,$5292,$5300,$1000,$0000
+	
 	dc.w    $54D0,$5500,$1000,$0000,$56D3,$5700,$1000,$0000
 	dc.w    $58F0,$5900,$1000,$0000,$5A6A,$5B00,$1000,$0000
 	dc.w    $5CA5,$5D00,$1000,$0000,$5E46,$5F00,$1000,$0000
@@ -655,15 +801,16 @@ SPRITE:
 	dc.w	$FCB2,$FD00,$1000,$0000,$FE9A,$FF00,$1000,$0000
 	dc.w	$009A,$0106,$1000,$0000,$02DF,$0306,$1000,$0000 ; sprite beyond vpos $FF
 	dc.w	$0446,$0506,$1000,$0000,$0688,$0706,$1000,$0000
-	dc.w	$0899,$0906,$1000,$0000,$0ADD,$0B06,$1000,$0000
-	dc.w	$0CEE,$0D06,$1000,$0000,$0EFF,$0F06,$1000,$0000
-	dc.w	$10CD,$1106,$1000,$0000,$1267,$1306,$1000,$0000
-	dc.w	$1443,$1506,$1000,$0000,$1664,$1706,$1000,$0000
-	dc.w	$1823,$1906,$1000,$0000,$1A6D,$1B06,$1000,$0000
-	dc.w	$1C4F,$1D06,$1000,$0000,$1E5F,$1F06,$1000,$0000
-	dc.w	$2055,$2106,$1000,$0000,$2267,$2306,$1000,$0000
-	dc.w	$2445,$2506,$1000,$0000,$2623,$2706,$1000,$0000
-	dc.w	$2834,$2906,$1000,$0000,$2AF0,$2B06,$1000,$0000
+
+	;dc.w	$0899,$0906,$1000,$0000,$0ADD,$0B06,$1000,$0000
+	;dc.w	$0CEE,$0D06,$1000,$0000,$0EFF,$0F06,$1000,$0000
+	;dc.w	$10CD,$1106,$1000,$0000,$1267,$1306,$1000,$0000
+	;dc.w	$1443,$1506,$1000,$0000,$1664,$1706,$1000,$0000
+	;dc.w	$1823,$1906,$1000,$0000,$1A6D,$1B06,$1000,$0000
+	;dc.w	$1C4F,$1D06,$1000,$0000,$1E5F,$1F06,$1000,$0000
+	;dc.w	$2055,$2106,$1000,$0000,$2267,$2306,$1000,$0000
+	;dc.w	$2445,$2506,$1000,$0000,$2623,$2706,$1000,$0000
+	;dc.w	$2834,$2906,$1000,$0000,$2AF0,$2B06,$1000,$0000
 SPRITE_END:
 	dc.w 	$0000,$0000	; end of sprite address
 	
