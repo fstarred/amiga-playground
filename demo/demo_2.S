@@ -2,7 +2,7 @@
 	SECTION	Code,CODE	; This command will run the below code
 				; on FAST RAM (if enough) or CHIP RAM
 
-DMASET	= %1000001111100000
+DMASET	= %1000001111110000
 ;	  %-----axbcdefghij
 ;	a: Blitter Nasty
 ;	x: Enable DMA
@@ -43,6 +43,7 @@ ScrBpl	=w/8	; Screen line size (bytes)
 
 bpls = 2	; bitplanes enabled
 
+;wbl = $2c (for copper monitor only)
 wbl = 303
 
 BLTWAIT	MACRO
@@ -207,6 +208,14 @@ rolling_color_hbar:
 
 STAR_MOVE_DELAY = 2
 star_move_progress	dc.w	0
+
+
+STAR_S_COL = $0444
+STAR_M_COL = $0999
+STAR_F_COL = $0eee
+;STAR_S_COL = $0f00
+;STAR_M_COL = $00f0
+;STAR_F_COL = $00ff
 
 
 move_stars:
@@ -628,8 +637,6 @@ BPLPOINTERS:
 	
 	dc.w $0180,$0000
 
-	dc.w $01a2,$0ddd	; color17 sprite0
-
 	dc.w $4207,$fffe
 TOP_MARGIN_BAR:
 	dc.w $0180,$0032
@@ -677,7 +684,196 @@ TEXT_COLORS:
 ;	dc.w $0184,$04b2
 ;	dc.w $0186,$0270
 
+
+	; set star color according to its speed
+	; slow are dark
+	; medium are mid-bright 
+	; fast are bright
+	
+	dc.w $5407,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $5507,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $5707,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $5907,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $5b07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $5d07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $5f07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $6107,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $6307,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $6507,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $6707,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $6907,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $6b07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $6d07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $6f07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $7107,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $7307,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $7507,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $7707,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $7907,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $7b07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $7d07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $7f07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $8107,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $8307,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $8507,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $8707,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $8907,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $8b07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $8d07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $8f07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $9107,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $9307,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $9507,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $9707,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $9907,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $9b07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $9d07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $9f07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $a107,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $a307,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $a507,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $a707,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $a907,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $ab07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $ad07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $af07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $b107,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $b307,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $b507,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $b707,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $b907,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $bb07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $bd07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $bf07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $c107,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $c307,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $c607,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $c807,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $ca07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $cb07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $cd07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $ab07,$fffe
+	dc.w $cfa2,STAR_F_COL	; fast
+	dc.w $d107,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $d307,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $d507,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $d707,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $d907,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $db07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $dd07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $df07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $e107,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $e307,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $e507,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $e707,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $e907,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $eb07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $ed07,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $ef07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $f107,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $f307,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $f507,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $f707,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $f907,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $fb07,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $fd07,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $ff07,$fffe
+	
 	dc.w $ffdf,$fffe
+	
+	dc.w $01a2,STAR_F_COL	; fast
+	dc.w $0107,$fffe
+	dc.w $01a2,STAR_M_COL	; medium (col17 sprite a)
+	dc.w $0307,$fffe
+	dc.w $01a2,STAR_S_COL	; slow
+	dc.w $0507,$fffe
+	dc.w $01a2,STAR_F_COL	; fast
+	; end star color copper set
 
 	dc.w $1207,$fffe
 BOTTOM_MARGIN_BAR:
