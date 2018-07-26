@@ -78,7 +78,6 @@ WAITVB	MACRO
 	move.l	$dff004,d0		; wait
 	and.l	#$0001ff00,d0		; for
 	cmp.l	#wbl<<8,d0		; rasterline 303
-	;cmp.l	#$2c<<8,d0		; enable for COPPER MONITOR
 	bne.s	\1
 	ENDM
 
@@ -86,7 +85,6 @@ WAITVB2	MACRO
 	move.l	$dff004,d0		; wait
 	and.l	#$0001ff00,d0		; for
 	cmp.l	#wbl<<8,d0		; rasterline 303
-	;cmp.l	#$2c<<8,d0		; enable for COPPER MONITOR
 	beq.s	\1
 	ENDM
 
@@ -291,7 +289,7 @@ TEXT_COLS = 20
 TEXT_VOFFSET = (ScrBpl*2*FONT_HEIGHT)*bpls
 
 TEXT_LENGTH	= TEXT_COLS*TEXT_ROWS
-DELAY_TEXT	= 50*2	; delay between text phase
+DELAY_TEXT	= 50*1	; delay between text phase
 
 text_vb_counter	dc.w	DELAY_TEXT		; vertical blank counter
 text_phase	dc.w	0		; text phase counter
@@ -455,31 +453,49 @@ END_TEXT
 	
 ;**************************************
 
+fade_counter	dc.w	FADE_STEP_COUNT
+FADE_STEP_COUNT = 17
+AVAILABLE_COLORS = 3
+
 tabpointer:
-	dc.l	TAB_COLOR_1-2
+	dc.l	TAB_COLOR_1
 TAB_COLOR_1:
-	dc.w	$0, $0, $11, $12, $23, $23, $134, $135, $146, $156, $157, $268, $269, $279, $27a, $28b, $39c
+	dc.w	$0, $0, $11, $12, $23, $23, $134, $135, $146, $156, $157, $268, $269, $279, $27a, $28b, $39c		; blue
+	dc.w	$0, $0, $110, $121, $231, $241, $352, $362, $473, $483, $593, $5a4, $6b4, $6c4, $7d5, $7e5, $8f6	; green
+	dc.w	$0, $0, $111, $222, $332, $443, $554, $664, $775, $886, $996, $aa7, $bb8, $cc8, $dd9, $eea, $ffb 	; red
 ETAB_COLOR_1
 TAB_COLOR_2:
 	dc.w	$0, $0, $1, $2, $13, $13, $114, $125, $126, $126, $137, $238, $239, $249, $24a, $24b, $35c
+	dc.w	$0, $0, $10, $20, $120, $130, $140, $140, $251, $261, $261, $271, $381, $381, $391, $3a1, $4b2		
+	dc.w	$0, $0, $100, $200, $200, $300, $410, $410, $510, $610, $610, $720, $820, $820, $920, $a20, $b31
 TAB_COLOR_3:
 	dc.w	$0, $0, $1, $1, $2, $2, $3, $3, $104, $105, $105, $106, $106, $107, $107, $108, $219
-	
+	dc.w	$0, $0, $0, $10, $10, $20, $20, $30, $130, $130, $140, $140, $150, $150, $160, $160, $270
+	dc.w	$0, $0, $0, $11, $11, $22, $22, $33, $133, $133, $144, $144, $155, $155, $166, $166, $277
 
 fade_in_quick:
-	add.l	#2,tabpointer
-	move.l	tabpointer(PC),a0
-	cmp.l	#ETAB_COLOR_1,a0
-	beq.s	end_fade_in_quick
-	lea	TEXT_COLORS+2,a1		
+	moveq	#0,d0
+	move.w	fade_counter, d0
+	subq	#1,d0		
+	move.l	tabpointer(PC),a0	
+	lea	TEXT_COLORS+2,a1
 	move.w	(a0),(a1)
-	move.w	34(a0),4(a1) ; distance between TAB_COLOR_1 and TAB_COLOR_2
-	move.w	68(a0),8(a1) ; distance between TAB_COLOR_1 and TAB_COLOR_3
+	; distance between TAB_COLOR_1 and TAB_COLOR_2
+	; 2 bytes * AVAILABLE_COLORS*FADE_STEP_COUNT
+	move.w	2*AVAILABLE_COLORS*FADE_STEP_COUNT(a0),4(a1) 
+	; same as above, skip also TAB_COLOR_2
+	move.w	2*2*AVAILABLE_COLORS*FADE_STEP_COUNT(a0),8(a1) ; distance between TAB_COLOR_1 and TAB_COLOR_3
+	move.w	d0, fade_counter	
+	tst	d0
+	beq.s	end_fade_in_quick
+	add.l	#2, tabpointer
 	rts
 end_fade_in_quick:
+	move.w	#FADE_STEP_COUNT, fade_counter	; reset fade counter
 	bclr	#0,text_anim_in_progress
 	move.w	#DELAY_TEXT, text_vb_counter
 	rts
+	
 
 ;TAB_COLOR_SIZE = 3
 	
@@ -543,21 +559,36 @@ end_fade_in_quick:
 ;	dbra	d7,fade		; do loop for all color table
 ;	rts
 
-fade_out_quick:		
-	sub.l	#2,tabpointer
+fade_out_quick:
+	moveq	#0,d0
+	move.w	fade_counter, d0
+	subq	#1,d0		
 	move.l	tabpointer(PC),a0
-	cmp.l	#TAB_COLOR_1-2,a0
-	beq.s	end_fade_out_quick
 	lea	TEXT_COLORS+2,a1		
 	move.w	(a0),(a1)
-	move.w	34(a0),4(a1) ; distance between TAB_COLOR_1 and TAB_COLOR_2
-	move.w	68(a0),8(a1) ; distance between TAB_COLOR_1 and TAB_COLOR_3	
-	rts			
+	move.w	2*AVAILABLE_COLORS*FADE_STEP_COUNT(a0),4(a1) ; distance between TAB_COLOR_1 and TAB_COLOR_2
+	move.w	2*2*AVAILABLE_COLORS*FADE_STEP_COUNT(a0),8(a1) ; distance between TAB_COLOR_1 and TAB_COLOR_3
+	move.w	d0, fade_counter	
+	tst	d0
+	beq.s	end_fade_out_quick
+	sub.l	#2, tabpointer
+	rts
 end_fade_out_quick:	
+	move.w	#FADE_STEP_COUNT,fade_counter
 	move.w	#1,text_vb_counter
 	bclr	#0,text_anim_in_progress
-	rts
 	
+	; end of tab color reached ?
+	cmpi.l	#ETAB_COLOR_1-(FADE_STEP_COUNT*2),tabpointer
+	beq.s	reset_tabpointer
+	bne.s	no_reset_tabpointer
+reset_tabpointer:	; reset to TAB_COLOR_1
+	move.l	#TAB_COLOR_1, tabpointer
+	rts
+no_reset_tabpointer:	; go next TAB_COLOR
+	add.l	#FADE_STEP_COUNT*2, tabpointer	; FADE_STEP_COUNT*2 bytes
+	rts
+
 clear_text:
 	BLTWAIT BWT2
 		
@@ -683,6 +714,11 @@ TEXT_COLORS:
 ;	dc.w $0182,$08f6
 ;	dc.w $0184,$04b2
 ;	dc.w $0186,$0270
+
+;	RED
+;	dc.w $0182,$0ffb
+;	dc.w $0184,$0b31
+;	dc.w $0186,$0277
 
 
 	; set star color according to its speed
