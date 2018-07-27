@@ -580,13 +580,12 @@ end_fade_out_quick:
 	
 	; end of tab color reached ?
 	cmpi.l	#ETAB_COLOR_1-(FADE_STEP_COUNT*2),tabpointer
-	beq.s	reset_tabpointer
 	bne.s	no_reset_tabpointer
-reset_tabpointer:	; reset to TAB_COLOR_1
-	move.l	#TAB_COLOR_1, tabpointer
-	rts
+	move.l	#TAB_COLOR_1, tabpointer	; reset tab_pointer
+	bra.s	exit_fade_out_quick
 no_reset_tabpointer:	; go next TAB_COLOR
 	add.l	#FADE_STEP_COUNT*2, tabpointer	; FADE_STEP_COUNT*2 bytes
+exit_fade_out_quick:
 	rts
 
 clear_text:
