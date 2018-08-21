@@ -670,7 +670,7 @@ BPLPOINTERS:
 	dc.w $4207,$fffe
 TOP_MARGIN_BAR:
 	dc.w $0180,$0032
-e	dc.w $4217,$fffe
+	dc.w $4217,$fffe
 	dc.w $0180,$0042
 	dc.w $4227,$fffe
 	dc.w $0180,$0052
