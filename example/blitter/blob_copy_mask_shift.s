@@ -16,7 +16,7 @@
 *****************************************************************************
 	incdir	"dh1:own/demo/repository/startup/borchen/"
 	include	"startup.s"	; 
-	incdir	"dh1:own/demo/blitter/"	
+	incdir	"dh1:own/demo/repository/sample/blitter/"	
 	include "hardware/custom.i"
 *****************************************************************************
 

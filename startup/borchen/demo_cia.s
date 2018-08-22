@@ -78,7 +78,7 @@ Main:
 	
 	rts
 
-	incdir  "dh1:own/demo/startup/"
+	incdir  "dh1:own/demo/repository/replay/"
 	include	"pt2.3a_replay_cia.s"	
 	
 	
@@ -118,7 +118,7 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 
 MT_DATA:
-	incdir  "dh1:own/mod/"
+	incdir  "dh1:own/demo/repository/resources/mod/"
 	incbin	"mod.broken"
 
 	

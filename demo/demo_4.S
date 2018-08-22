@@ -70,7 +70,7 @@ RMOUSE  MACRO
 *****************************************************************************
     incdir  "dh1:own/demo/repository/startup/borchen/"
     include "startup.s" ; 
-    incdir  "dh1:own/demo/repository/startup/"
+    incdir  "dh1:own/demo/repository/replay/"
     include "pt2.3a_replay_cia.s"   
 *****************************************************************************
 
@@ -1774,12 +1774,12 @@ frame8c:
 
     
 MT_DATA:
-    incdir  "dh1:own/mod/"
+    incdir  "dh1:own/demo/repository/resources/mod/"
     incbin  "mod.towards"
 
 
 FONT:
-    incdir  "dh1:own/fonts/"
+    incdir  "dh1:own/demo/repository/resources/fonts/"
     incbin  "16X16-F2_944_16_2.blt.raw"
     
 *****************************************************************************
