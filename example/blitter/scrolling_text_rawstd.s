@@ -189,7 +189,7 @@ noreset:
 	
 	moveq	#-1,d1
 	move.l	d1,BLTAFWM(a5)	 	; BLTALWM, BLTAFWM
-	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1 - copia normale
+	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1 ; A-D
 	move.l	#$00240028,BLTAMOD(a5)	; BLTAMOD = 36, BLTDMOD = 40
 
 	lea	SCREEN+SCREEN_VOFFSET+40,a1	; Destination

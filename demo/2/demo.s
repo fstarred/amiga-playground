@@ -14,7 +14,7 @@
 
 
 DMASET  = %1000001111110000
-;     %-----axbcdefghij
+;     	  %-----axbcdefghij
 ;   a: Blitter Nasty
 ;   x: Enable DMA
 ;   b: Bitplane DMA (if this isn't set, sprites disappear!)
@@ -25,7 +25,7 @@ DMASET  = %1000001111110000
 ;   g-j: Audio 3-0 DMA
 
 INTENASET=     %1010000000000000
-;           -FEDCBA9876543210
+;              -FEDCBA9876543210
 
 ;   F   SET/CLR 0=clear, 1=set bits that are set to 1 below
 ;   E   INTEN   Enable interrupts below (master toggle)
@@ -59,7 +59,7 @@ INTENASET=     %1010000000000000
 w	=320
 h	=256
 bplsize	=w*h/8
-ScrBpl	=w/8+4	; standard screen width + 2 bytes
+ScrBpl	=w/8+4	; standard screen width + 4 bytes
 		; where we'll place the char data
 
 bpls = 3
@@ -185,7 +185,7 @@ noreset:
 	lea	FONT_ADDRESS_LIST(PC),a2
 	move.l	0(a2,d2.w),a2		
 	
-	BLTWAIT BWT1
+	;BLTWAIT BWT1
 	
 	moveq	#-1,d1
 	move.l	d1,BLTAFWM(a5)	 	; BLTALWM, BLTAFWM

@@ -249,6 +249,8 @@ move_y_tab:
 move_x_tab:
     moveq   #0,d3       ; clean D3
     move.w  (a0),d3 ; copy X value to D3
+
+    moveq   #0,d2	; clean D2
     
     move.l  FRAMETAB(PC),a1 ; indirizzo sprite 0
     move.w  d4,d0       ; copy Y to D0
@@ -1774,16 +1776,19 @@ frame8c:
     dc.w 0,0
 
     
-MT_DATA:
-    incdir  "dh1:own/demo/repository/resources/mod/"
-    incbin  "mod.towards"
-
-
 FONT:
     incdir  "dh1:own/demo/repository/resources/fonts/"
     incbin  "16X16-F2_944_16_2.blt.raw"
     
 *****************************************************************************
+
+	SECTION Music,DATA_C
+	
+MT_DATA:
+    incdir  "dh1:own/demo/repository/resources/mod/"
+    incbin  "mod.towards"
+
+
 
     SECTION Screen,BSS_C    
 
