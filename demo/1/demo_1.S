@@ -69,7 +69,7 @@ RMOUSE	MACRO
 *****************************************************************************
 	incdir	"dh1:own/demo/repository/startup/borchen/"
 	include	"startup.s"	; 
-	incdir  "dh1:own/demo/repository/startup/"
+	incdir  "dh1:own/demo/repository/replay/"
 	include	"pt2.3a_replay_cia.s"	
 *****************************************************************************
 

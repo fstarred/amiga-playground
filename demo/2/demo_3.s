@@ -1,4 +1,4 @@
-*****************************************************************************
+*************************************************************************
 *									    *
 *    									    *
 *									    *
@@ -67,12 +67,6 @@ bpls = 3
 ;wbl = $2c (for copper monitor only)
 wbl = 303
 
-FONTSET_WIDTH   = 320   ; pixel
-FONTSET_HEIGHT  = 192    ; pixel
-
-FONT_WIDTH  = 32 ; pixel
-FONT_HEIGHT = 32 ; pixel
-
 SCREEN_VOFFSET = 180*ScrBpl
 
 
@@ -105,7 +99,7 @@ LMOUSE	MACRO
 RMOUSE	MACRO
 \1
 	btst	#2,$dff016	; check L MOUSE btn
-	bne.s	\1
+	beq.s	\1
 	ENDM
 
 START:
@@ -139,34 +133,171 @@ POINTBP:
    	move.w  #0,$dff088      ; COPJMP1 activate copperlist
 
 	lea	$dff000,a5
-	lea	TEXT(PC), a0
-
+	
+	bsr.w	display_logo
+	
 Main:
 	WAITVB  Main
-	
-	bsr.s	print_char
+
+	bsr.w	print_char
 	bsr.w	scroll_text
+	bsr.s	sprite_move	
 
 Wait    WAITVB2 Wait
+
+	RMOUSE WaitRm
 	
 	LMOUSE Main
 
 	rts		; exit
 
-
+	
+	
 *****************************************************************************
-* Print char over the right screen margin
-* <INPUT>
-* A0 = TEXT
+* move_sprite
+* 
+* 
 *
 *****************************************************************************
 
-SCROLL_COUNT = 32	; (FONT_WIDTH / pixel shift)
-counter:	dc.w	SCROLL_COUNT	;
+tab_x_pointer:	dc.l	TABX-2
+move_counter_delay:	dc.w	MOVE_DELAY
+move_counter:	dc.w	TOTAL_MOVES/2
+color_flag:	dc.b	0,0
 
+TOTAL_MOVES	= 50
+MOVE_DELAY	= 2
+
+sprite_move:
+
+	sub.w	#1, move_counter_delay
+	bne.w	exit_move	
+
+	move.w	#MOVE_DELAY, move_counter_delay
+
+	addq.l	#2, tab_x_pointer
+	move.l  tab_x_pointer(PC), a1 ; copy pointer x to a0
+	cmp.l   #ENDTABX-2, a1 ; check if X end is reached
+	bne.s   move_x_tab
+	move.l  #TABX-2, tab_x_pointer 
+
+move_x_tab:
+	move.w	move_counter, d0
+	subq	#1, d0
+	bne	test_color_flag
+	moveq	#TOTAL_MOVES/2, d0
+	bchg	#0, color_flag
+test_color_flag:
+	move.w	d0, move_counter
+	lea	START_GRAY, a0
+	tst.b	color_flag
+	beq.s	add_col
+	bne.s	sub_col
+add_col:
+	add.b	#3,(a0)
+	bra.s	move_x_sprite
+sub_col:
+	sub.b	#3,(a0)
+move_x_sprite:
+	move.w	(a1),d0
+	lea	SPRITE_POS, a0
+	lea	SPRITE_CTL, a1
+
+	add.w   #128,d0     ; 128 - sprite center
+	btst    #0,d0       ; is odd x position ?
+	beq.s   clear_hstart_bit
+	bset    #0,1(a1)    ; set HSTART bit (odd position)
+	bra.w   translate_hstart_coord
+
+clear_hstart_bit:
+	bclr    #0,1(a1)    	; clear HSTART bit (even pos)
+translate_hstart_coord:
+	lsr.w   #1,d0		; shift x position to right, translate x
+	move.w  d0,(a0)		; move x to SPR0POS
+exit_move:
+	rts	
+
+TABX:
+	; IS PARAMETERS
+	; BEG: 0
+	; END: 180
+	; AMPLITUDE: 128
+	; YOFFSET: 80
+	; MULTIPLIER: 1
+	; N / N
+
+	DC.W	$0050,$0058,$0060,$0067,$006F,$0077,$007F,$0086,$008D,$0094
+	DC.W	$009B,$00A1,$00A7,$00AD,$00B2,$00B7,$00BC,$00C0,$00C3,$00C7
+	DC.W	$00C9,$00CB,$00CD,$00CE,$00CF,$00D0,$00CF,$00CE,$00CD,$00CB
+	DC.W	$00C9,$00C7,$00C3,$00C0,$00BC,$00B7,$00B2,$00AD,$00A7,$00A1
+	DC.W	$009B,$0094,$008D,$0086,$007F,$0077,$006F,$0067,$0060,$0058
+
+
+
+
+ENDTABX
+
+*****************************************************************************
+* Display logo
+* 
+* 
+*
+*****************************************************************************
+
+LOGO_WIDTH = 128
+LOGO_HEIGHT = 80
+
+LOGO_OFFSET = ScrBpl*60+10
+
+display_logo:
+	
+	
+	moveq	#bpls-1, d7
+	
+	lea	LOGO, a0
+	lea	SCREEN+LOGO_OFFSET,a1
+	
+blit_logo:
+
+	BLTWAIT BWT4
+
+	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
+	move.w	#$0000,BLTCON1(a5)	; BLTCON1					
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+	move.l	a0,BLTAPT(a5)	; BLTAPT - source
+	move.l	a1,BLTDPT(a5)	; BLTDPT - dest
+
+	move.l	#$0000001C,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
+	move.w	#(LOGO_HEIGHT*64)+LOGO_WIDTH/16,BLTSIZE(a5)	; BLTSIZE
+	
+	lea	LOGO_HEIGHT*LOGO_WIDTH/8(a0),a0	
+	lea	ScrBpl*h(a1),a1
+	
+	dbra	d7, blit_logo
+	
+	rts
+	
+
+*****************************************************************************
+* Print char over the right screen margin
+* 
+* 
+*
+*****************************************************************************
+
+FONTSET_WIDTH   = 320   ; pixel
+FONTSET_HEIGHT  = 192    ; pixel
+
+FONT_WIDTH  = 32 ; pixel
+FONT_HEIGHT = 32 ; pixel
+
+SCROLL_COUNT = 32	; (FONT_WIDTH / pixel shift)
+
+counter:	dc.w	SCROLL_COUNT	;
+text_offset_pointer:	dc.l	TEXT
 	
 print_char:
-	
+	move.l	text_offset_pointer(PC),a0
 	subq.w	#1,counter	; decrease counter 
 	bne.s	no_print	; if counter != 0 do nothing
 	move.w	#SCROLL_COUNT,counter	; if counter = 0 reset counter
@@ -177,7 +308,8 @@ print_char:
 	lea	TEXT(PC),a0	; if D2 == 0 restart TEXT
 	move.b	(a0)+,d2	; go next char 
 	
-noreset:		
+noreset:
+	move.l	a0, text_offset_pointer
 	subi.b	#$20,d2		; retrieve font position
 	lsl.w	#2,d2		; in charset by multipling
 				; 4 bytes (font is 32 pixel)
@@ -191,7 +323,7 @@ noreset:
 	move.l	d1,BLTAFWM(a5)	 	; BLTALWM, BLTAFWM
 	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1 - copia normale
 	move.l	#$00240028,BLTAMOD(a5)	; BLTAMOD = 36, BLTDMOD = 40
-
+					; 320/8-4, 44-4
 	lea	SCREEN+SCREEN_VOFFSET+40,a1	; Destination
 
 	moveq	#bpls-1,d7		; bitplanes
@@ -199,13 +331,13 @@ CopyCharL:
 
 	BLTWAIT BWT2
 
-	move.l	a2,BLTAPT(a5)		; BLTAPT (carattere in font)
+	move.l	a2,BLTAPT(a5)		; BLTAPT (fontset)
 	move.l	a1,BLTDPT(a5)		; BLTDPT (bitplane)
 	move.w	#FONT_HEIGHT*64+(FONT_WIDTH/16),BLTSIZE(a5)	; BLTSIZE
 	
-	;add.w	#ScrBpl*h,a1
+	;addi.w	#ScrBpl*h,a1
 	lea	ScrBpl*h(a1),a1
-	;add.w	#44*32,a1			; NEXT BITPLANE SCREEN
+	;addi.w	#44*32,a1			; NEXT BITPLANE SCREEN
 	lea	40*FONTSET_HEIGHT(a2),a2	; NEXT BITPLANE FONTSET
 
 	dbra	d7,copycharL
@@ -328,71 +460,138 @@ BPLPOINTERS:
 	dc.w $e4,$0000,$e6,$0000	; bitplane 2
 	dc.w $e8,$0000,$ea,$0000	; bitplane 3
 
-TEXT_COLOR:
-	dc.w $0180,$0000
-	dc.w $0182,$08ab
-	dc.w $0184,$0acd
-	dc.w $0186,$0cef
-	dc.w $0188,$0689
-	dc.w $018a,$0467
-	dc.w $018c,$0245
-	dc.w $018e,$0134
 
-;	dc.w $0180,$0000
-;	dc.w $0182,$07ea
-;	dc.w $0184,$0051
-;	dc.w $0186,$00f6
-;	dc.w $0188,$00a3
-;	dc.w $018a,$04f9
-;	dc.w $018c,$0ff0
-;	dc.w $018e,$0830
+	dc.w	$0180,$0008
+	dc.w	$3c07,$fffe
+	dc.w	$0180,$0009
+	dc.w	$3e07,$fffe
+	dc.w	$0180,$000a
+	dc.w	$4107,$fffe
+	dc.w	$0180,$000b
+	dc.w	$4607,$fffe
+	dc.w	$0180,$000c
+	dc.w	$5007,$fffe
+	dc.w	$0180,$0000
+	dc.w	$6a07,$fffe
+    
+    	dc.w    $104 
+
+SPRITE_PRIORITY:
+    	dc.w    $0012 ; sprite couple 1,2 over playfield 1  
+                 ; code 010 twice (%010010%)
+	
+	dc.w	$01A2,$0ff
+	dc.w	$01A4,$0ac
+	dc.w	$01A6,$a4f	
+
+SPRDATA=%1010100000010101
+SPRDATB=%0110100000010110
+
+	dc.w	$0140		;SPR0POS
+SPRITE_POS:
+	dc.w 	$0040
+	
+	dc.w	$0142		;SPR0CTL
+SPRITE_CTL:
+	dc.w	$0000
+	dc.w	$0146,SPRDATB	;SPRDATB
+	dc.w	$0144,SPRDATA	;SPRDATA
+	
+
+LOGO_COLOR:
+	dc.w	$0180,$0000
+	dc.w	$0182,$00af
+	dc.w	$0184,$0148
+	dc.w	$0186,$0567
+	dc.w	$0188,$007e
+	dc.w	$018a,$0aaa
+	dc.w	$018c,$0eee
+	dc.w	$018e,$068a	
+
+START_GRAY:
+	dc.w	$6f07,$fffe
+	
+	;dc.w	$2c07,$fffe
+	;dc.w	$7c07,$fffe
+
+LOGO_GRAY:
+	dc.w	$0180,$0000
+	dc.w	$0182,$0222
+	dc.w	$0184,$0444
+	dc.w	$0186,$0666
+	dc.w 	$0188,$0999
+	dc.w	$018a,$0bbb
+	dc.w	$018c,$0ddd
+	dc.w	$018e,$0fff
+
+	
+	dc.w	$a707,$fffe
+;	dc.w	$b707,$fffe
+	dc.w	$0142,$0000	;SPR0CTL
+
+; END_LOGO
+	
+	dc.w	$d307,$fffe
+;	dc.w	$0180,$000f
+;	dc.w	$d407,$fffe
+
+TEXT_COLOR:
+	dc.w	$0180,$0000
+	dc.w	$0182,$08ab
+	dc.w	$0184,$0acd
+	dc.w	$0186,$0cef
+	dc.w	$0188,$0689
+	dc.w	$018a,$0467
+	dc.w	$018c,$0245
+	dc.w	$018e,$0134
 
 	dc.w	$ffdf,$fffe
 
+; MIRROR EFFECT	
 	dc.w	$0207,$fffe
 	dc.w	$180,$004
-
+       
 	dc.w	$184,$023	; dark color
 	dc.w	$186,$118
 	dc.w	$188,$25b
 	dc.w	$18a,$38e
 	dc.w	$18c,$acf
-
+       
 	dc.w	$182,$550	
 	dc.w	$18e,$155	
 	dc.w	$108,-84
 	dc.w	$10A,-84
-
+       
 	dc.w	$0707,$fffe
 	dc.w	$108,-172
 	dc.w	$10A,-172
 	dc.w	$180,$005
-
+        
 	dc.w	$0a07,$fffe
 	dc.w	$108,-84
 	dc.w	$10A,-84
 	dc.w	$180,$006
-
+        
 	dc.w	$0c07,$fffe
 	dc.w	$108,-172
 	dc.w	$10A,-172
 	dc.w	$180,$007
-
+        
 	dc.w	$0f07,$fffe
 	dc.w	$108,-84
 	dc.w	$10A,-84
 	dc.w	$180,$008
-
+        
 	dc.w	$1207,$fffe
 	dc.w	$108,-172
 	dc.w	$10A,-172
 	dc.w	$180,$009
-
+        
 	dc.w	$1407,$fffe
 	dc.w	$108,-84
 	dc.w	$10A,-84
 	dc.w	$180,$00A
-
+        
 	dc.w	$1607,$fffe
 	
 	
@@ -402,10 +601,20 @@ TEXT_COLOR:
 *****************************************************************************
 
 	SECTION	Data,DATA_C
-	
+
+LOGO:
+	incdir	"dh1:own/demo/repository/resources/images/"
+	incbin	"logo_SM_128_80_3.raw"
+
+
 FONT:
 	incdir  "dh1:own/demo/repository/resources/fonts/"
 	incbin  "32x32-FL.raw"
+
+MT_DATA:
+	incdir	"dh1:own/demo/repository/resources/mod/"	
+	incbin	"mod.broken",0
+	
 	
 *****************************************************************************
 
@@ -483,3 +692,13 @@ SCREEN:
 ; - Check BLTDONE before writing blitter registers or using the results of a blit.
 
 ; - Shifts are done on immediate data as soon as it is loaded
+
+; ************** SPRITE PRIORITY ******************
+	
+;CODE      |    000    |    001    |    010    |    011    |    100    |
+;----------------------------------------------------------------------------
+;PRI. MAX  | PLAYFIELD | COUPLE 1  | COUPLE 1  | COUPLE 1  | COUPLE 1  |
+;          | COUPLE 1  | PLAYFIELD | COUPLE 2  | COUPLE 2  | COUPLE 2  |
+;          | COUPLE 2  | COUPLE 2  | PLAYFIELD | COUPLE 3  | COUPLE 3  |
+;          | COUPLE 3  | COUPLE 3  | COUPLE 3  | PLAYFIELD | COUPLE 4  |
+;PRI. MIN  | COUPLE 4  | COUPLE 4  | COUPLE 4  | COUPLE 4  | PLAYFIELD |

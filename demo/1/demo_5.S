@@ -2,8 +2,8 @@
     SECTION Code,CODE   ; This command will run the below code
                 ; on FAST RAM (if enough) or CHIP RAM
 
-DMASET  = %1000001111110000
-;     %-----axbcdefghij
+DMASET  = %1000001111100000
+;         %-----axbcdefghij
 ;   a: Blitter Nasty
 ;   x: Enable DMA
 ;   b: Bitplane DMA (if this isn't set, sprites disappear!)

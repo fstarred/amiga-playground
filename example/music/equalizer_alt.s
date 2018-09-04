@@ -177,8 +177,6 @@ init_bar:
 	
 start_equalizer:
 	
-	lea	SCREEN+SCREEN_OFFSET,a0
-	
 	moveq	#4-1, d7	; init loop	
 	moveq	#0, d2		; pointer incremental for channel_address
 
@@ -302,7 +300,7 @@ BAR:
 
 MT_DATA:
 	incdir  "dh1:own/demo/repository/resources/mod/"
-	incbin  "mod.broken"
+	incbin  "mod.broken.old"
 
 	
 *****************************************************************************

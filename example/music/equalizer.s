@@ -159,35 +159,6 @@ DECREASE_SPEED = 2
 
 draw_equalizer:
 	
-	lea	SCREEN+SCREEN_OFFSET,a0
-	
-blit:
-	BLTWAIT	bltw1
-		
-	move.w	#$ffff,BLTAFWM(a5)		; BLTAFWM 
-	move.w	#$ffff,BLTALWM(a5)		; BLTALWM 
-	move.w	#$09f0,BLTCON0(a5)		; BLTCON0 ; A-D
-	move.w	#$0000,BLTCON1(a5)		; BLTCON1
-	move.w	#0,BLTAMOD(a5)		; BLTAMOD 
-	move.w	#40-(4*2),BLTDMOD(a5)	; BLTDMOD 
-	move.l	#BAR,BLTAPT(a5)	; BLTAPT  ; point to picture source
-	move.l	a0,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
-	move.w	#64*2+4,BLTSIZE(a5)	; BLTSIZE: rectangle size
-	
-	move.l	a0, a1
-	addi.l	#ScrBpl*2, a1
-	
-	BLTWAIT	bltw2
-		
-	move.w	#$ffff,BLTAFWM(a5)		; BLTAFWM 
-	move.w	#$ffff,BLTALWM(a5)		; BLTALWM 
-	move.w	#$09f0,BLTCON0(a5)		; BLTCON0 ; A-D
-	move.w	#$0000,BLTCON1(a5)		; BLTCON1
-	move.w	#40-(4*2),BLTAMOD(a5)		; BLTAMOD 
-	move.w	#40-(4*2),BLTDMOD(a5)	; BLTDMOD 
-	move.l	a0,BLTAPT(a5)	; BLTAPT  ; point to picture source
-	move.l	a1,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
-	move.w	#64*(BAR_HEIGHT-1)+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
 	
 	moveq	#4-1, d7
 	
@@ -215,6 +186,35 @@ min_value:
 	addi.w	#2, a1
 	
 	dbra	d7, check_channels_level
+
+	lea	SCREEN+SCREEN_OFFSET,a0
+	
+	BLTWAIT	bltw1
+		
+	move.w	#$ffff,BLTAFWM(a5)		; BLTAFWM 
+	move.w	#$ffff,BLTALWM(a5)		; BLTALWM 
+	move.w	#$09f0,BLTCON0(a5)		; BLTCON0 ; A-D
+	move.w	#$0000,BLTCON1(a5)		; BLTCON1
+	move.w	#0,BLTAMOD(a5)		; BLTAMOD 
+	move.w	#40-(4*2),BLTDMOD(a5)	; BLTDMOD 
+	move.l	#BAR,BLTAPT(a5)	; BLTAPT  ; point to picture source
+	move.l	a0,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
+	move.w	#64*2+4,BLTSIZE(a5)	; BLTSIZE: rectangle size
+	
+	move.l	a0, a1
+	addi.l	#ScrBpl*2, a1
+	
+	BLTWAIT	bltw2
+		
+	move.w	#$ffff,BLTAFWM(a5)		; BLTAFWM 
+	move.w	#$ffff,BLTALWM(a5)		; BLTALWM 
+	move.w	#$09f0,BLTCON0(a5)		; BLTCON0 ; A-D
+	move.w	#$0000,BLTCON1(a5)		; BLTCON1
+	move.w	#40-(4*2),BLTAMOD(a5)		; BLTAMOD 
+	move.w	#40-(4*2),BLTDMOD(a5)	; BLTDMOD 
+	move.l	a0,BLTAPT(a5)	; BLTAPT  ; point to picture source
+	move.l	a1,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
+	move.w	#64*(BAR_HEIGHT-1)+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
 	
 	moveq	#4-1, d7
 	lea	chan_level, a0
@@ -326,7 +326,7 @@ BAR:
 
 MT_DATA:
 	incdir  "dh1:own/demo/repository/resources/mod/"
-	incbin  "mod.broken"
+	incbin  "mod.broken.old"
 
 	
 *****************************************************************************

@@ -49,7 +49,7 @@ INTENASET=     %1010000000000000
 *****************************************************************************
 	incdir	"dh1:own/demo/repository/startup/borchen/"
 	include	"startup.s"	; 
-	incdir	"dh1:own/demo/repository/shared/"	
+	incdir	"dh1:own/demo/repository/demo/2/"	
 	include "hardware/custom.i"
 *****************************************************************************
 
@@ -66,12 +66,6 @@ bpls = 3
 
 ;wbl = $2c (for copper monitor only)
 wbl = 303
-
-FONTSET_WIDTH   = 320   ; pixel
-FONTSET_HEIGHT  = 192    ; pixel
-
-FONT_WIDTH  = 32 ; pixel
-FONT_HEIGHT = 32 ; pixel
 
 SCREEN_VOFFSET = 180*ScrBpl
 
@@ -139,8 +133,9 @@ POINTBP:
    	move.w  #0,$dff088      ; COPJMP1 activate copperlist
 
 	lea	$dff000,a5
-	lea	TEXT(PC), a0
-
+	
+	bsr.s	display_logo
+	
 Main:
 	WAITVB  Main
 	
@@ -153,20 +148,65 @@ Wait    WAITVB2 Wait
 
 	rts		; exit
 
+	
+*****************************************************************************
+* Display logo
+* 
+* 
+*
+*****************************************************************************
+
+LOGO_WIDTH = 128
+LOGO_HEIGHT = 80
+
+
+display_logo:
+	
+	
+	moveq	#bpls-1, d7
+	
+	lea	LOGO, a0
+	lea	SCREEN, a1
+	
+blit_logo:
+
+	BLTWAIT BWT4
+
+	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
+	move.w	#$0000,BLTCON1(a5)	; BLTCON1					
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+	move.l	a0,BLTAPT(a5)	; BLTAPT - source
+	move.l	a1,BLTDPT(a5)	; BLTDPT - dest
+
+	move.l	#$0000001C,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
+	move.w	#(LOGO_HEIGHT*64)+LOGO_WIDTH/16,BLTSIZE(a5)	; BLTSIZE
+	
+	lea	LOGO_HEIGHT*LOGO_WIDTH/8(a0),a0	
+	lea	ScrBpl*h(a1),a1
+	
+	dbra	d7, blit_logo
+	
+	rts
+	
 
 *****************************************************************************
 * Print char over the right screen margin
-* <INPUT>
-* A0 = TEXT
+* 
+* 
 *
 *****************************************************************************
+
+FONTSET_WIDTH   = 320   ; pixel
+FONTSET_HEIGHT  = 192    ; pixel
+
+FONT_WIDTH  = 32 ; pixel
+FONT_HEIGHT = 32 ; pixel
 
 SCROLL_COUNT = 32	; (FONT_WIDTH / pixel shift)
 counter:	dc.w	SCROLL_COUNT	;
 
 	
 print_char:
-	
 	subq.w	#1,counter	; decrease counter 
 	bne.s	no_print	; if counter != 0 do nothing
 	move.w	#SCROLL_COUNT,counter	; if counter = 0 reset counter
@@ -191,7 +231,7 @@ noreset:
 	move.l	d1,BLTAFWM(a5)	 	; BLTALWM, BLTAFWM
 	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1 - copia normale
 	move.l	#$00240028,BLTAMOD(a5)	; BLTAMOD = 36, BLTDMOD = 40
-
+					; 320/8-4, 44-4
 	lea	SCREEN+SCREEN_VOFFSET+40,a1	; Destination
 
 	moveq	#bpls-1,d7		; bitplanes
@@ -199,13 +239,13 @@ CopyCharL:
 
 	BLTWAIT BWT2
 
-	move.l	a2,BLTAPT(a5)		; BLTAPT (carattere in font)
+	move.l	a2,BLTAPT(a5)		; BLTAPT (fontset)
 	move.l	a1,BLTDPT(a5)		; BLTDPT (bitplane)
 	move.w	#FONT_HEIGHT*64+(FONT_WIDTH/16),BLTSIZE(a5)	; BLTSIZE
 	
-	;add.w	#ScrBpl*h,a1
+	;addi.w	#ScrBpl*h,a1
 	lea	ScrBpl*h(a1),a1
-	;add.w	#44*32,a1			; NEXT BITPLANE SCREEN
+	;addi.w	#44*32,a1			; NEXT BITPLANE SCREEN
 	lea	40*FONTSET_HEIGHT(a2),a2	; NEXT BITPLANE FONTSET
 
 	dbra	d7,copycharL
@@ -329,70 +369,77 @@ BPLPOINTERS:
 	dc.w $e8,$0000,$ea,$0000	; bitplane 3
 
 TEXT_COLOR:
-	dc.w $0180,$0000
-	dc.w $0182,$08ab
-	dc.w $0184,$0acd
-	dc.w $0186,$0cef
-	dc.w $0188,$0689
-	dc.w $018a,$0467
-	dc.w $018c,$0245
-	dc.w $018e,$0134
 
-;	dc.w $0180,$0000
-;	dc.w $0182,$07ea
-;	dc.w $0184,$0051
-;	dc.w $0186,$00f6
-;	dc.w $0188,$00a3
-;	dc.w $018a,$04f9
-;	dc.w $018c,$0ff0
-;	dc.w $018e,$0830
-
+	dc.w	$2c07,$fffe
+        
+	dc.w	$0180,$0000
+	dc.w	$0182,$00af
+	dc.w	$0184,$0148
+	dc.w	$0186,$0567
+	dc.w	$0188,$007e
+	dc.w	$018a,$0aaa
+	dc.w	$018c,$0eee
+	dc.w	$018e,$068a	
+	
+	dc.w	$d307,$fffe
+	dc.w	$0180,$000f
+	dc.w	$d407,$fffe
+	
+	dc.w	$0180,$0000
+	dc.w	$0182,$08ab
+	dc.w	$0184,$0acd
+	dc.w	$0186,$0cef
+	dc.w	$0188,$0689
+	dc.w	$018a,$0467
+	dc.w	$018c,$0245
+	dc.w	$018e,$0134
+	
 	dc.w	$ffdf,$fffe
-
+	
 	dc.w	$0207,$fffe
 	dc.w	$180,$004
-
+        
 	dc.w	$184,$023	; dark color
 	dc.w	$186,$118
 	dc.w	$188,$25b
 	dc.w	$18a,$38e
 	dc.w	$18c,$acf
-
+        
 	dc.w	$182,$550	
 	dc.w	$18e,$155	
 	dc.w	$108,-84
 	dc.w	$10A,-84
-
+        
 	dc.w	$0707,$fffe
 	dc.w	$108,-172
 	dc.w	$10A,-172
 	dc.w	$180,$005
-
+        
 	dc.w	$0a07,$fffe
 	dc.w	$108,-84
 	dc.w	$10A,-84
 	dc.w	$180,$006
-
+        
 	dc.w	$0c07,$fffe
 	dc.w	$108,-172
 	dc.w	$10A,-172
 	dc.w	$180,$007
-
+        
 	dc.w	$0f07,$fffe
 	dc.w	$108,-84
 	dc.w	$10A,-84
 	dc.w	$180,$008
-
+        
 	dc.w	$1207,$fffe
 	dc.w	$108,-172
 	dc.w	$10A,-172
 	dc.w	$180,$009
-
+        
 	dc.w	$1407,$fffe
 	dc.w	$108,-84
 	dc.w	$10A,-84
 	dc.w	$180,$00A
-
+        
 	dc.w	$1607,$fffe
 	
 	
@@ -402,10 +449,20 @@ TEXT_COLOR:
 *****************************************************************************
 
 	SECTION	Data,DATA_C
-	
+
+LOGO:
+	incdir	"dh1:own/demo/repository/resources/images/"
+	incbin	"logo_SM_128_80_3.raw"
+
+
 FONT:
 	incdir  "dh1:own/demo/repository/resources/fonts/"
 	incbin  "32x32-FL.raw"
+
+MT_DATA:
+	incdir	"dh1:own/demo/repository/resources/mod/"	
+	incbin	"mod.broken"
+	
 	
 *****************************************************************************
 
