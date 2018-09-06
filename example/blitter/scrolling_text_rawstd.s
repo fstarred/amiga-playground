@@ -13,8 +13,8 @@
 	SECTION Code,CODE
 
 
-DMASET  = %1000001111110000
-;     %-----axbcdefghij
+DMASET  = %1000001111000000
+;     	  %-----axbcdefghij
 ;   a: Blitter Nasty
 ;   x: Enable DMA
 ;   b: Bitplane DMA (if this isn't set, sprites disappear!)

@@ -300,7 +300,7 @@ BAR:
 
 MT_DATA:
 	incdir  "dh1:own/demo/repository/resources/mod/"
-	incbin  "mod.broken.old"
+	incbin  "mod.broken"
 
 	
 *****************************************************************************

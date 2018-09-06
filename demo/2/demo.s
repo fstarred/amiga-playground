@@ -406,6 +406,10 @@ TEXT_COLOR:
 FONT:
 	incdir  "dh1:own/demo/repository/resources/fonts/"
 	incbin  "32x32-FL.raw"
+
+MT_DATA:
+;	incdir	"dh1:own/demo/repository/resources/mod/"	
+;	incbin	"mod.broken"
 	
 *****************************************************************************
 

@@ -781,12 +781,9 @@ BAR:
 	dc.w	%0000000000000000, %0000000000000000, %0000000000000000, %0000000000000000
 	dc.w	%1010101000000000, %1010101000000000, %1010101000000000, %1010101000000000
 
-*****************************************************************************
-	SECTION Music,DATA_C
-	
 MT_DATA:
 	incdir  "dh1:own/demo/repository/resources/mod/"
-	incbin  "mod.broken.mod"
+	incbin  "mod.broken_ext"
     
 	SECTION	Screen,BSS_C	
 
