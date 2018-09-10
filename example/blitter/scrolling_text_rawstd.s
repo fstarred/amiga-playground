@@ -256,7 +256,7 @@ scroll_loop:
 	move.l	#$00000000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
 	move.w	#(FONT_HEIGHT*64)+22,BLTSIZE(a5)	; BLTSIZE
 
-	add.w	#ScrBpl*h,d0
+	add.l	#ScrBpl*h,d0
 
 	dbra	d7, scroll_loop
 

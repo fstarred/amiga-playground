@@ -1,9 +1,9 @@
 *****************************************************************************
 *									    *
-*    									    *
+*    This is scrolling text example					    *
 *									    *
-*    				 					    *
-*    									    *
+*    Notice the screen modulo with + 2 					    *
+*    so we can print the char onto not visible screen area (byte 40)	    *
 *    									    *
 *    									    *
 *    									    *
@@ -13,7 +13,7 @@
 	SECTION Code,CODE
 
 
-DMASET  = %1000001111110000
+DMASET  = %1000001111000000
 ;     	  %-----axbcdefghij
 ;   a: Blitter Nasty
 ;   x: Enable DMA
@@ -49,7 +49,7 @@ INTENASET=     %1010000000000000
 *****************************************************************************
 	incdir	"dh1:own/demo/repository/startup/borchen/"
 	include	"startup.s"	; 
-	incdir	"dh1:own/demo/repository/shared/"	
+	incdir	"dh1:own/demo/repository/example/blitter/"	
 	include "hardware/custom.i"
 *****************************************************************************
 
@@ -59,35 +59,41 @@ INTENASET=     %1010000000000000
 w	=320
 h	=256
 bplsize	=w*h/8
-ScrBpl	=w/8+4	; standard screen width + 4 bytes
+ScrBpl	=w/8+2	; standard screen width + 2 bytes
 		; where we'll place the char data
 
-bpls = 3
+bpls = 2
 
 ;wbl = $2c (for copper monitor only)
 wbl = 303
 
-SCREEN_VOFFSET = 180*ScrBpl
+FONTSET_WIDTH   = 944   ; pixel
+FONTSET_HEIGHT  = 16    ; pixel
+
+FONT_WIDTH  = 16 ; pixel
+FONT_HEIGHT = 16 ; pixel
+
+SCREEN_VOFFSET = (h/2-(FONT_HEIGHT/2))*ScrBpl*bpls
 
 
 WAITVB MACRO
    	move.l  $dff004,d0      ; wait
- 	and.l   #$0001ff00,d0       ; for
+ 	and.l   #$0001ff00,d0   ; for
    	cmp.l   #wbl<<8,d0      ; rasterline 303
 	bne.s   \1
 	ENDM
 
 WAITVB2 MACRO
 	move.l  $dff004,d0      ; wait
- 	and.l   #$0001ff00,d0   ; for
+ 	and.l   #$0001ff00,d0    for
 	cmp.l   #wbl<<8,d0      ; rasterline 303
 	beq.s   \1
 	ENDM
 
 BLTWAIT	MACRO
-	tst $dff002			;for compatibility
+	tst DMACONR(a6)			;for compatibility
 \1
-	btst #6,$dff002
+	btst #6,DMACONR(a6)
 	bne.s \1
 	ENDM
 
@@ -97,9 +103,8 @@ LMOUSE	MACRO
 	ENDM
 
 RMOUSE	MACRO
-\1
 	btst	#2,$dff016	; check L MOUSE btn
-	bne.s	\1
+	beq.s	\1
 	ENDM
 
 START:
@@ -112,7 +117,7 @@ POINTBP:
    	move.w  d0,2(a1)    ; copy the high word of pic address to plane
     	swap    d0          ; swap the the two words
 
-	add.l   #ScrBpl*h,d0      ; BITPLANE point to next byte line data
+	add.l   #ScrBpl,d0      ; BITPLANE point to next byte line data
                         ; instead of the standard raw
                         ; where bitplane is immediately
                         ; after the previous bitplane
@@ -133,80 +138,40 @@ POINTBP:
    	move.w  #0,$dff088      ; COPJMP1 activate copperlist
 
 	lea	$dff000,a5
-	
-	bsr.s	display_logo
-	
+	lea	TEXT(PC), a0
+
 Main:
 	WAITVB  Main
 	
 	bsr.s	print_char
 	bsr.w	scroll_text
+	bsr.w	copy_to_screen
+	bsr.w	clear_area
+	bsr.w	make_sine
 
 Wait    WAITVB2 Wait
+
+WaitRm:
+	RMOUSE WaitRm
 	
 	LMOUSE Main
 
 	rts		; exit
 
-	
-*****************************************************************************
-* Display logo
-* 
-* 
-*
-*****************************************************************************
-
-LOGO_WIDTH = 128
-LOGO_HEIGHT = 80
-
-
-display_logo:
-	
-	
-	moveq	#bpls-1, d7
-	
-	lea	LOGO, a0
-	lea	SCREEN, a1
-	
-blit_logo:
-
-	BLTWAIT BWT4
-
-	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
-	move.w	#$0000,BLTCON1(a5)	; BLTCON1					
-	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
-	move.l	a0,BLTAPT(a5)	; BLTAPT - source
-	move.l	a1,BLTDPT(a5)	; BLTDPT - dest
-
-	move.l	#$0000001C,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
-	move.w	#(LOGO_HEIGHT*64)+LOGO_WIDTH/16,BLTSIZE(a5)	; BLTSIZE
-	
-	lea	LOGO_HEIGHT*LOGO_WIDTH/8(a0),a0	
-	lea	ScrBpl*h(a1),a1
-	
-	dbra	d7, blit_logo
-	
-	rts
-	
 
 *****************************************************************************
 * Print char over the right screen margin
-* 
-* 
+* <INPUT>
+* A0 = TEXT
 *
 *****************************************************************************
 
-FONTSET_WIDTH   = 320   ; pixel
-FONTSET_HEIGHT  = 192    ; pixel
-
-FONT_WIDTH  = 32 ; pixel
-FONT_HEIGHT = 32 ; pixel
-
-SCROLL_COUNT = 32	; (FONT_WIDTH / pixel shift)
+SCROLL_COUNT = 16	; (FONT_WIDTH / pixel shift)
 counter:	dc.w	SCROLL_COUNT	;
 
 	
 print_char:
+	
 	subq.w	#1,counter	; decrease counter 
 	bne.s	no_print	; if counter != 0 do nothing
 	move.w	#SCROLL_COUNT,counter	; if counter = 0 reset counter
@@ -215,46 +180,31 @@ print_char:
 	move.b	(a0)+,d2	; go next char 
 	bne.s	noreset		; if D2 != 0 print char
 	lea	TEXT(PC),a0	; if D2 == 0 restart TEXT
-	move.b	(a0)+,d2	; go next char 
-	
-noreset:		
-	subi.b	#$20,d2		; retrieve font position
-	lsl.w	#2,d2		; in charset by multipling
-				; 4 bytes (font is 32 pixel)
-				
-	lea	FONT_ADDRESS_LIST(PC),a2
-	move.l	0(a2,d2.w),a2		
-	
-	;BLTWAIT BWT1
-	
-	moveq	#-1,d1
-	move.l	d1,BLTAFWM(a5)	 	; BLTALWM, BLTAFWM
-	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1 - copia normale
-	move.l	#$00240028,BLTAMOD(a5)	; BLTAMOD = 36, BLTDMOD = 40
-					; 320/8-4, 44-4
-	lea	SCREEN+SCREEN_VOFFSET+40,a1	; Destination
+	move.b	(a0)+,d2	; first char in D2
+noreset
+	sub.b	#$20,d2		; subtract 32 to ASCII value
+	add.l	d2,d2		; multiply by 2 because font
+				; is 16 pixel width
+	move.l	d2,a2
 
-	moveq	#bpls-1,d7		; bitplanes
-CopyCharL:
+	add.l	#FONT,a2	; get FONT...
 
-	BLTWAIT BWT2
+	BLTWAIT BWT1
 
-	move.l	a2,BLTAPT(a5)		; BLTAPT (fontset)
-	move.l	a1,BLTDPT(a5)		; BLTDPT (bitplane)
-	move.w	#FONT_HEIGHT*64+(FONT_WIDTH/16),BLTSIZE(a5)	; BLTSIZE
-	
-	;addi.w	#ScrBpl*h,a1
-	lea	ScrBpl*h(a1),a1
-	;addi.w	#44*32,a1			; NEXT BITPLANE SCREEN
-	lea	40*FONTSET_HEIGHT(a2),a2	; NEXT BITPLANE FONTSET
+	move.l	#$09f00000,BLTCON0(a5)	; BLTCON0: A-D
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM + BLTALWM 
 
-	dbra	d7,copycharL
+	move.l	a2,BLTAPT(a5)	; BLTAPT: font address
 
+	move.l	#BUFFER+40,BLTDPT(a5) 
+			; print to not visible screen area
+	move.w	#(FONTSET_WIDTH-FONT_WIDTH)/8,BLTAMOD(a5) ; BLTAMOD: modulo font
+	move.w	#ScrBpl-FONT_WIDTH/8,BLTDMOD(a5)	  ; BLTDMOD: modulo bit planes
+	move.w	#(bpls*FONTSET_HEIGHT*64)+FONT_WIDTH/16,BLTSIZE(a5) 	; BLTSIZE	
 no_print:
 	rts
 
 *****************************************************************************
-*	
 *	Scroll text routine
 * 
 *	Use BLITTER in DESC mode
@@ -271,22 +221,19 @@ scroll_text:
 ; therefore blitter starts copying
 ; from right word and ends to left word
 
-	move.l	#SCREEN+SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl)-6,d0 ; source and dest address
+	move.l	#BUFFER+(FONT_HEIGHT*42*bpls)-2,d0 ; source and dest address
 
-	moveq	#bpls-1,d7
-
-scroll_loop:
-
-	BLTWAIT BWT3
+	BLTWAIT BWT2
 
 	move.w	#$19f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
 					; 1 pixel shift, LF = F0
 	move.w	#$0002,BLTCON1(a5)	; BLTCON1 use blitter DESC mode
 					
 
-	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+	move.l	#$ffff7fff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
 					; BLTAFWM = $ffff - 
-					; BLTALWM = $ffff 
+					; BLTALWM = $7fff = %0111111111111111
+					; mask the left bit
 
 
 	move.l	d0,BLTAPT(a5)			; BLTAPT - source
@@ -295,50 +242,102 @@ scroll_loop:
 	; scroll an image of the full screen width * FONT_HEIGHT
 
 	move.l	#$00000000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
-	move.w	#(FONT_HEIGHT*64)+22,BLTSIZE(a5)	; BLTSIZE
-
-	add.w	#ScrBpl*h,d0
-
-	dbra	d7, scroll_loop
-
+	move.w	#(FONT_HEIGHT*bpls*64)+21,BLTSIZE(a5)	; BLTSIZE
 	rts					
+
+
+copy_to_screen:
 	
+	BLTWAIT BWT3
+
+	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
+					; 1 pixel shift, LF = F0
+	move.w	#$0000,BLTCON1(a5)	; BLTCON1 use blitter ASC mode
+					
+
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+					; BLTAFWM = $ffff  
+					; BLTALWM = $ffff 
+					
+
+	move.l	#BUFFER,BLTAPT(a5)			; BLTAPT - source
+	move.l	#SCREEN+SCREEN_VOFFSET,BLTDPT(a5)	; BLTDPT - dest
+
+	; scroll an image of the full screen width * FONT_HEIGHT
+
+	move.l	#$00000000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
+	move.w	#(FONT_HEIGHT*bpls*64)+21,BLTSIZE(a5)	; BLTSIZE
+	rts			
+
+SINE_AREA_HOFFSET = 26
+SINE_AREA_LENGTH = 4
 	
+clear_area:
+
+	BLTWAIT BWT4
+
+	move.w	#$0100,BLTCON0(a5)	; BLTCON0 delete (only D)
+	move.w	#$0000,BLTCON1(a5)	; BLTCON1 use blitter ASC mode
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+	move.l	#0,BLTAPT(a5)		; BLTAPT - source
+	move.l	#SCREEN+SCREEN_VOFFSET+SINE_AREA_HOFFSET,BLTDPT(a5)	; BLTDPT - dest
+	move.l	#0, BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
+	move.l	#ScrBpl-(SINE_AREA_LENGTH*2),BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
+	move.w	#(FONT_HEIGHT*(SINE_AREA_LENGTH/2+1)*bpls*64)+SINE_AREA_LENGTH,BLTSIZE(a5)	; BLTSIZE
+	
+	rts
+	
+make_sine:
+	lea	BUFFER+SINE_AREA_HOFFSET, a1		
+	lea	SCREEN+SCREEN_VOFFSET+SINE_AREA_HOFFSET, a2
+	
+	moveq	#0,d0
+	moveq	#(ScrBpl*bpls), d1	; delta for y offset
+	move.w	#$C000,d5	; first portion of mask (%11000000)
+	
+	moveq	#SINE_AREA_LENGTH-1, d6		; do it for 2 words
+word_loop:
+	moveq	#8-1,d7		; 2 pixel routine, 16 byte / 2 = 8
+	cmpi.b	#SINE_AREA_LENGTH/2-1, d6
+	bne.s	slice_loop
+	neg.w	d1
+slice_loop:
+	add.w	d1, d0
+	move.l	a2, a3			
+	add.w	d0, a3
+	
+	BLTWAIT BWT5
+
+	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
+	move.w	d5, BLTALWM(a5)		; BLTALWM 
+
+	move.l	#$0bfa0000, BLTCON0(a5)	; BLTCON0/BLTCON1 - A,C,D
+					; D=A OR C
+
+	move.w	#$0028, BLTCMOD(a5)	; BLTCMOD=42-2=$28
+	move.l	#$00280028, BLTAMOD(a5)	; BLTAMOD=42-2=$28
+					; BLTDMOD=42-2=$28
+
+	move.l	a1, BLTAPT(a5)		; BLTAPT  
+	move.l	a3, BLTCPT(a5)		; BLTCPT
+	move.l	a3, BLTDPT(a5)		; BLTDPT
+	move.w	#(FONT_HEIGHT*bpls*64)+1, BLTSIZE(a5)	; BLTSIZE
+
+	ror.w	#2, d5			; right shift mask of 2 pixel
+
+	dbra	d7, slice_loop
+
+	addq.w	#2, a1			; point to next word
+	addq.w	#2, a2			; point to next word
+	
+	dbra	d6, word_loop
+	
+	rts
+		
 TEXT:
 	dc.b	"THIS IS A SCROLLING TEXT EXAMPLE..."
 	dc.b	"HOPE YOU LIKE IT !!!    "
 	EVEN
-
-	
-
-FONT_ADDRESS_LIST:
-	dc.l FONT	
-	dc.l FONT+4	
-	dc.l FONT+8
-	dc.l FONT+12,FONT+16,FONT+20,FONT+24,FONT+28,FONT+32,FONT+36
-
-	; 2nd COLUMN (40 bytes*32)
-	dc.l FONT+1280		
-	dc.l FONT+1284
-	dc.l FONT+1288
-	dc.l FONT+1292
-	dc.l FONT+1296,FONT+1300,FONT+1304,FONT+1308,FONT+1312,FONT+1316
-
-	; 3rd COLUMN (40 bytes*32*2)
-	dc.l FONT+2560,FONT+2564,FONT+2568,FONT+2572,FONT+2576,FONT+2580
-	dc.l FONT+2584,FONT+2588,FONT+2592,FONT+2596
-
-	; 4th COLUMN (40 bytes*32*3)
-	dc.l FONT+3840,FONT+3844,FONT+3848,FONT+3852,FONT+3856,FONT+3860
-	dc.l FONT+3864,FONT+3868,FONT+3872,FONT+3876
-
-	; 5th COLUMN (40 bytes*32*4)
-	dc.l FONT+5120,FONT+5124,FONT+5128,FONT+5132,FONT+5136,FONT+5140
-	dc.l FONT+5144,FONT+5148,FONT+5152,FONT+5156
-	
-	; 6th COLUMN (40 bytes*32*5)
-	dc.l FONT+6400,FONT+6404,FONT+6408,FONT+6412,FONT+6416,FONT+6420
-	dc.l FONT+6424,FONT+6428,FONT+6432,FONT+6436
 
 	
 ;*****************************************************************************
@@ -358,121 +357,43 @@ SPRITEPOINTERS:
 	dc.w	$94,$d0		; DdfStop
 	dc.w	$102,0		; BplCon1
 	dc.w	$104,0		; BplCon2
-	dc.w	$108,+4 ; Bpl1Mod  +4
-	dc.w	$10a,+4 ; Bpl2Mod  +4
+	dc.w	$108,(ScrBpl*(bpls-1))+2 ; Bpl1Mod  INTERLEAVED MODE+2!
+	dc.w	$10a,(ScrBpl*(bpls-1))+2 ; Bpl2Mod  INTERLEAVED MODE+2!
 
 	dc.w	$100,bpls*$1000+$200	; bplcon0 - bitplane lowres
 
 BPLPOINTERS:
-	dc.w $e0,$0000,$e2,$0000	; bitplane 1
-	dc.w $e4,$0000,$e6,$0000	; bitplane 2
-	dc.w $e8,$0000,$ea,$0000	; bitplane 3
+	dc.w $e0,$0000,$e2,$0000	;first bitplane
+	dc.w $e4,$0000,$e6,$0000	;second bitplane
+	
 
-TEXT_COLOR:
 
-	dc.w	$2c07,$fffe
-        
-	dc.w	$0180,$0000
-	dc.w	$0182,$00af
-	dc.w	$0184,$0148
-	dc.w	$0186,$0567
-	dc.w	$0188,$007e
-	dc.w	$018a,$0aaa
-	dc.w	$018c,$0eee
-	dc.w	$018e,$068a	
-	
-	dc.w	$d307,$fffe
-	dc.w	$0180,$000f
-	dc.w	$d407,$fffe
-	
-	dc.w	$0180,$0000
-	dc.w	$0182,$08ab
-	dc.w	$0184,$0acd
-	dc.w	$0186,$0cef
-	dc.w	$0188,$0689
-	dc.w	$018a,$0467
-	dc.w	$018c,$0245
-	dc.w	$018e,$0134
-	
-	dc.w	$ffdf,$fffe
-	
-	dc.w	$0207,$fffe
-	dc.w	$180,$004
-        
-	dc.w	$184,$023	; dark color
-	dc.w	$186,$118
-	dc.w	$188,$25b
-	dc.w	$18a,$38e
-	dc.w	$18c,$acf
-        
-	dc.w	$182,$550	
-	dc.w	$18e,$155	
-	dc.w	$108,-84
-	dc.w	$10A,-84
-        
-	dc.w	$0707,$fffe
-	dc.w	$108,-172
-	dc.w	$10A,-172
-	dc.w	$180,$005
-        
-	dc.w	$0a07,$fffe
-	dc.w	$108,-84
-	dc.w	$10A,-84
-	dc.w	$180,$006
-        
-	dc.w	$0c07,$fffe
-	dc.w	$108,-172
-	dc.w	$10A,-172
-	dc.w	$180,$007
-        
-	dc.w	$0f07,$fffe
-	dc.w	$108,-84
-	dc.w	$10A,-84
-	dc.w	$180,$008
-        
-	dc.w	$1207,$fffe
-	dc.w	$108,-172
-	dc.w	$10A,-172
-	dc.w	$180,$009
-        
-	dc.w	$1407,$fffe
-	dc.w	$108,-84
-	dc.w	$10A,-84
-	dc.w	$180,$00A
-        
-	dc.w	$1607,$fffe
-	
-	
+	dc.w	$0180,$0000	; color0
+	dc.w	$0182,$08f6	; color1
+	dc.w	$0184,$04b2	; color2
+	dc.w	$0186,$0270	; color3
 	
 	dc.w $FFFF,$FFFE	; End of copperlist
 
 *****************************************************************************
 
 	SECTION	Data,DATA_C
-
-LOGO:
-	incdir	"dh1:own/demo/repository/resources/images/"
-	incbin	"logo_SM_128_80_3.raw"
-
-
+	
 FONT:
 	incdir  "dh1:own/demo/repository/resources/fonts/"
-	incbin  "32x32-FL.raw"
-
-MT_DATA:
-	incdir	"dh1:own/demo/repository/resources/mod/"	
-	incbin	"mod.broken"
-	
+	incbin  "16X16-F2_944_16_2.blt.raw"
 	
 *****************************************************************************
 
 	SECTION	Screen,BSS_C	
 
 SCREEN:
-	ds.b	ScrBpl*h*bpls		; 3 bitplane
+	ds.b	ScrBpl*h*bpls		; 2 bitplane
+
+BUFFER:
+	ds.b	ScrBpl*bpls*FONT_HEIGHT
 
 	end
-
 	
 ; STANDARD RAW BITPLANE (raw)
 ; line 0 BITPLANE 1
