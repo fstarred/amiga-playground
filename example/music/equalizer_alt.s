@@ -7,12 +7,12 @@
 	incdir	"dh1:own/demo/repository/shared/"	
 	include "hardware/custom.i"
 	incdir  "dh1:own/demo/repository/replay/"
-	include "PT2.3a_replay_cia.s"   
+	include	"PT3.0b_replay_cia.s"
 *****************************************************************************
 
 
 
-DMASET  = %1000001111010000
+DMASET  = %1000001111000000
 ;     	  %-----axbcdefghij
 ;   a: Blitter Nasty
 ;   x: Enable DMA
@@ -119,9 +119,7 @@ POINTBP:
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
    	move.w  #0,$dff088      ; COPJMP1 activate copperlist
 	
-	bsr.w   SetCIAInt
-	bsr mt_init
-	st  mt_Enable
+	bsr.w   pt_init
 	
 	lea	$dff000,a5
 
@@ -132,6 +130,7 @@ Main:
 ;	***** COPPER MONITOR
 ;	move.w  #$F00, $dff180
 	
+	bsr.w   pt_play
 	bsr.w	start_equalizer
 	
 ;  	**** COPPER MONITOR
@@ -143,15 +142,13 @@ Wait	WAITVB2	Wait
 	RMOUSE WaitRM
 	
 	LMOUSE	Main
-
 	
-	BSR mt_end
-	BSR ResetCIAInt
+	BSR pt_end
 
 	rts
 	
 BAR_HEIGHT = 64
-DECREASE_SPEED = 2
+DECREASE_SPEED = 1
 H_DESC_OFFSET = 20
 V_OFFSET = 80*ScrBpl
 
@@ -178,25 +175,28 @@ init_bar:
 start_equalizer:
 	
 	moveq	#4-1, d7	; init loop	
-	moveq	#0, d2		; pointer incremental for channel_address
+	moveq	#0, d2		; channel_address index (0-3)
+	moveq	#0, d3		; reset channel volume
 
 	lea	chan_level(PC), a1		
 check_channel_level:	
 	lea	channel_address(PC), a0	
-	
-	move.l	(a0,d2.w),a0	; channel temp address to a0
-	move.l	(a0), d0	; channel temp value to d0
+	move.l	(a0,d2.w), a0	; channel temp address to a0
+	move.l	(a0), d0	; channel temp touch to d0
+	move.b	19(a0), d3	; channel temp value to d3
 		
-	move.w	(a1),d1         ; channel level value to d1
+	move.w	(a1), d1        ; channel level value to d1
 	
-	tst.w	d0	; test current mt_channel
-	beq.s	no_sound
-	move.w	#BAR_HEIGHT-DECREASE_SPEED, d1	
+	tst.w	d0		; test if mt_channel is touched
+	beq.s	no_sound	
+	move.w	d3, d1		; update channel level value
+	;move.w	#BAR_HEIGHT-DECREASE_SPEED, d1
 no_sound:	
-	tst.w	d1	; test channel level
+	tst.w	d1		; test channel level
 	beq.s	min_value	; no channel level subtract
 	sub.w	#DECREASE_SPEED, d1		; subtract channel level
 	move.w	d1, (a1)	; write new value to channel level
+
 min_value:	
 	addq	#4, d2	; add to incremental pointer
 	addi.w	#2, a1	; point to next	chan_level
@@ -220,7 +220,7 @@ clear_equalizer:
 	move.w	#40-(4*2),BLTDMOD(a5)	; BLTDMOD 
 	move.l	#0,BLTAPT(a5)	; BLTAPT  ; point to BAR source
 	move.l	a0,BLTDPT(a5)		; BLTDPT  ; point to SCREEN destination
-	move.w	#64*62+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
+	move.w	#64*64+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
 	
 	lea	chan_level, a0	
 	lea	SCREEN+SCREEN_OFFSET-6, a1
@@ -243,7 +243,7 @@ draw_equalizer:
 	move.w	#$ffff,BLTALWM(a5)	; BLTALWM 
 	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 ; D
 	move.w	#$0002,BLTCON1(a5)	; BLTCON1
-	move.w	#40-2,BLTAMOD(a5)		; BLTAMOD 
+	move.w	#40-2,BLTAMOD(a5)	; BLTAMOD 
 	move.w	#40-2,BLTDMOD(a5)	; BLTDMOD 
 	move.l	a1,BLTAPT(a5)	; BLTAPT  ; point to picture source
 	move.l	a2,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
@@ -258,10 +258,10 @@ draw_equalizer:
 chan_level:	dc.w	0,0,0,0
 
 channel_address:
-	dc.l	mt_chan1temp
-	dc.l	mt_chan2temp
-	dc.l	mt_chan3temp
-	dc.l	mt_chan4temp
+	dc.l	pt_audchan1temp
+	dc.l	pt_audchan2temp
+	dc.l	pt_audchan3temp
+	dc.l	pt_audchan4temp
 		
 	
 ;*****************************************************************************
@@ -283,10 +283,10 @@ COPPERLIST:
 BPLPOINTERS:
 	dc.w $e0,$0000,$e2,$0000	;first SCREEN
 
-	dc.w	$0180,$000	; color0
-	dc.w	$0182,$eee	; color1
+	dc.w	$0180,	$000	; color0
+	dc.w	$0182,	$eee	; color1
 	
-	dc.w	$FFFF,$FFFE	; End of copperlist
+	dc.w	$FFFF,	$FFFE	; End of copperlist
 
 *****************************************************************************
 
@@ -298,7 +298,7 @@ BAR:
 
 	SECTION Music,DATA_C
 
-MT_DATA:
+PT_DATA:
 	incdir  "dh1:own/demo/repository/resources/mod/"
 	incbin  "mod.broken"
 
@@ -308,7 +308,7 @@ MT_DATA:
 	SECTION	Screen,BSS_C	
 
 SCREEN:
-	ds.b	40*256		; SCREEN azzerato lowres
+	ds.b	ScrBpl*h	; SCREEN azzerato lowres
 
 	end
 

@@ -40,21 +40,42 @@ w	=320
 h	=256
 
 bpls = 1
+wbl = 303
 
 	
 ;*****************************************************************************
 	incdir	"dh1:own/demo/repository/startup/borchen/"
 	include	"startup.s"	; 
-
+	incdir  "dh1:own/demo/repository/replay/"
+	include	"PT3.0b_replay_cia.s"
+	
+	
 ;*****************************************************************************
 
-WAITVB	MACRO
-	move.l	$dff004,d0		; wait
-	and.l	#$0001ff00,d0		; for
-	cmp.l	#303<<8,d0		; rasterline 303
+WAITVB MACRO
+   	move.l  $dff004,d0      ; wait
+ 	and.l   #$0001ff00,d0       ; for
+   	cmp.l   #wbl<<8,d0      ; rasterline 303
+	bne.s   \1
+	ENDM
+
+WAITVB2 MACRO
+	move.l  $dff004,d0      ; wait
+ 	and.l   #$0001ff00,d0   ; for
+	cmp.l   #wbl<<8,d0      ; rasterline 303
+	beq.s   \1
+	ENDM
+	
+LMOUSE	MACRO
+	btst	#6,$bfe001	; check L MOUSE btn
 	bne.s	\1
 	ENDM
 
+RMOUSE	MACRO
+\1
+	btst	#2,$dff016	; check L MOUSE btn
+	beq.s	\1
+	ENDM
 	
 Start:	
 
@@ -71,16 +92,15 @@ Main:
 	
 	bsr.w	pt_play
 	
-	btst	#6,$bfe001		; check for left mouse button
-	bne.s	Main			; if not, repeat the above line
+Wait	WAITVB2	Wait
+	
+	RMOUSE WaitRM
+	
+	LMOUSE	Main
 
 	bsr.w	pt_end
 	
 	rts
-
-	incdir  "dh1:own/demo/repository/replay/"
-	include	"PT3.0b_replay_cia.s"	
-	
 	
 ;*****************************************************************************
 
@@ -105,12 +125,11 @@ SPRITEPOINTERS:
 	dc.w	$100,bpls*$1000+$200	; bplcon0 - bitplane lowres
 
 BPLPOINTERS:
-	dc.w $e0,$0000,$e2,$0000	;first bitplane
+	dc.w 	$e0,$0000,$e2,$0000	; bitplane 1
 	
-	dc.w $0180,$0000
-	dc.w $0182,$0000
+	dc.w 	$0180, $0000		
 	
-	dc.w	$FFFF,$FFFE	; End of copperlist
+	dc.w	$FFFF, $FFFE	; End of copperlist
 
 	
 *****************************************************************************

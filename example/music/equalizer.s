@@ -155,37 +155,39 @@ Wait	WAITVB2	Wait
 SCREEN_OFFSET = 80*ScrBpl+14
 
 BAR_HEIGHT = 64
-DECREASE_SPEED = 2
+DECREASE_SPEED = 1
 
 draw_equalizer:
 	
 	
-	moveq	#4-1, d7
-	
-	moveq	#0, d2		; pointer incremental for channel_address
+	moveq	#4-1, d7	; init loop	
+	moveq	#0, d2		; channel_address index (0-3)
+	moveq	#0, d3		; reset channel volume
 
-	lea	chan_level(PC), a1	
-check_channels_level:	
+	lea	chan_level(PC), a1		
+check_channel_level:	
 	lea	channel_address(PC), a0	
-	
-	move.l	(a0,d2.w),a0	; channel temp address to a0
-	move.l	(a0), d0	; channel temp value to d0
+	move.l	(a0,d2.w), a0	; channel temp address to a0
+	move.l	(a0), d0	; channel temp touch to d0
+	move.b	19(a0), d3	; channel temp value to d3
 		
-	move.w	(a1),d1         ; channel level value to d1
+	move.w	(a1), d1        ; channel level value to d1
 	
-	tst.w	d0	; test current mt_channel
-	beq.s	no_sound
-	move.w	#BAR_HEIGHT+DECREASE_SPEED, d1	
+	tst.w	d0		; test if mt_channel is touched
+	beq.s	no_sound	
+	move.w	d3, d1		; update channel level value
+	;move.w	#BAR_HEIGHT-DECREASE_SPEED, d1
 no_sound:	
-	tst.w	d1	; test channel level
+	tst.w	d1		; test channel level
 	beq.s	min_value	; no channel level subtract
 	sub.w	#DECREASE_SPEED, d1		; subtract channel level
 	move.w	d1, (a1)	; write new value to channel level
+
 min_value:	
-	addq	#4, d2
-	addi.w	#2, a1
+	addq	#4, d2	; add to incremental pointer
+	addi.w	#2, a1	; point to next	chan_level
 	
-	dbra	d7, check_channels_level
+	dbra	d7, check_channel_level
 
 	lea	SCREEN+SCREEN_OFFSET,a0
 	
