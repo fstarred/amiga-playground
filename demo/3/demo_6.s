@@ -359,11 +359,11 @@ draw_point:
 	
 	
 x0:	dc.w	0
-x1:	dc.w	2	; pixel between left margin and x1
+x1:	dc.w	200	; pixel between left margin and x1
 x2:	dc.w	0
             
 y0:	dc.w	0
-y1:	dc.w	18	; vertical distance between y1 and x1 in pixel
+y1:	dc.w	4	; vertical distance between y1 and x1 in pixel
             
 w_x0:	dc.w	0	; x0 in word
 w_x1:	dc.w	0	; x1 in word
@@ -376,23 +376,18 @@ w_sine_length:	dc.w	0	; sine length in word
 compute_offset:
 
 	move.w	y1, d0
-	btst	#0, d0
-	beq.s	get_w_x1
-	addq	#1, y1		; if y1 is odd, add 1
 get_w_x1:
 	
 	move.w	x1, d0
-	lsr	#3, d0		
+	lsr	#4, d0		
 	move.w	d0, w_x1	; w_x1
 	
 	move.w	x1, d0
 	sub.w	y1, d0
-	btst	#0, d0
-	beq.s	save_x0
-	subq	#1, d0		; if x0 is odd, subtract by 1
-save_x0:
+	sub.w	y1, d0
+	
 	move.w	d0, x0		; x0
-	tst.w	d0	
+	tst.w	d0
 	bge.s	save_w_x0
 	moveq	#0, d0
 save_w_x0:
@@ -401,6 +396,7 @@ save_w_x0:
 	;; TODO handle case if y1 > x1
 	
 	move.w	x1, d0
+	add.w	y1, d0
 	add.w	y1, d0
 	move.w	d0, x2		; x2
 	move.w	d0, d1
@@ -417,13 +413,13 @@ save_w_x2:
 	bne.s	w_x0_not_negative
 	moveq	#1, d0			; w_sine_length is min 1
 w_x0_not_negative:
-	move.w	d0, d1
+	move.w	d0, d1			; w_x2 - w_x0
 	move.w	d1, d2
 	add.w	w_x0, d1
 	cmpi.w	#20, d1			; check if w_x0 + sine_length 
 	ble.s	set_word_loop_cnt	; goes beyond screen right margin
-	sub.w	#20, d2			; force sine_length = 20 - w_x0
-	add.w	w_x0, d2		; 
+	move.w	#20, d2
+	sub.w	w_x0, d2		; force sine_length to 20 - w_x0
 set_word_loop_cnt:
 	move.w	d2, d0
 	move.w	d0, w_sine_length	; w_sine_length
@@ -491,12 +487,13 @@ make_sine:
 	lea	(a2,d0.w), a2
 	
 	moveq	#0, d0
-	move.w	#ScrBpl*bpls*2, d1	; const delta y
+	move.w	#ScrBpl*bpls, d1	; const delta y
 	move.w	#$C000, d5
 	
 	move.w	x0, d2
 	and.w	#%1111, d2	; modulo 16 of x0
 	
+	lsr	#1, d2
 	move.w	d2, s_x0	; s_x0	
 	add.w	y1, d2
 	move.w	d2, s_x1	; s_x1
@@ -505,19 +502,19 @@ make_sine:
 	
 	moveq	#0, d2		; sine counter
 	
-	move.w	x0, d3
-	tst.w	d3
-	bge.s	init_loop
-	move.w	y1, d3
-	sub.w	x1, d3		; y1 - x1
-	move.w	d3, d2
-	lsr	#1, d3
-	btst	#0, d3
-	move.w	d3, d0
-	beq.s	set_delta_y
-	subq	#1, d0
-set_delta_y:
-	mulu	d1, d0
+;	move.w	x0, d3
+;	tst.w	d3
+;	bge.s	init_loop
+;	move.w	y1, d3
+;	sub.w	x1, d3		; y1 - x1
+;	move.w	d3, d2
+;	lsr	#1, d3
+;	btst	#0, d3
+;	move.w	d3, d0
+;	beq.s	set_delta_y
+;	subq	#1, d0
+;set_delta_y:
+;	mulu	d1, d0
 init_loop:
 	move.w	w_sine_length, d6	; word loop cnt
 	subq	#1, d6	
@@ -530,13 +527,12 @@ slice_loop:
 	cmp.w	s_x1, d2	; check if x1 is reached	
 	bne.s	add_delta
 	neg.w	d1	
-	move.w	d0, temp
 add_delta:
 	cmp.w	s_x2, d2	; check if x2 is reached	
 	bge.s	start_slice
 	add.w	d1, d0
 start_slice:
-	addq	#2, d2	
+	addq	#1, d2	
 	move.l	a2, a3	
 	add.w	d0, a3
 	

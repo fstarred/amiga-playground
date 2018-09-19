@@ -1,3 +1,4 @@
+start:
 	moveq	#4, d0
 
 	moveq	#0, d1

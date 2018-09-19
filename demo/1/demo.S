@@ -785,7 +785,7 @@ TEXT_9:     ;         11111111112
     dc.b    '  TO SAY MANY   ****' ; 3
     dc.b    '   THANKS TO    ****' ; 4
     dc.b    '   SLAMMY A.Z.  ****' ; 5
-    dc.b    '     FOR HIS    ****' ; 6
+    dc.b    '     FOR ITS    ****' ; 6
     dc.b    ' CONTRIBUTE AND ****' ; 7
     dc.b    '  GREAT EFFORT  ****' ; 8
     dc.b    '  ON XRNS2XMOD  ****' ; 9
