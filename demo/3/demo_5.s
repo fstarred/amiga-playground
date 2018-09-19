@@ -359,11 +359,11 @@ draw_point:
 	
 	
 x0:	dc.w	0
-x1:	dc.w	320	; pixel between left margin and x1
+x1:	dc.w	199	; pixel between left margin and x1
 x2:	dc.w	0
             
 y0:	dc.w	0
-y1:	dc.w	20	; vertical distance between y1 and x1 in pixel
+y1:	dc.w	10	; vertical distance between y1 and x1 in pixel
             
 w_x0:	dc.w	0	; x0 in word
 w_x1:	dc.w	0	; x1 in word
@@ -374,6 +374,12 @@ w_sine_length:	dc.w	0	; sine length in word
 
 
 compute_offset:
+
+	move.w	y1, d0
+	btst	#0, d0
+	beq.s	get_w_x1
+	addq	#1, y1		; if y1 is odd, add 1
+get_w_x1:
 	
 	move.w	x1, d0
 	lsr	#3, d0		
@@ -484,19 +490,6 @@ make_sine:
 	move.w	#ScrBpl*bpls*2, d1	; delta y
 	move.w	#$C000, d5
 	
-;	move.w	w_sine_length, d2
-;	move.w	d2, d3
-;	add.w	w_x0, d2
-;	cmpi.w	#20, d2
-;	ble.s	set_word_loop_cnt
-;	sub.w	#20, d3
-;	add.w	w_x0, d3
-;set_word_loop_cnt:
-;	move.w	d3, d6
-;	subq	#1, d6
-;	
-;	move.w	d6, temp
-	
 	move.w	x0, d2
 	and.w	#%1111, d2	; modulo 16 of x0
 	
@@ -557,56 +550,6 @@ exit_sine_loop:
 	
 	rts
 	
-;make_sine:
-;	
-;	lea	BUFFER, a1
-;	lea	(a1,d0.w), a1
-;	;lea	BUFFER+SINE_AREA_HOFFSET, a1		
-;	lea	SCREEN+SCREEN_VOFFSET+SINE_AREA_HOFFSET, a2
-;	
-;	moveq	#0,d0
-;	moveq	#(ScrBpl*bpls), d1	; delta for y offset (1 pixel each slice)
-;	move.w	#$C000,d5	; first portion of mask (%11000000)
-;	
-;	moveq	#SINE_AREA_LENGTH-1, d6	; do it for x words
-;word_loop:
-;	moveq	#8-1,d7		; 2 pixel routine, 16 byte / 2 = 8
-;	cmpi.b	#SINE_AREA_LENGTH/2-1, d6
-;	bne.s	slice_loop
-;	neg.w	d1
-;slice_loop:
-;	add.w	d1, d0
-;	move.l	a2, a3			
-;	add.w	d0, a3
-;	
-;	BLTWAIT BWT5
-;
-;	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
-;	move.w	d5, BLTALWM(a5)		; BLTALWM 
-;
-;	move.l	#$0bfa0000, BLTCON0(a5)	; BLTCON0/BLTCON1 - A,C,D
-;					; D=A OR C
-;
-;	move.w	#$0028, BLTCMOD(a5)	; BLTCMOD=42-2=$28
-;	move.l	#$00280028, BLTAMOD(a5)	; BLTAMOD=42-2=$28
-;					; BLTDMOD=42-2=$28
-;
-;	move.l	a1, BLTAPT(a5)		; BLTAPT  
-;	move.l	a3, BLTCPT(a5)		; BLTCPT
-;	move.l	a3, BLTDPT(a5)		; BLTDPT
-;	move.w	#(FONT_HEIGHT*bpls*64)+1, BLTSIZE(a5)	; BLTSIZE
-;
-;	ror.w	#2, d5			; right shift mask of 2 pixel
-;
-;	dbra	d7, slice_loop
-;
-;	addq.w	#2, a1			; point to next word
-;	addq.w	#2, a2			; point to next word
-;	
-;	dbra	d6, word_loop
-;	
-;	rts
-		
 TEXT:
 	dc.b	"THIS IS A SCROLLING TEXT EXAMPLE..."
 	dc.b	"HOPE YOU LIKE IT !!!    "
