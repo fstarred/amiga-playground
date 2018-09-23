@@ -73,27 +73,28 @@ FONTSET_HEIGHT  = 16    ; pixel
 FONT_WIDTH  = 16 ; pixel
 FONT_HEIGHT = 16 ; pixel
 
-SCREEN_VOFFSET = 180*ScrBpl*bpls
+TEXT_V_OFFSET = 180
+SCREEN_VOFFSET = TEXT_V_OFFSET*ScrBpl*bpls
 
 
 WAITVB MACRO
-   	move.l  $dff004,d0      ; wait
+   	move.l  VPOSR(a5),d0      ; wait
  	and.l   #$0001ff00,d0   ; for
    	cmp.l   #wbl<<8,d0      ; rasterline 303
 	bne.s   \1
 	ENDM
 
 WAITVB2 MACRO
-	move.l  $dff004,d0      ; wait
+	move.l  VPOSR(a5),d0      ; wait
  	and.l   #$0001ff00,d0    for
 	cmp.l   #wbl<<8,d0      ; rasterline 303
 	beq.s   \1
 	ENDM
 
 BLTWAIT	MACRO
-	tst DMACONR(a6)			;for compatibility
+	tst DMACONR(a5)			;for compatibility
 \1
-	btst #6,DMACONR(a6)
+	btst #6,DMACONR(a5)
 	bne.s \1
 	ENDM
 
@@ -143,21 +144,26 @@ fill_offset_tab:
     
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
    	move.w  #0,$dff088      ; COPJMP1 activate copperlist
-
+	
 	lea	$dff000,a5
 
+	move.b	JOY0DAT(a5),	mouse_y
+	move.b	JOY0DAT+1(a5),	mouse_x
+	
 Main:
 	WAITVB  Main
 	
-	bsr.s	print_char
+	bsr.s	read_mouse_coords
+	
+	bsr.w	print_char
 	bsr.w	scroll_text
 	bsr.w	copy_text_buffer_to_screen
 	bsr.w	compute_offset
-	bsr.w	clear_area
+	bsr.w	clear_area	
 	bsr.w	make_sine
 	bsr.w	draw_point	
-	
-	bsr.w	sprite_animation
+		
+	bsr.w	sprite_animation		
 	bsr.w	sprite_move
 
 Wait    WAITVB2 Wait
@@ -168,7 +174,46 @@ WaitRm:
 	LMOUSE Main
 
 	rts		; exit
+	
+	
 
+*************************************
+*   read mouse coords               *
+*                                   *
+*   				    *
+*   		                    *
+*   		                    *
+*                                   *
+*************************************
+
+read_mouse_coords:
+	move.b	JOY0DAT(a5), d1	; JOY0DAT vertical mouse pos
+	move.b	d1,d0		 
+	sub.b	mouse_y(PC),d0	; subtract old mouse pos
+	beq.s	no_vert		; check if mouse has moved from old pos
+	ext.w	d0		 
+				 
+	add.w	d0, sprite_y	; set sprite pos
+no_vert:
+  	move.b	d1, mouse_y	; save pos Y
+
+	move.b	JOY0DAT+1(a5),d1; JOY0DAT horizontal mouse pos
+	move.b	d1,d0		 
+	sub.b	mouse_x(PC),d0	; subtract old mouse pos
+	beq.s	no_horiz		
+	ext.w	d0		 
+				 
+	add.w	d0, sprite_x	; set sprite pos
+no_horiz
+  	move.b	d1, mouse_x	; save pos X
+	rts
+
+sprite_y:	dc.w	0	 
+sprite_x:	dc.w	0
+mouse_y:	dc.b	0	 
+mouse_x:	dc.b	0	 
+
+	
 	
 *************************************
 *   plot point routine              *
@@ -341,7 +386,14 @@ draw_point:
 	lsl	#4, d0	
 	move.w	#SCREEN_VOFFSET/ScrBpl/bpls, d1
 	bsr.w	plot_point
-
+	
+	;move.w	sprite_x(pc), d0
+	;add.w	#16, d0
+	;move.w	sprite_y(pc), d1
+	;add.w	#32, d1
+	;bsr.w	plot_point
+	
+	
 	rts
 	
 	
@@ -359,11 +411,11 @@ draw_point:
 	
 	
 x0:	dc.w	0
-x1:	dc.w	5	; pixel between left margin and x1
+x1:	dc.w	0	; pixel between left margin and x1
 x2:	dc.w	0
             
 y0:	dc.w	0
-y1:	dc.w	23	; vertical distance between y1 and x1 in pixel
+y1:	dc.w	0	; vertical distance between y1 and x1 in pixel
             
 w_x0:	dc.w	0	; x0 in word
 w_x1:	dc.w	0	; x1 in word
@@ -372,12 +424,23 @@ w_x2:	dc.w	0	; x2 in word
 sine_length:	dc.w	0	; sine length in byte
 w_sine_length:	dc.w	0	; sine length in word
 
-
 compute_offset:
 
-	move.w	y1, d0
+	move.w	sprite_x(pc), x1
+	add.w	#16, x1
+	move.w	sprite_y(pc), d0
+	add.w	#32, d0
+	move.w	d0, temp+2
+	sub.w	#TEXT_V_OFFSET, d0
+	move.w	d0, temp	
+	tst	d0
+	bge	compute_all_offset
+	moveq	#0, d0
+
+compute_all_offset:
+	move.w	d0, y1	
 get_w_x1:
-	
+
 	move.w	x1, d0
 	lsr	#4, d0		
 	move.w	d0, w_x1	; w_x1
@@ -395,7 +458,6 @@ get_w_x1:
 save_w_x0:
 	lsr	#4, d0
 	move.w	d0, w_x0	; w_x0
-	;; TODO handle case if y1 > x1
 	
 	move.w	x1, d0
 	add.w	d2, d0
@@ -449,7 +511,7 @@ clear_area:
 	move.l	#SCREEN+SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl*bpls),BLTDPT(a5)	; BLTDPT - dest
 	move.w	#0, BLTAMOD(a5)	; BLTAMOD
 	move.w	#ScrBpl-40, BLTDMOD(a5)	; BLTAMOD
-	move.w	#(FONT_HEIGHT*3*bpls*64)+20, BLTSIZE(a5)	; BLTSIZE
+	move.w	#((h-TEXT_V_OFFSET-FONT_HEIGHT)*bpls*64)+20, BLTSIZE(a5)	; BLTSIZE
 	
 	BLTWAIT BWT5
 	
@@ -673,47 +735,33 @@ BALL_WIDTH = 32
 
 
 sprite_move:
-    addq.l  #1,tab_y_pointer     ; point to next TAB Y
-    move.l  tab_y_pointer(PC),a0 ; copy pointer y to A0
-    cmp.l   #ENDTABY-1,a0  ; check if Y end is reached
-    bne.s   move_y_tab  ; 
-    move.l  #TABY-1,tab_y_pointer ; reset to first tab Y
-move_y_tab:
-    moveq   #0,d4       ; clean D4
-    move.b  (a0),d4     ; copy Y value to D4
 
-    addq.l  #2,tab_x_pointer ; point to next TAB X
-    move.l  tab_x_pointer(PC),a0 ; copy pointer x to a0
-    cmp.l   #ENDTABX-2,a0 ; check if X end is reached
-    bne.s   move_x_tab
-    move.l  #TABX-2,tab_x_pointer ; reset to first tab X
-move_x_tab:
-    moveq   #0,d3       ; clean D3
-    move.w  (a0),d3 ; copy X value to D3
+	move.w	sprite_y(pc), d4
+	move.w	sprite_x(pc), d3 	
 
-    moveq   #0,d2	; clean D2
-    
-    move.l  FRAMETAB(PC),a1 ; sprite 0 address
-    move.w  d4,d0       ; copy Y to D0
-    move.w  d3,d1       ; copy X to D1
-    move.b  #BALL_HEIGHT,d2     ; copy Height to D2
-    bsr.s   generic_sprite_move ; 
+	moveq   #0, d2
 
-    lea sprite_frame_offset(a1),a1  ; move to next sprite
-    move.w  d4,d0       ; prepare variables
-    move.w  d3,d1
-    bsr.s   generic_sprite_move 
-    
-    lea sprite_frame_offset(a1),a1  ; move to next sprite
-    add.w   #BALL_WIDTH/2,d3    ; the last half of the ball
-    move.w  d4,d0       
-    move.w  d3,d1
-    bsr.s   generic_sprite_move 
-    
-    lea sprite_frame_offset(a1),a1  ; move to next sprite
-    move.w  d4,d0       
-    move.w  d3,d1
-    bsr.s   generic_sprite_move 
+	move.l  FRAMETAB(PC),a1 ; sprite 0 address
+	move.w  d4,d0       ; copy Y to D0
+	move.w  d3,d1       ; copy X to D1
+	move.b  #BALL_HEIGHT,d2     ; copy Height to D2
+	bsr.s   generic_sprite_move ; 
+
+	lea sprite_frame_offset(a1),a1  ; move to next sprite
+	move.w  d4,d0       ; prepare variables
+	move.w  d3,d1
+	bsr.s   generic_sprite_move 
+
+	lea sprite_frame_offset(a1),a1  ; move to next sprite
+	add.w   #BALL_WIDTH/2,d3    ; the last half of the ball
+	move.w  d4,d0       
+	move.w  d3,d1
+	bsr.s   generic_sprite_move 
+
+	lea sprite_frame_offset(a1),a1  ; move to next sprite
+	move.w  d4,d0       
+	move.w  d3,d1
+	bsr.s   generic_sprite_move 
 
 
 exit_sprite_move:   
@@ -767,20 +815,6 @@ translate_hstart_coord:
 	lsr.w   #1,d1       ; shift x position to right, translate x
 	move.b  d1,1(a1)    ; set x to HSTART byte
 	rts
-
-tab_x_pointer:
-	dc.l TABX-2
-    
-tab_y_pointer
-	dc.l TABY-1
-
-TABX:
-	dc.w	$0
-ENDTABX
-
-TABY:
-    	dc.b	$0
-ENDTABY
 
 	
 ;*****************************************************************************

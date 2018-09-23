@@ -315,9 +315,6 @@ SPRDATB=$000f
 
 	SECTION	Data,DATA_C
 
-MT_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
-	incbin	"mod.broken"
 
 	
 *****************************************************************************
@@ -325,7 +322,7 @@ MT_DATA:
 	SECTION	Screen,BSS_C	
 
 SCREEN:
-	ds.b	40*256*bpls	; 
+	ds.b	ScrBpl*h*bpls	; 
 
 	end
 
