@@ -1,9 +1,9 @@
 *****************************************************************************
 *									    *
-*    This is scrolling text example					    *
+*    	This is interactive sine scrolling text example			    *
 *									    *
-*    Notice the screen modulo with + 2 					    *
-*    so we can print the char onto not visible screen area (byte 40)	    *
+*    									    *
+*    									    *
 *    									    *
 *    									    *
 *    									    *
@@ -59,7 +59,7 @@ INTENASET=     %1010000000000000
 w	=320
 h	=256
 bplsize	=w*h/8
-ScrBpl	=w/8+2	; standard screen width + 2 bytes
+ScrBpl	=w/8	; standard screen width + 2 bytes
 		; where we'll place the char data
 
 bpls = 2
@@ -111,7 +111,7 @@ RMOUSE	MACRO
 START:
     	move.l  #SCREEN,d0  ; point to bitplane
     	lea BPLPOINTERS,a1  ; 
-   	MOVEQ   #bpls-1,d1  ; 2 BITPLANE
+   	moveq   #bpls-1,d1  ; 2 BITPLANE
 POINTBP:
     	move.w  d0,6(a1)    ; copy low word of pic address to plane
     	swap    d0          ; swap the the two words
@@ -129,6 +129,12 @@ POINTBP:
 	addq.w  #8,a1   ; the next bpl starts one row
                 	; after the previous one	
 	dbra    d1,POINTBP
+	
+	move.l	#sprite, d0		; SPRITE pointer
+	lea	SPRITEPOINTERS,a1
+	move.w	d0,6(a1)
+	swap	d0
+	move.w	d0,2(a1)
     
 	lea	OFFSET_TAB, a0	
 	moveq	#0, d0		
@@ -160,10 +166,9 @@ Main:
 	bsr.w	copy_text_buffer_to_screen
 	bsr.w	compute_offset
 	bsr.w	clear_area	
+	bsr.w	draw_point	; just for debug 
 	bsr.w	make_sine
-	bsr.w	draw_point	
-		
-	bsr.w	sprite_animation		
+			
 	bsr.w	sprite_move
 
 Wait    WAITVB2 Wait
@@ -175,10 +180,15 @@ WaitRm:
 
 	rts		; exit
 	
-	
+
+SPRITE_HEIGHT = 13
+
+MOUSEX_SPRITE_POINTER = 8
+MOUSEY_SPRITE_POINTER = SPRITE_HEIGHT+1
+
 
 *************************************
-*   read mouse coords               *
+*   	read mouse coords           *
 *                                   *
 *   				    *
 *   		                    *
@@ -206,6 +216,28 @@ no_vert:
 	add.w	d0, sprite_x	; set sprite pos
 no_horiz
   	move.b	d1, mouse_x	; save pos X
+
+check_rx_margin:
+	cmpi.w	#320-MOUSEX_SPRITE_POINTER-1, sprite_x
+	ble.s	check_lx_margin
+	move.w	#320-MOUSEX_SPRITE_POINTER-1, sprite_x
+
+check_lx_margin:
+	cmpi.w	#-MOUSEX_SPRITE_POINTER, sprite_x
+	bge.s	check_yt_margin
+	move.w	#-MOUSEX_SPRITE_POINTER, sprite_x
+
+check_yt_margin:
+	tst	sprite_y
+	bge.s	check_yb_margin
+	move.w	#0, sprite_y
+	
+check_yb_margin:
+	cmpi.w	#$FF-SPRITE_HEIGHT-FONT_HEIGHT, sprite_y
+	ble.s	exit_check
+	move.w	#$FF-SPRITE_HEIGHT-FONT_HEIGHT, sprite_y
+
+exit_check:	
 	rts
 
 sprite_y:	dc.w	0	 
@@ -247,8 +279,8 @@ plot_point:
 text_offset_pointer dc.l    TEXT
 
 *****************************************************************************
-* Print char over the right screen margin
 * 
+* 	Print char over the right screen margin
 *
 *
 *****************************************************************************
@@ -290,7 +322,7 @@ noreset
 	move.l	#BUFFER+40,BLTDPT(a5) 
 			; print to not visible screen area
 	move.w	#(FONTSET_WIDTH-FONT_WIDTH)/8,BLTAMOD(a5) ; BLTAMOD: modulo font
-	move.w	#ScrBpl-FONT_WIDTH/8,BLTDMOD(a5)	  ; BLTDMOD: modulo bit planes
+	move.w	#ScrBpl+2-FONT_WIDTH/8,BLTDMOD(a5)	  ; BLTDMOD: modulo bit planes
 	move.w	#(bpls*FONTSET_HEIGHT*64)+FONT_WIDTH/16,BLTSIZE(a5) 	; BLTSIZE	
 no_print:
 	rts
@@ -342,7 +374,6 @@ copy_text_buffer_to_screen:
 	BLTWAIT BWT3
 
 	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
-					; 1 pixel shift, LF = F0
 	move.w	#$0000,BLTCON1(a5)	; BLTCON1 use blitter ASC mode
 					
 
@@ -356,8 +387,8 @@ copy_text_buffer_to_screen:
 
 	; scroll an image of the full screen width * FONT_HEIGHT
 
-	move.l	#$00000000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
-	move.w	#(FONT_HEIGHT*bpls*64)+21,BLTSIZE(a5)	; BLTSIZE
+	move.l	#$00020000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
+	move.w	#(FONT_HEIGHT*bpls*64)+20,BLTSIZE(a5)	; BLTSIZE
 	rts			
 
 
@@ -387,63 +418,52 @@ draw_point:
 	move.w	#SCREEN_VOFFSET/ScrBpl/bpls, d1
 	bsr.w	plot_point
 	
-	;move.w	sprite_x(pc), d0
-	;add.w	#16, d0
-	;move.w	sprite_y(pc), d1
-	;add.w	#32, d1
-	;bsr.w	plot_point
-	
-	
 	rts
 	
 	
-********************************************
-;	
-;
-;	-----------------------------------
-;	x0		x1		 x2
-;			 |
-;		y0	 |
-;			 |
-;			y1
-;
-********************************************
+****************************************************
+*
+*
+*	-----------------------------------
+*	x0		x1		 x2
+*			 |
+*		  	 |
+*			 |
+*			y1
+*
+****************************************************
 	
 	
 x0:	dc.w	0
 x1:	dc.w	0	; pixel between left margin and x1
 x2:	dc.w	0
-            
-y0:	dc.w	0
+
 y1:	dc.w	0	; vertical distance between y1 and x1 in pixel
-            
+
 w_x0:	dc.w	0	; x0 in word
-w_x1:	dc.w	0	; x1 in word
 w_x2:	dc.w	0	; x2 in word
 
 sine_length:	dc.w	0	; sine length in byte
 w_sine_length:	dc.w	0	; sine length in word
 
+
 compute_offset:
 
 	move.w	sprite_x(pc), x1
-	add.w	#16, x1
+	add.w	#MOUSEX_SPRITE_POINTER, x1
 	move.w	sprite_y(pc), d0
-	add.w	#32, d0
-	move.w	d0, temp+2
+	add.w	#MOUSEY_SPRITE_POINTER, d0
 	sub.w	#TEXT_V_OFFSET, d0
-	move.w	d0, temp	
 	tst	d0
 	bge	compute_all_offset
 	moveq	#0, d0
 
 compute_all_offset:
-	move.w	d0, y1	
+	move.w	d0, y1
+	
 get_w_x1:
-
 	move.w	x1, d0
 	lsr	#4, d0		
-	move.w	d0, w_x1	; w_x1
 	
 	move.w	y1, d2
 	add.w	d2, d2		; y1 * 2 (sine projection)
@@ -494,7 +514,9 @@ set_word_loop_cnt:
 
 ********************************************
 *
-*	CLEAR AREA UNDER TEXT
+*	clear area routiner
+*	
+*     clear possible dirty area
 *
 ********************************************
 
@@ -510,7 +532,7 @@ clear_area:
 	move.l	#0,BLTAPT(a5)		; BLTAPT - source	
 	move.l	#SCREEN+SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl*bpls),BLTDPT(a5)	; BLTDPT - dest
 	move.w	#0, BLTAMOD(a5)	; BLTAMOD
-	move.w	#ScrBpl-40, BLTDMOD(a5)	; BLTAMOD
+	move.w	#ScrBpl-40, BLTDMOD(a5)	; BLTDMOD
 	move.w	#((h-TEXT_V_OFFSET-FONT_HEIGHT)*bpls*64)+20, BLTSIZE(a5)	; BLTSIZE
 	
 	BLTWAIT BWT5
@@ -532,8 +554,6 @@ clear_area:
 	move.w	d1, BLTSIZE(a5)		; BLTSIZE
 		
 	rts
-
-temp:	dc.w	0,0,0,0
 
 s_x0:	dc.w	0	; x point where sine starts
 s_x1:	dc.w	0	; x point where delta change
@@ -603,7 +623,6 @@ slice_loop:
 	cmp.w	s_x0, d2	; check if x0 is reached	
 	blt.s	start_slice	
 	cmp.w	s_x1, d2	; check if x1 is reached	
-	; TODO handle odd value
 	bne.s	add_delta
 	neg.w	d1	
 add_delta:
@@ -623,9 +642,9 @@ start_slice:
 	move.l	#$0bfa0000, BLTCON0(a5)	; BLTCON0/BLTCON1 - A,C,D
 					; D=A OR C
 
-	move.w	#$0028, BLTCMOD(a5)	; BLTCMOD=42-2=$28
-	move.l	#$00280028, BLTAMOD(a5)	; BLTAMOD=42-2=$28
-					; BLTDMOD=42-2=$28
+	move.w	#$0026, BLTCMOD(a5)	; BLTCMOD=40-2=$26
+	move.l	#$00280026, BLTAMOD(a5)	; BLTAMOD=42-2=$28
+					; BLTDMOD=40-2=$26
 
 	move.l	a1, BLTAPT(a5)		; BLTAPT  
 	move.l	a3, BLTCPT(a5)		; BLTCPT
@@ -650,119 +669,14 @@ TEXT:
 	dc.b	"HOPE YOU LIKE IT !!!    "
 	EVEN
 
-	
-	
-
-
-; this routine animate the sprite
-; by scrolling each frame on top, then placing
-; the first frame on last position
-; doing a continue rotation cycle
-
-ANIMATION_FRAME_DELAY = 5
-
-sprite_frame_offset = $88 ; distance between frames
-
-sprite_animation:
-	addq.b  #1,animation_counter ; increase animation_counter
-	cmp.b   #ANIMATION_FRAME_DELAY,animation_counter 
-	bne.w   do_nothing     ; do not cycle next animation frame
-	clr.b   animation_counter
-
-	lea FRAMETAB(PC),a0 ; 
-	move.l  (a0),d0     ; save current first frame address to d0
-	move.l  4(a0),(a0)  ; scroll frame to 1st position
-	move.l  4*2(a0),4(a0)   ; scroll frame to 2nd position
-	move.l  4*3(a0),4*2(a0) ; scroll frame to 3rd position
-	move.l  4*4(a0),4*3(a0) ; scroll frame to 4th position
-	move.l  4*5(a0),4*4(a0) ; scroll frame to 5th position
-	move.l  4*6(a0),4*5(a0) ; scroll frame to 6th position
-	move.l  4*7(a0),4*6(a0) ; scroll frame to 7th position
-	move.l  d0,4*7(a0)  ; put saved frame to last position
-
-	move.l  FRAMETAB(PC),d0 ; SPRITE_1 address
-	lea SPRITEPOINTERS,a1 ; SPRITE pointer
-	move.w  d0,6(a1) ; copy L word of sprite address to pointer
-	swap    d0       ; swap the the two words
-	move.w  d0,2(a1) ; copy the H word of sprite address to pointer
-	swap    d0
-
-	add.l   #sprite_frame_offset,d0  ; the sprite is $44 bytes ahead    
-	addq    #8,a1    ; move SPRITE_POINTERS pointer to next sprite
-	move.w  d0,6(a1) ; copy L word of sprite address to pointer
-	swap    d0       ; swap the the two words
-	move.w  d0,2(a1) ; copy the H word of sprite address to pointer 
-	swap    d0
-
-	add.l   #sprite_frame_offset,d0  ; the sprite is $44 bytes ahead    
-	addq    #8,a1    ; move SPRITE_POINTERS pointer to next sprite
-	move.w  d0,6(a1) ; copy L word of sprite address to pointer
-	swap    d0       ; swap the the two words
-	move.w  d0,2(a1) ; copy the H word of sprite address to pointer 
-	swap    d0
-
-	add.l   #sprite_frame_offset,d0  ; the sprite is $44 bytes ahead    
-	addq    #8,a1    ; move SPRITE_POINTERS pointer to next sprite
-	move.w  d0,6(a1) ; copy L word of sprite address to pointer
-	swap    d0       ; swap the the two words
-	move.w  d0,2(a1) ; copy the H word of sprite address to pointer 
-	;swap   d0
-
-do_nothing:
-	rts
-
-animation_counter:
-	dc.w    0
-
-; This is the tab of frames which create the sprite animation
-; Every time the framex is loaded, it scroll to the end of the tab
-; so that the others frames scroll up
-
-FRAMETAB:
-	dc.l    frame1
-	dc.l    frame2
-	dc.l    frame3
-	dc.l    frame4
-	dc.l    frame5
-	dc.l    frame6
-	dc.l    frame7
-	dc.l    frame8
-    
-
-BALL_HEIGHT = 32
-BALL_WIDTH = 32
-
-
-
 sprite_move:
 
-	move.w	sprite_y(pc), d4
-	move.w	sprite_x(pc), d3 	
-
-	moveq   #0, d2
-
-	move.l  FRAMETAB(PC),a1 ; sprite 0 address
-	move.w  d4,d0       ; copy Y to D0
-	move.w  d3,d1       ; copy X to D1
-	move.b  #BALL_HEIGHT,d2     ; copy Height to D2
-	bsr.s   generic_sprite_move ; 
-
-	lea sprite_frame_offset(a1),a1  ; move to next sprite
-	move.w  d4,d0       ; prepare variables
-	move.w  d3,d1
-	bsr.s   generic_sprite_move 
-
-	lea sprite_frame_offset(a1),a1  ; move to next sprite
-	add.w   #BALL_WIDTH/2,d3    ; the last half of the ball
-	move.w  d4,d0       
-	move.w  d3,d1
-	bsr.s   generic_sprite_move 
-
-	lea sprite_frame_offset(a1),a1  ; move to next sprite
-	move.w  d4,d0       
-	move.w  d3,d1
-	bsr.s   generic_sprite_move 
-
+	lea	sprite, a1
+	move.w	sprite_y(pc), d0
+	move.w	sprite_x(pc), d1 	
+	moveq   #SPRITE_HEIGHT, d2
+	
+	bsr.s	generic_sprite_move
 
 exit_sprite_move:   
     rts
@@ -834,8 +748,8 @@ SPRITEPOINTERS:
 	dc.w	$94,$d0		; DdfStop
 	dc.w	$102,0		; BplCon1
 	dc.w	$104,0		; BplCon2
-	dc.w	$108,(ScrBpl*(bpls-1))+2 ; Bpl1Mod  INTERLEAVED MODE+2!
-	dc.w	$10a,(ScrBpl*(bpls-1))+2 ; Bpl2Mod  INTERLEAVED MODE+2!
+	dc.w	$108,(ScrBpl*(bpls-1)) 	; Bpl1Mod  INTERLEAVED MODE+2!
+	dc.w	$10a,(ScrBpl*(bpls-1))	; Bpl2Mod  INTERLEAVED MODE+2!
 
 	dc.w	$100,bpls*$1000+$200	; bplcon0 - bitplane lowres
 
@@ -843,18 +757,17 @@ BPLPOINTERS:
 	dc.w $e0,$0000,$e2,$0000	;first bitplane
 	dc.w $e4,$0000,$e6,$0000	;second bitplane
 	
-	; ball sprite color palette (from 17 to 31)
-
-	dc.w $01a2,$0887,$01a4,$0900,$01a6,$0555
-	dc.w $01a8,$0600,$01aa,$0955,$01ac,$0222,$01ae,$0ed4
-	dc.w $01b0,$0e01,$01b2,$0a69,$01b4,$0eaa,$01b6,$0eee
-	dc.w $01b8,$0e54,$01ba,$0e6c,$01bc,$0aaa,$01be,$0777
-
-
 	dc.w	$0180,$0000	; color0
 	dc.w	$0182,$08f6	; color1
 	dc.w	$0184,$04b2	; color2
 	dc.w	$0186,$0270	; color3
+	
+	
+	dc.w	$1A2,$ddd	; color17
+	dc.w	$1A4,$e00	; color18
+	dc.w	$1A6,$f00	; color19
+
+
 	
 	dc.w $FFFF,$FFFE	; End of copperlist
 
@@ -863,444 +776,22 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 
 
-*****************************************
-*             BALL SPRITE               *
-*                                       *
-*        4 sprites, 8 anim frames       *
-*                                       *
-*****************************************
-    
-frame1:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0007,$0007,$003f,$003f
-    dc.w $00ff,$00ff,$03ff,$03ff,$07fe,$07ff,$0ffe,$07ff
-    dc.w $07fe,$07ff,$03fe,$07ff,$03fe,$01ff,$003d,$00fe
-    dc.w $000f,$0000,$0001,$000e,$0000,$40ff,$0000,$03ff
-    dc.w $0000,$3ffe,$0000,$5ffe,$0000,$4ff8,$0000,$01e0
-    dc.w $0000,$0000,$2000,$2000,$0000,$1000,$0000,$1800
-    dc.w $0400,$0600,$0100,$0780,$0000,$0382,$0000,$01c2
-    dc.w $0000,$00fe,$0000,$003f,$0000,$0007,$0000,$0000
-    dc.w 0,0
-
-
-
-
-frame1a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$0007,$0004,$003b,$0040,$00ff
-    dc.w $0100,$01ff,$0000,$03ff,$0000,$07ff,$0800,$0fff
-    dc.w $0800,$1fff,$0000,$1fff,$0201,$3fff,$0102,$3fff
-    dc.w $0030,$3fff,$0001,$7ff0,$0000,$3f00,$4000,$3c00
-    dc.w $0001,$0000,$2001,$0000,$1007,$0000,$261f,$0000
-    dc.w $21ff,$0000,$0c3f,$0000,$1f07,$0000,$1f82,$0000
-    dc.w $0380,$0000,$0680,$0000,$0382,$0000,$01c2,$0000
-    dc.w $00fe,$0000,$003f,$0000,$0007,$0000,$0000,$0000
-    dc.w 0,0
-
-    
-frame1b:
-
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$e000,$e000,$1800,$1c00,$0200,$0d00
-    dc.w $0080,$0f00,$0000,$1f80,$0000,$3f80,$0000,$7f90
-    dc.w $8000,$7f18,$8010,$7e18,$8070,$7e7c,$81e0,$7dfc
-    dc.w $ffe0,$03fc,$ffc0,$0ffe,$ff80,$1ffe,$ff00,$3ffc
-    dc.w $fe00,$fffc,$f000,$fffa,$e000,$f3f2,$c000,$fff0
-    dc.w $4000,$fff0,$0000,$f1e0,$0000,$e1f0,$0000,$e1e0
-    dc.w $0000,$e180,$0000,$e000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-
-
-frame1c:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$e000,$1400,$ec00,$0300,$f100
-    dc.w $0080,$f000,$0040,$e000,$0060,$c000,$0070,$8000
-    dc.w $80f8,$8000,$81e8,$0000,$818c,$0000,$821c,$0000
-    dc.w $fc1c,$0000,$8c3e,$0c00,$987e,$1800,$b0fc,$3000
-    dc.w $61fc,$6000,$0ffa,$0000,$13f2,$0000,$3ff0,$0000
-    dc.w $bff0,$0000,$f1e0,$0000,$e1f0,$0000,$e1e0,$0000
-    dc.w $e180,$0000,$e000,$0000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-
-frame2:
-
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0007,$0007,$003f,$003f,$0080,$0080
-    dc.w $0100,$0100,$0200,$0200,$0400,$0400,$0800,$0c00
-    dc.w $1800,$1800,$1800,$1803,$3006,$301f,$301c,$307f
-    dc.w $0a70,$31ff,$07e0,$0fff,$0f00,$0fff,$0c01,$0ffe
-    dc.w $0807,$0ff8,$13bf,$6f41,$14ff,$6f8f,$0ffe,$37df
-    dc.w $0ffe,$10ff,$0e7e,$1fff,$0438,$077f,$0608,$077f
-    dc.w $0200,$03be,$0000,$0780,$0000,$0200,$0000,$0000
-    dc.w $0000,$0080,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-
-frame2a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$0007,$0000,$003f,$0001,$00ff
-    dc.w $0000,$01ff,$0000,$03ff,$0000,$07ff,$0070,$0fff
-    dc.w $0079,$1fff,$007c,$1fff,$0861,$3fff,$0883,$3fff
-    dc.w $0e0f,$3fff,$101f,$7fff,$10ff,$7fff,$13fe,$7ffe
-    dc.w $1ff8,$77f8,$1f41,$0f41,$1f0e,$0c0e,$04dd,$04dc
-    dc.w $28f9,$00f8,$0581,$0400,$1b47,$0000,$0977,$0000
-    dc.w $0dbe,$0000,$0780,$0000,$0200,$0000,$0000,$0000
-    dc.w $0080,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-    
-frame2b:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$e000,$e000,$fc00,$f800,$7400,$fb00
-    dc.w $1000,$3f80,$0800,$0780,$0c00,$1380,$4600,$3980
-    dc.w $0300,$fc00,$0700,$f800,$0f80,$f180,$1f80,$e3c0
-    dc.w $3f80,$c7c0,$7f00,$8fc0,$fe00,$3f00,$f800,$7ec4
-    dc.w $e000,$f986,$c000,$e706,$0000,$8f06,$0000,$9f04
-    dc.w $0000,$fe04,$0000,$c004,$0000,$8000,$0000,$8000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-
-
-
-frame2c:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$e000,$0000,$fc00,$0800,$fc00
-    dc.w $4800,$f800,$1840,$f000,$3460,$f800,$3a70,$fc00
-    dc.w $fdf0,$fe00,$f9e0,$f800,$f160,$f100,$e360,$e300
-    dc.w $c640,$c600,$8cc0,$8c00,$3900,$3800,$76c4,$7000
-    dc.w $d986,$c000,$a706,$8000,$8f06,$0000,$9f04,$0000
-    dc.w $fe04,$0000,$c004,$0000,$8000,$0000,$8000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-
-frame3:
-
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0007,$0007,$003e,$003c,$00f0,$00f8
-    dc.w $00e0,$00e0,$0080,$0040,$0000,$00c0,$01c0,$01e0
-    dc.w $03e0,$07f0,$07e8,$0ff1,$0fe8,$1ff3,$1fe8,$3ff7
-    dc.w $3fd8,$3feb,$7fbc,$7ffd,$7ede,$7f7e,$793f,$7fff
-    dc.w $347e,$7afe,$09f8,$7df8,$53e0,$6e70,$13c0,$3ee0
-    dc.w $3b80,$0fc0,$3800,$3f00,$1800,$1c00,$1800,$1c00
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0001,$0000,$0000
-    dc.w 0,0
-
-
-frame3a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$0007,$0002,$003f,$0000,$00ff
-    dc.w $0190,$017f,$0080,$03ff,$0020,$07ff,$0210,$0fff
-    dc.w $0008,$1fff,$0008,$1ffe,$000c,$3ffc,$0000,$3ff8
-    dc.w $0024,$3fe0,$0062,$7fe0,$0121,$7f00,$06c0,$7e00
-    dc.w $4a81,$7800,$7cc7,$78c0,$6c5f,$6040,$3ebe,$3280
-    dc.w $0478,$0000,$17e0,$1000,$1400,$1000,$0404,$0000
-    dc.w $0c00,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0001,$0000,$0000,$0000
-    dc.w 0,0
-
-
-frame3b:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$8000,$0000,$0400,$0000,$0f00
-    dc.w $0000,$0f80,$0000,$1800,$0000,$3000,$0000,$4000
-    dc.w $0000,$8018,$0000,$0878,$0000,$01e4,$0180,$c3cc
-    dc.w $0200,$c79c,$0000,$ce7e,$0000,$b8fe,$6000,$7bfe
-    dc.w $7000,$7ffe,$3400,$7ffe,$0800,$7ffe,$0000,$7ffc
-    dc.w $0000,$1ffc,$0000,$0ff8,$0000,$07f0,$0000,$07c0
-    dc.w $0000,$0380,$0000,$0100,$0000,$0000,$0000,$0700
-    dc.w $0000,$1f00,$0000,$3c00,$0000,$e000,$0000,$0000
-    dc.w 0,0
-
-frame3c:    
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$4000,$e000,$0000,$f800,$0000,$f000
-    dc.w $0000,$f000,$07c0,$e000,$08e0,$c000,$33b0,$8000
-    dc.w $4e18,$0000,$f478,$0000,$fde4,$0000,$3e4c,$0000
-    dc.w $3d9c,$0000,$3e7e,$0000,$78fe,$0000,$9bfe,$0000
-    dc.w $8ffe,$0000,$cbfe,$0000,$f7fe,$0000,$7ffc,$0000
-    dc.w $1ffc,$0000,$0ff8,$0000,$07f0,$0000,$07c0,$0000
-    dc.w $0380,$0000,$0100,$0000,$0000,$0000,$0700,$0000
-    dc.w $1f00,$0000,$3c00,$0000,$e000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame4:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0007,$0000,$0001,$0000,$002c,$0010,$0180
-    dc.w $0037,$021f,$007f,$0033,$2044,$2d7f,$00b1,$2e7b
-    dc.w $2166,$07bd,$6398,$67f7,$6620,$737f,$7ec1,$67be
-    dc.w $7f07,$63f8,$6e0f,$11f1,$443f,$37c7,$06ff,$051f
-    dc.w $03ff,$067f,$01ff,$03ff,$00ff,$00ff,$007c,$007f
-    dc.w $0010,$003e,$0000,$0018,$0000,$0000,$0000,$001c
-    dc.w $0000,$003f,$0000,$003f,$0000,$0007,$0000,$0000
-    dc.w 0,0
-
-
-
-frame4a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$0007,$0000,$003f,$0000,$00ff
-    dc.w $0000,$01f8,$001e,$03e0,$0073,$0780,$00ff,$0e20
-    dc.w $1168,$1cc0,$0652,$1992,$00fb,$3278,$019a,$3070
-    dc.w $0099,$3881,$0067,$5807,$457f,$483f,$353e,$2c3e
-    dc.w $7bf8,$63f8,$29f1,$01f1,$0fc7,$07c7,$391e,$011e
-    dc.w $3478,$0078,$32f0,$00f0,$1f00,$0000,$1f83,$0000
-    dc.w $0fee,$0000,$03f8,$0000,$0000,$0000,$001c,$0000
-    dc.w $003f,$0000,$003f,$0000,$0007,$0000,$0000,$0000
-    dc.w 0,0
-
-frame4b:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0400,$0100,$0e00
-    dc.w $0080,$8f00,$0040,$df80,$1fe0,$e060,$e1c0,$9e40
-    dc.w $f3e0,$ece0,$3fe0,$e1e0,$7fe0,$e1f0,$dfe0,$a3f0
-    dc.w $3fe0,$c7f0,$7fc0,$8ff0,$ff80,$1ff0,$ff00,$7ff0
-    dc.w $fe00,$fff0,$fc00,$fff0,$f800,$fff0,$f000,$ff8c
-    dc.w $e000,$fc0c,$8000,$f00c,$0000,$c018,$0000,$8018
-    dc.w $0000,$0030,$0000,$0020,$0000,$0040,$0000,$0080
-    dc.w $0000,$0100,$0000,$fc00,$0000,$e000,$0000,$0000
-    dc.w 0,0
-
-
-frame4c:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$e000,$0000,$f800,$0100,$f000
-    dc.w $0080,$7000,$0040,$2000,$1980,$0600,$5e70,$1e40
-    dc.w $2cd0,$2cc0,$c190,$0180,$a190,$2180,$a310,$a300
-    dc.w $c610,$c600,$8c30,$8c00,$1870,$1800,$70f0,$7000
-    dc.w $e1f0,$e000,$c3f0,$c000,$07f0,$0000,$0f8c,$0000
-    dc.w $1c0c,$0000,$700c,$0000,$c018,$0000,$8018,$0000
-    dc.w $0030,$0000,$0020,$0000,$0040,$0000,$0080,$0000
-    dc.w $0100,$0000,$fc00,$0000,$e000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame5:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$003e,$067f,$01fe,$0dff
-    dc.w $07fe,$13ff,$0dff,$1ffe,$17fd,$1ffe,$0ffd,$27fe
-    dc.w $0ff1,$1ffe,$5fe1,$7ffe,$3f01,$7ffe,$3c03,$7ffc
-    dc.w $7007,$7ff8,$000f,$7ff1,$003f,$7fc7,$00fc,$3f1c
-    dc.w $0780,$3800,$3e00,$0400,$1c00,$1c00,$1800,$1800
-    dc.w $0000,$0800,$0000,$0000,$0000,$0000,$0000,$0100
-    dc.w $0000,$00c0,$0000,$0038,$0000,$0007,$0000,$0000
-    dc.w 0,0
-
-
-frame5a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0001,$0007,$0001,$003f,$0001,$00ff
-    dc.w $0001,$01ff,$000f,$03ff,$0080,$01ff,$0200,$03ff
-    dc.w $0e00,$01ff,$1f01,$0eff,$1c00,$17ff,$2002,$27ff
-    dc.w $100e,$1fff,$601e,$7fff,$40ff,$3ffe,$43fd,$7ffc
-    dc.w $0ff9,$7ff8,$7ff0,$7ff0,$7fc6,$7fc6,$3f23,$3f00
-    dc.w $39ff,$3800,$07ff,$0400,$1bff,$1800,$07fe,$0000
-    dc.w $0ff8,$0000,$07e0,$0000,$0000,$0000,$0100,$0000
-    dc.w $00c0,$0000,$0038,$0000,$0007,$0000,$0000,$0000
-    dc.w 0,0
-
-frame5b:
-
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$6000,$e000,$7800,$fc00,$7000,$ff00
-    dc.w $7180,$ff80,$0180,$3ec0,$83c0,$3d60,$0070,$3c70
-    dc.w $0000,$7c18,$8000,$7e00,$8000,$7e00,$8000,$7c00
-    dc.w $8000,$7800,$8000,$7000,$8000,$6000,$0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$f800
-    dc.w $6000,$fe00,$0000,$ff80,$0000,$ffe0,$0000,$ffe0
-    dc.w $0000,$ffe0,$0000,$ffe0,$0000,$ffc0,$0000,$ff00
-    dc.w $0000,$fc00,$0000,$e000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-
-
-frame5c:
-
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$e000,$4400,$bc00,$4f00,$bf00
-    dc.w $4f80,$bf80,$dec0,$fe80,$8320,$c100,$8380,$c000
-    dc.w $83f8,$8000,$0180,$8000,$81c0,$0000,$83e0,$0000
-    dc.w $87e0,$0000,$8fe0,$0000,$9fc0,$0000,$ff80,$0000
-    dc.w $ff00,$0000,$fe00,$0000,$fc00,$0000,$f800,$0000
-    dc.w $9e00,$0000,$ff80,$0000,$ffe0,$0000,$ffe0,$0000
-    dc.w $ffe0,$0000,$ffe0,$0000,$ffc0,$0000,$ff00,$0000
-    dc.w $fc00,$0000,$e000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame6:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0007,$0007,$003f,$003f,$007f,$007f
-    dc.w $00fe,$01ff,$01ff,$01ff,$0400,$003f,$0807,$0c08
-    dc.w $1c00,$1808,$1000,$1808,$3800,$3004,$3800,$3002
-    dc.w $2000,$3007,$6000,$700f,$6000,$70ff,$7000,$63ff
-    dc.w $7000,$6fff,$1000,$6ffe,$1000,$6ff8,$0e00,$31e0
-    dc.w $0fc0,$3040,$0ff0,$31f0,$07f8,$07fc,$07fc,$07ff
-    dc.w $03f0,$03ff,$0380,$03ff,$0000,$01ff,$0000,$00ff
-    dc.w $0000,$007f,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-
-frame6a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$0007,$0020,$001f,$0080,$00ff
-    dc.w $0081,$017f,$0200,$03ff,$07c3,$07ff,$0077,$0ff0
-    dc.w $0477,$1ff0,$0074,$1ff0,$0862,$3ff8,$0801,$3ffc
-    dc.w $0800,$3ff8,$0000,$7ff0,$0000,$7f00,$1000,$7c00
-    dc.w $1000,$7000,$6001,$7000,$6007,$7000,$061f,$0800
-    dc.w $08bf,$0000,$09cf,$01c0,$1f87,$0780,$1803,$0000
-    dc.w $0c0f,$0000,$047f,$0000,$01ff,$0000,$00ff,$0000
-    dc.w $007f,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame6b:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$e000,$e000,$f800,$fc00,$f000,$ff00
-    dc.w $a080,$ff00,$64c0,$ef40,$d9e0,$2b60,$fcf0,$f6f0
-    dc.w $0670,$1ff8,$0030,$21f8,$0020,$00f8,$0000,$00f8
-    dc.w $0000,$80f8,$0000,$e038,$0000,$e018,$0000,$8000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0004
-    dc.w $0000,$0034,$0000,$007c,$0000,$0078,$0000,$01f8
-    dc.w $0000,$83f0,$0000,$e7e0,$0000,$e7c0,$0000,$c780
-    dc.w $0000,$0300,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
- 
-frame6c:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$e000,$0400,$fc00,$0f00,$ff00
-    dc.w $5f00,$1f00,$cf40,$c740,$2360,$2160,$1240,$1040
-    dc.w $f988,$0000,$d1c8,$0000,$38d8,$0000,$8cf8,$0000
-    dc.w $60f8,$0000,$1838,$0000,$1c18,$0000,$7e00,$0000
-    dc.w $ff00,$0000,$fe00,$0000,$fc00,$0000,$f804,$0000
-    dc.w $f034,$0000,$c07c,$0000,$8078,$0000,$01f8,$0000
-    dc.w $83f0,$0000,$e7e0,$0000,$e7c0,$0000,$c780,$0000
-    dc.w $0300,$0000,$0000,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame7:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0006,$0006,$003f,$003f,$00ff,$00ff
-    dc.w $01ff,$01ff,$035f,$03ff,$06af,$077f,$09ab,$0ff7
-    dc.w $0719,$1be7,$0060,$02df,$0030,$056f,$0030,$102f
-    dc.w $0018,$0807,$000c,$0413,$0007,$0309,$0001,$038f
-    dc.w $0000,$0fc4,$0000,$7ff0,$0000,$7ff0,$0000,$3fe3
-    dc.w $2006,$1f87,$200f,$1e0f,$100f,$101f,$1c0c,$1c1f
-    dc.w $0e00,$0e3f,$0600,$077f,$0000,$03ff,$0000,$011f
-    dc.w $0000,$0007,$0000,$0001,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame7a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0001,$0007,$0000,$003f,$0000,$00ff
-    dc.w $0000,$01ff,$00e0,$027f,$0150,$071f,$0674,$0fe7
-    dc.w $04e6,$00e7,$19df,$045f,$10ef,$222f,$03cf,$200f
-    dc.w $05f7,$3007,$03eb,$7803,$00f7,$7c01,$0070,$7c00
-    dc.w $003b,$7000,$000f,$0000,$000e,$0000,$001f,$0000
-    dc.w $2079,$0000,$01f0,$0000,$1ff0,$1000,$0bf3,$0800
-    dc.w $01ff,$0000,$01ff,$0000,$03ff,$0000,$011f,$0000
-    dc.w $0007,$0000,$0001,$0000,$0000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame7b:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$c000,$8400,$e000,$ef00
-    dc.w $f080,$ff00,$e7c0,$fc40,$c2e0,$fde0,$8670,$f9f0
-    dc.w $0c10,$f318,$1800,$e608,$3800,$c604,$7000,$fc00
-    dc.w $e000,$7000,$c000,$e000,$8000,$e000,$8000,$c000
-    dc.w $0000,$c000,$0000,$c000,$0000,$7000,$0000,$7800
-    dc.w $0000,$fc00,$0000,$fe00,$0000,$ff00,$0000,$fe00
-    dc.w $0000,$fc30,$0000,$fe20,$0000,$ffc0,$0000,$ff80
-    dc.w $0000,$ff00,$0000,$fc00,$0000,$6000,$0000,$0000
-    dc.w 0,0
-
-
-frame7c:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$e000,$4000,$f800,$1000,$f000
-    dc.w $0880,$f800,$1b40,$fc40,$3ee0,$fce0,$7a00,$fc00
-    dc.w $f4e8,$f800,$e1f8,$f800,$d9f4,$c000,$c3f0,$c000
-    dc.w $5fe0,$4000,$a3e0,$8000,$60c0,$0000,$4000,$0000
-    dc.w $c000,$0000,$c000,$0000,$7000,$0000,$7800,$0000
-    dc.w $fc00,$0000,$fe00,$0000,$ff00,$0000,$fe00,$0000
-    dc.w $fc30,$0000,$fe20,$0000,$ffc0,$0000,$ff80,$0000
-    dc.w $ff00,$0000,$fc00,$0000,$6000,$0000,$0000,$0000
-    dc.w 0,0
-
-frame8:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0000,$00e0,$00c0
-    dc.w $01e1,$01e3,$03e7,$03ff,$07f3,$07e7,$0fe0,$0fc1
-    dc.w $0f40,$0f80,$1e80,$0f00,$3d00,$3e01,$3a00,$1c03
-    dc.w $1400,$3d07,$1400,$3c8f,$0800,$187f,$1800,$281f
-    dc.w $0000,$6807,$0000,$6980,$0400,$7dc0,$3700,$1fc0
-    dc.w $1f80,$2f80,$1fc0,$27c0,$1fe0,$1ff0,$1f80,$1ff0
-    dc.w $0f80,$0fe2,$0780,$07f1,$0000,$03fc,$0000,$01ff
-    dc.w $0000,$00ff,$0000,$003f,$0000,$0007,$0000,$0000
-    dc.w 0,0
-
-
-frame8a:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$0007,$0020,$003f,$0021,$00ff
-    dc.w $0015,$01fe,$0000,$03ff,$0018,$07ff,$0032,$0fff
-    dc.w $0079,$0fff,$00f0,$0fff,$0160,$1ffe,$0600,$1ffc
-    dc.w $2e00,$3cf8,$6900,$3870,$7c80,$3800,$4720,$1000
-    dc.w $1f98,$0000,$1e67,$0000,$1a31,$0000,$2a30,$0200
-    dc.w $0370,$0300,$04b0,$0480,$1c10,$1c00,$0c70,$0c00
-    dc.w $0062,$0000,$0071,$0000,$03fc,$0000,$01ff,$0000
-    dc.w $00ff,$0000,$003f,$0000,$0007,$0000,$0000,$0000
-    dc.w 0,0
-
-
-frame8b:
-
-    dc.w $0000,$0000
-    dc.w $0000,$0000,$0000,$0000,$0000,$0400,$7000,$ff00
-    dc.w $f000,$ff80,$e080,$ff00,$c0c0,$ff40,$81c0,$fe40
-    dc.w $83e0,$7ce0,$67e0,$99e0,$0fe0,$f5f0,$03e0,$fff0
-    dc.w $0000,$f870,$0000,$f00e,$0000,$e00e,$0000,$800e
-    dc.w $0000,$000e,$0000,$0006,$0000,$000e,$0000,$000c
-    dc.w $0000,$000c,$0000,$0008,$0000,$0000,$0000,$0010
-    dc.w $0000,$0030,$0000,$f000,$0000,$f180,$0000,$e000
-    dc.w $0000,$fe00,$0000,$fc00,$0000,$e000,$0000,$0000
-    dc.w 0,0
-
-frame8c:
-    dc.w $0000,$0080
-    dc.w $0000,$0000,$0000,$e000,$0000,$f800,$4e00,$be00
-    dc.w $0f00,$ff00,$1f40,$ff00,$3f60,$ff40,$7e70,$fe40
-    dc.w $7cd0,$fcc0,$5990,$3980,$0d90,$0580,$0010,$0000
-    dc.w $07f0,$0000,$0fee,$0000,$1fce,$0000,$7f8e,$0000
-    dc.w $ff0e,$0000,$fe06,$0000,$fc0e,$0000,$000c,$0000
-    dc.w $000c,$0000,$0008,$0000,$0000,$0000,$0010,$0000
-    dc.w $0030,$0000,$f000,$0000,$f180,$0000,$e000,$0000
-    dc.w $fe00,$0000,$fc00,$0000,$e000,$0000,$0000,$0000
-    dc.w 0,0
-
+sprite:
+	dc.w	$0000,$0000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000001111000000,%0000000000000000
+	dc.w	%0000111111110000,%0001000000001000
+	dc.w	%1111111111111111,%1000000000000001
+	dc.w	%0011111111111100,%0010000000000100
+	dc.w	%0000111111110000,%0000100000010000
+	dc.w	%0000001111000000,%0000001001000000
+	dc.w	0,0	
 	
 FONT:
 	incdir  "dh1:own/demo/repository/resources/fonts/"
@@ -1317,7 +808,7 @@ SCREEN:
 	ds.b	ScrBpl*h*bpls		; 2 bitplane
 
 BUFFER:
-	ds.b	ScrBpl*bpls*FONT_HEIGHT
+	ds.b	(ScrBpl+2)*bpls*FONT_HEIGHT
 
 	end
 	
