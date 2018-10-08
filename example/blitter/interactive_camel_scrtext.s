@@ -404,9 +404,9 @@ draw_point:
 	add.w	y1(pc), d1
 	bsr.w	plot_point
 	
-	move.w	x2(pc), d0
-	move.w	#SCREEN_VOFFSET/ScrBpl/bpls, d1
-	bsr.w	plot_point
+	;move.w	x2(pc), d0
+	;move.w	#SCREEN_VOFFSET/ScrBpl/bpls, d1
+	;bsr.w	plot_point
 	
 	move.w	w_x0(pc), d0	
 	lsl	#4, d0	
@@ -425,7 +425,7 @@ draw_point:
 *
 *
 *	-----------------------------------
-*	x0		x1		 x2
+*	x0/xd0		x1		 x2
 *			 |
 *		  	 |
 *			 |
@@ -436,11 +436,16 @@ draw_point:
 	
 x0:	dc.w	0
 x1:	dc.w	0	; pixel between left margin and x1
-x2:	dc.w	0
-
+;x2:	dc.w	0
+xd0:	dc.w	0	; delta x (xe = x0 >= 0 ? 0 : abs(x)/2)
 y1:	dc.w	0	; vertical distance between y1 and x1 in pixel
 
 w_x0:	dc.w	0	; x0 in word
+
+
+s_x0:	dc.w	0	; x point where sine starts
+s_x1:	dc.w	0	; x point where delta change
+s_x2:	dc.w	0	; x point where sine ends
 
 w_sine_length:	dc.w	0	; sine length in word
 
@@ -476,7 +481,7 @@ save_w_x0:
 	
 	move.w	x1(pc), d0
 	add.w	d2, d0
-	move.w	d0, x2		; x2
+	;move.w	d0, x2		; x2
 	move.w	d0, d1
 	lsr	#4, d0
 	and.w	#%1111, d1	; check if mod 16 > 0
@@ -502,6 +507,50 @@ w_x0_not_negative:
 set_word_loop_cnt:
 	move.w	d2, d0
 	move.w	d0, w_sine_length	; w_sine_length
+		
+	move.w	#ScrBpl*bpls, d1	; const delta y	
+	
+	move.w	y1(pc), d3
+	add.w	d3, d3		; y1 * 2 (sine projection)	
+	
+	move.w	x0(pc), d2
+	tst	d2
+	bge.s	s_x0_not_negative	; check if x0 > 0
+
+s_x0_negative:
+	clr.w	s_x0	; s_x0
+	move.w	x1(pc), d0
+	move.w	d0, s_x1	; s_x1
+	add.w	d3, d0	
+	move.w	d0, s_x2	; s_x2
+
+	move.w	x0(pc), d0
+	neg.w	d0
+	lsr	#1, d0
+	mulu	d1, d0		
+	move.w	d0, xd0		; set delta x
+	
+	bra.s	init_loop
+	
+s_x0_not_negative:
+	clr.w	xd0
+	and.w	#%1111, d2	; modulo 16 of x0
+	
+	move.w	d2, s_x0	; s_x0	
+	add.w	d3, d2
+	move.w	d2, s_x1	; s_x1
+	add.w	d3, d2	
+	move.w	d2, s_x2	; s_x2
+
+init_loop:
+
+	move.w	s_x1(pc), d2	
+	btst	#0, d2		; add 1 if s_x1 is odd
+	beq.s	init_counter
+	addq.w	#1, d2
+init_counter:
+
+	move.w	d2, s_x1	
 	
 	rts
 
@@ -546,16 +595,17 @@ clear_area:
 	sub.w	d1, d0
 	move.w	d0, BLTDMOD(a5)		; BLTDMOD
 	
+	move.w	w_sine_length(pc), d2
 	move.w	#(FONT_HEIGHT*bpls*64), d0
 	add.w	d2, d0			; BLTAMOD
 	move.w	d0, BLTSIZE(a5)		; BLTSIZE
 	
 	rts
 
-s_x0:	dc.w	0	; x point where sine starts
-s_x1:	dc.w	0	; x point where delta change
-s_x2:	dc.w	0	; x point where sine ends
-
+	
+	
+	
+	
 make_camel:
 	
 	lea	BUFFER, a1
@@ -566,58 +616,14 @@ make_camel:
 	lea	SCREEN+SCREEN_VOFFSET, a2
 	lea	(a2,d0.w), a2
 	
-	moveq	#0, d0
-	move.w	#ScrBpl*bpls, d1	; const delta y
+	move.w	xd0(pc), d0	
+	move.w	#ScrBpl*bpls, d1	; const delta y		
+	moveq	#0, d2		; sine counter
+	move.w	s_x0(pc), d3	; move s_x0 to d3
+	move.w	s_x2(pc), d4	; move s_x2 to d4		
 	move.w	#$C000, d5
 	
-	
-	move.w	y1(pc), d3
-	add.w	d3, d3		; y1 * 2 (sine projection)	
-	
-	move.w	x0(pc), d2
-	tst	d2
-	bge.s	s_x0_not_negative	; check if x0 > 0
-
-s_x0_negative:
-	clr.w	s_x0	; s_x0
-	move.w	x1(pc), d0
-	move.w	d0, s_x1	; s_x1
-	add.w	d3, d0	
-	move.w	d0, s_x2	; s_x2
-
-	move.w	x0(pc), d0
-	neg.w	d0
-	lsr	#1, d0
-	mulu	d1, d0		; add x*y
-	
-	bra.s	init_loop
-	
-s_x0_not_negative:
-	and.w	#%1111, d2	; modulo 16 of x0
-	
-	move.w	d2, s_x0	; s_x0	
-	add.w	d3, d2
-	move.w	d2, s_x1	; s_x1
-	add.w	d3, d2	
-	move.w	d2, s_x2	; s_x2
-
-init_loop:
-
-	move.w	s_x1(pc), d2	
-	btst	#0, d2		; add 1 if s_x1 is odd
-	beq.s	init_counter
-	addq.w	#1, d2
-init_counter:
-
-	move.w	d2, s_x1
-
-	moveq	#0, d2		; sine counter
-	
-	move.w	w_sine_length(pc), d6	; word loop cnt
-	
-	move.w	s_x0(pc), d3	; move s_x0 to d3
-	move.w	s_x2(pc), d4	; move s_x2 to d4	
-	
+	move.w	w_sine_length(pc), d6	; word loop cnt	
 	subq	#1, d6
 	
 word_loop:
@@ -627,7 +633,7 @@ slice_loop:
 	blt.s	start_slice	
 	cmp.w	s_x1(pc), d2	; check if x1 is reached	
 	bne.s	add_delta
-	neg.w	d1	
+	neg.w	d1		; y1 is reached, set direction up
 add_delta:
 	cmp.w	d4, d2		; check if x2 is reached	
 	bge.s	start_slice
