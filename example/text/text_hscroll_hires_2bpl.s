@@ -107,6 +107,8 @@ POINTBP:
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
    	move.w  #0,$dff088      ; COPJMP1 activate copperlist
 	
+	bsr.s	draw_chessboard
+	
 	lea	TEXT(pc),a0	; let a0 point to text to print
 	lea	SCREEN+(ScrBpl*h),a3	; let a3 point to BITPLANE
 	
@@ -118,7 +120,7 @@ Main:
 	WAITVB  Main
 	
 	bsr.s	scroll_text
-
+	
 Wait    WAITVB2 Wait
 
 WaitRm:
@@ -129,10 +131,40 @@ WaitRm:
 	rts		; exit
 
 
+***********************************
+*
+*	draw chessboard routine
+*	
+*	
+***********************************
+draw_chessboard:
+
+	moveq	#(h/16)-1, d6
+	lea	SCREEN, a0
+
+draw_cb_loop_2_lines:
+	move.w	#((ScrBpl/4)*(8))-1, d7	; (w/32px)*h/2
+draw_cb_loop:
+	
+	move.l	#%11111111000000001111111100000000, (a0)+
+	
+	dbra	d7, draw_cb_loop
+
+	move.w	#((ScrBpl/4)*((8)))-1, d7	; (w/32px)*h/2
+draw_cb_loop_alt:
+	
+	move.l	#%00000000111111110000000011111111, (a0)+
+	
+	dbra	d7, draw_cb_loop_alt
+
+	dbra	d6, draw_cb_loop_2_lines
+
+	rts
+	
 LINE_COUNT = 2
 
 scroll_text:
-	lea	BPLPOINTERS+8, a1	
+	lea	BPLPOINTERS, a1	
 	subq.w	#1,FRAME_COUNTER	; add 1 to FRAME_COUNTER
 	tst.w	FRAME_COUNTER	; FRAME_COUNTER reached limit ?
 	bne.S	do_scroll	; if Z is clear then scroll
@@ -189,7 +221,9 @@ set_bpl_left:
 *
 ******************************
 advance_bpl:
-	
+
+	moveq	#2-1, d7
+bpl_loop:	
 	move.w	2(a1),d0 	; copy low word of pic address to plane
 	swap	d0		 	; swap the two words
 	move.w	6(a1),d0 	; copy high word of pic address to plane
@@ -199,6 +233,10 @@ advance_bpl:
 	move.w	d0,6(a1)	; copy low word of pic address to plane
 	swap	d0			; swap the two words; 
 	move.w	d0,2(a1)	; copy high word of pic address to plane 
+
+	addi.l	#8, a1
+
+	dbra	d7, bpl_loop
 
 	rts	
 
@@ -293,7 +331,7 @@ OWNBPLCON1:
 	dc.b	0		; BplCon1 low byte value (used)
 	dc.w	$104,0		; BplCon2
 	dc.w	$108,40-4	; Bpl1Mod (40 for large pic)
-	dc.w	$10a,40-4	; Bpl2Mod -2 fits the DdfStart value
+	dc.w	$10a,40-4	; Bpl2Mod -4 fits the DdfStart value
 
 	dc.w	$100,bpls*$1000+$8200	; bplcon0 - bitplane hires
 
@@ -303,10 +341,10 @@ BPLPOINTERS:
 	dc.w	$e0,$0000,$e2,$0000	; BPL0PT
 	dc.w	$e4,$0000,$e6,$0000	; BPL1PT
 
-	dc.w	$180,$000	; color background
-	dc.w	$182,$4ff	; color text
-	dc.w	$184,$0f0	; color text
-	dc.w	$186,$0e0	; color text
+	dc.w	$180,$004	; color background
+	dc.w	$182,$00f	; color text
+	dc.w	$184,$ee0	; color text
+	dc.w	$186,$ee0	; color text
 
 	dc.w	$FFFF,$FFFE	; End of copperlist
 
