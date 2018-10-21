@@ -65,7 +65,8 @@ ScrBpl	=w/8	; standard screen width + 2 bytes
 bpls = 2
 
 ;wbl = $2c (for copper monitor only)
-wbl = 303
+;wbl = 303
+wbl  = $DA
 
 FONTSET_WIDTH   = 944   ; pixel
 FONTSET_HEIGHT  = 16    ; pixel
@@ -73,7 +74,7 @@ FONTSET_HEIGHT  = 16    ; pixel
 FONT_WIDTH  = 16 ; pixel
 FONT_HEIGHT = 16 ; pixel
 
-TEXT_V_OFFSET = 180
+TEXT_V_OFFSET = 100
 SCREEN_VOFFSET = TEXT_V_OFFSET*ScrBpl*bpls
 
 
@@ -159,18 +160,28 @@ fill_offset_tab:
 Main:
 	WAITVB  Main
 	
+	;***** COPPER MONITOR
+	
 	bsr.s	read_mouse_coords
+
+	;move.w  #$F00, $dff180
 	
 	bsr.w	print_char
 	bsr.w	scroll_text
 	bsr.w	copy_text_buffer_to_screen
 	bsr.w	compute_offset
 	bsr.w	clear_area	
-	bsr.w	draw_point	; just for debug 
+	;bsr.w	draw_point	; just for debug 
 	bsr.w	make_camel
-			
-	bsr.w	sprite_move
 
+
+	;move.w  #0, $dff180
+		
+	bsr.w	sprite_move
+		
+	;**** COPPER MONITOR
+	
+	
 Wait    WAITVB2 Wait
 
 WaitRm:
@@ -427,17 +438,16 @@ draw_point:
 *	-----------------------------------
 *	x0/xd0		x1		 x2
 *			 |
-*		  	 |
+*		(y0)  	 |
 *			 |
 *			y1
 *
 ****************************************************
 	
-	
 x0:	dc.w	0
 x1:	dc.w	0	; pixel between left margin and x1
 ;x2:	dc.w	0
-xd0:	dc.w	0	; delta x (xe = x0 >= 0 ? 0 : abs(x)/2)
+xd0:	dc.w	0	; delta x (xe = x0 >= 0 ? 0 : abs(x)/2) **
 y1:	dc.w	0	; vertical distance between y1 and x1 in pixel
 
 w_x0:	dc.w	0	; x0 in word
@@ -449,6 +459,8 @@ s_x2:	dc.w	0	; x point where sine ends
 
 w_sine_length:	dc.w	0	; sine length in word
 
+
+;** y0 advance of 1 every 2pixel
 
 compute_offset:
 
@@ -508,7 +520,7 @@ set_word_loop_cnt:
 	move.w	d2, d0
 	move.w	d0, w_sine_length	; w_sine_length
 		
-	move.w	#ScrBpl*bpls, d1	; const delta y	
+	;move.w	#ScrBpl*bpls, d1	; const delta y	
 	
 	move.w	y1(pc), d3
 	add.w	d3, d3		; y1 * 2 (sine projection)	
@@ -527,7 +539,10 @@ s_x0_negative:
 	move.w	x0(pc), d0
 	neg.w	d0
 	lsr	#1, d0
-	mulu	d1, d0		
+	lea	OFFSET_TAB, a1
+	add.w	d0, d0
+	move.w	(a1,d0.w), d0	; if x0 is <0, xd0 starts from 
+	
 	move.w	d0, xd0		; set delta x
 	
 	bra.s	init_loop
@@ -554,7 +569,6 @@ init_counter:
 	
 	rts
 
-
 ********************************************
 *
 *	clear area routiner
@@ -569,13 +583,12 @@ clear_area:
 	
 	; clear under text area
 	
-	move.w	#$0100,BLTCON0(a5)	; BLTCON0 delete (only D)
-	move.w	#$0000,BLTCON1(a5)	; BLTCON1 use blitter ASC mode
+	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
 	move.l	#0,BLTAPT(a5)		; BLTAPT - source	
 	move.l	#SCREEN+SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl*bpls),BLTDPT(a5)	; BLTDPT - dest
 	move.w	#0, BLTAMOD(a5)	; BLTAMOD
-	move.w	#ScrBpl-40, BLTDMOD(a5)	; BLTDMOD
+	move.w	#0, BLTDMOD(a5)	; BLTDMOD
 	move.w	#((h-TEXT_V_OFFSET-FONT_HEIGHT)*bpls*64)+20, BLTSIZE(a5)	; BLTSIZE
 	
 	BLTWAIT BWT5
@@ -589,13 +602,13 @@ clear_area:
 	move.l	a0, BLTDPT(a5)		; BLTDPT
 	
 	move.w	w_sine_length(pc), d1
+	move.w	d1, d2			; copy w_sine_length to d2
 	
 	move.w	#ScrBpl, d0
 	sub.w	d1, d0
 	sub.w	d1, d0
 	move.w	d0, BLTDMOD(a5)		; BLTDMOD
 	
-	move.w	w_sine_length(pc), d2
 	move.w	#(FONT_HEIGHT*bpls*64), d0
 	add.w	d2, d0			; BLTAMOD
 	move.w	d0, BLTSIZE(a5)		; BLTSIZE
@@ -620,18 +633,31 @@ make_camel:
 	move.w	#ScrBpl*bpls, d1	; const delta y		
 	moveq	#0, d2		; sine counter
 	move.w	s_x0(pc), d3	; move s_x0 to d3
+	lea	s_x1, a4	; load s_x1 to a4
 	move.w	s_x2(pc), d4	; move s_x2 to d4		
 	move.w	#$C000, d5
 	
 	move.w	w_sine_length(pc), d6	; word loop cnt	
 	subq	#1, d6
+
+	BLTWAIT BWT7
+
+	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
+
+	move.l	#$0bfa0000, BLTCON0(a5)	; BLTCON0/BLTCON1 - A,C,D
+					; D=A OR C
+
+	move.w	#$0026, BLTCMOD(a5)	; BLTCMOD=40-2=$26
+	move.l	#$00280026, BLTAMOD(a5)	; BLTAMOD=42-2=$28
+					; BLTDMOD=40-2=$26
+
 	
 word_loop:
 	moveq	#8-1, d7		; slice loop cnt
 slice_loop:	
 	cmp.w	d3, d2		; check if x0 is reached	
 	blt.s	start_slice	
-	cmp.w	s_x1(pc), d2	; check if x1 is reached	
+	cmp.w	(a4), d2	; check if x1 is reached	
 	bne.s	add_delta
 	neg.w	d1		; y1 is reached, set direction up
 add_delta:
@@ -644,17 +670,7 @@ start_slice:
 	add.w	d0, a3
 	
 	BLTWAIT BWT6
-
-	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
 	move.w	d5, BLTALWM(a5)		; BLTALWM 
-
-	move.l	#$0bfa0000, BLTCON0(a5)	; BLTCON0/BLTCON1 - A,C,D
-					; D=A OR C
-
-	move.w	#$0026, BLTCMOD(a5)	; BLTCMOD=40-2=$26
-	move.l	#$00280026, BLTAMOD(a5)	; BLTAMOD=42-2=$28
-					; BLTDMOD=40-2=$26
-
 	move.l	a1, BLTAPT(a5)		; BLTAPT  
 	move.l	a3, BLTCPT(a5)		; BLTCPT
 	move.l	a3, BLTDPT(a5)		; BLTDPT
@@ -738,7 +754,6 @@ translate_hstart_coord:
 	lsr.w   #1,d1       ; shift x position to right, translate x
 	move.b  d1,1(a1)    ; set x to HSTART byte
 	rts
-
 	
 ;*****************************************************************************
 
