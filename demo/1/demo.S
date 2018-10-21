@@ -1,3 +1,13 @@
+*********************************************
+*
+*	   STARRED MEDIASOFT
+*
+*		DEMO 1
+*
+*		VER 1.1 (2018)
+*
+*
+*********************************************
 
     SECTION Code,CODE   ; This command will run the below code
                 ; on FAST RAM (if enough) or CHIP RAM
@@ -557,12 +567,12 @@ DELAY_TEXT_BEFORE  = 50*1  ; delay before text is shown
 DELAY_TEXT_AFTER   = 50*5  ; defay after  text is shown
 
 text_vb_counter dc.w    DELAY_TEXT_BEFORE      ; vertical blank counter
-text_phase  dc.w    0       ; text phase counter
-text_anim_in_progress   dc.w    0   ; text blitting / fade in progress flag) 
 text_offset_pointer dc.l    TEXT_1  ; address pointer to displayed text
 text_message_counter    dc.w    0   ; current text counter
 text_loading_progress   dc.w    0   ; blit text progress
 text_screen_offset_pointer  dc.l    SCREEN+TEXT_VOFFSET+TEXT_HOFFSET
+text_anim_in_progress	dc.b	0
+text_phase	dc.b	0
 
 show_text:
     btst    #0,text_anim_in_progress
@@ -577,16 +587,31 @@ prepare_next_phase:
     clr.w   text_vb_counter
     moveq   #0,d0
 do_text_animation:
-    move.b  text_phase,d0
-    cmpi.b  #1,d0
-    beq.s   print_new_text
-    cmpi.b  #2,d0
-    beq.w   fade_in_quick
-    cmpi.b  #3,d0
-    beq.w   fade_out_quick
-    cmpi.b  #4,d0
-    beq.w   clear_text
+    move.b  text_phase,d0	; use routine tab
+    ;cmpi.b  #1,d0
+    ;beq.s   print_new_text
+    ;cmpi.b  #2,d0
+    ;beq.w   fade_in_quick
+    ;cmpi.b  #3,d0
+    ;beq.w   fade_out_quick
+    ;cmpi.b  #4,d0
+    ;beq.w   clear_text
+
+    add.w    d0,d0
+    add.w    d0,d0	
+
+    move.l   rout_table(pc,d0.w), a0
+    jmp	     (a0)
+
     rts
+
+rout_table:
+	dc.l	0 ; not assigned	; 0
+	dc.l	print_new_text		; 1
+	dc.l	fade_in_quick		; 2
+	dc.l	fade_out_quick		; 3
+	dc.l	clear_text		; 4
+
     
 print_new_text: 
     move.l  text_offset_pointer(PC), a0
