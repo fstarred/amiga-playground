@@ -168,8 +168,8 @@ Main:
 	
 	bsr.w	print_char
 	bsr.w	scroll_text
-	bsr.w	copy_text_buffer_to_screen
 	bsr.w	compute_offset
+	bsr.w	copy_text_buffer_to_screen
 	bsr.w	clear_area	
 	;bsr.w	draw_point	; just for debug 
 	bsr.w	make_camel
@@ -446,7 +446,7 @@ draw_point:
 	
 x0:	dc.w	0
 x1:	dc.w	0	; pixel between left margin and x1
-;x2:	dc.w	0
+x2:	dc.w	0	; pixel between x1 and right margin
 xd0:	dc.w	0	; delta x (xe = x0 >= 0 ? 0 : abs(x)/2) **
 y1:	dc.w	0	; vertical distance between y1 and x1 in pixel
 
@@ -465,12 +465,12 @@ w_sine_length:	dc.w	0	; sine length in word
 compute_offset:
 
 	move.w	sprite_x(pc), x1
-	add.w	#MOUSEX_SPRITE_POINTER, x1
+	addi.w	#MOUSEX_SPRITE_POINTER, x1
 	move.w	sprite_y(pc), d0
-	add.w	#MOUSEY_SPRITE_POINTER, d0
-	sub.w	#TEXT_V_OFFSET, d0
+	addi.w	#MOUSEY_SPRITE_POINTER, d0
+	subi.w	#TEXT_V_OFFSET, d0
 	tst	d0
-	bge	compute_all_offset
+	bge.s	compute_all_offset
 	moveq	#0, d0
 
 compute_all_offset:
@@ -493,7 +493,7 @@ save_w_x0:
 	
 	move.w	x1(pc), d0
 	add.w	d2, d0
-	;move.w	d0, x2		; x2
+	move.w	d0, x2		; x2
 	move.w	d0, d1
 	lsr	#4, d0
 	and.w	#%1111, d1	; check if mod 16 > 0
