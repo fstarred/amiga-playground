@@ -392,10 +392,7 @@ copy_text_buffer_to_screen:
 	;move.l	draw_buffer(pc), a0
 	;addi.w	#SCREEN_VOFFSET, a0	; SCREEN offset
 	
-	move.w	w_x0(pc), d0	; w_x0 (words)
-	move.w	w_sine_length(pc), d1	; w_sine_length
-	add.w	d0, d1
-	cmpi.w	#20, d1	; check if whole text has to be rewritten
+	cmpi.w	#20, w_sine_length	; w_sine_length
 	bne	copy_whole_text
 	
 	rts	; does not draw because it is useless
