@@ -65,8 +65,8 @@ ScrBpl	=w/8	; standard screen width + 2 bytes
 bpls = 2
 
 ;wbl = $2c (for copper monitor only)
-;wbl = 303
-wbl  = $DA
+wbl = 303
+;wbl  = $DA
 
 FONTSET_WIDTH   = 944   ; pixel
 FONTSET_HEIGHT  = 16    ; pixel
@@ -110,26 +110,26 @@ RMOUSE	MACRO
 	ENDM
 
 START:
-    	move.l  #SCREEN,d0  ; point to bitplane
-    	lea BPLPOINTERS,a1  ; 
-   	moveq   #bpls-1,d1  ; 2 BITPLANE
-POINTBP:
-    	move.w  d0,6(a1)    ; copy low word of pic address to plane
-    	swap    d0          ; swap the the two words
-   	move.w  d0,2(a1)    ; copy the high word of pic address to plane
-    	swap    d0          ; swap the the two words
-
-	add.l   #ScrBpl,d0      ; BITPLANE point to next byte line data
-                        ; instead of the standard raw
-                        ; where bitplane is immediately
-                        ; after the previous bitplane
-                        ; standard raw (40*256)
-                        ; blitter raw (40)
-			; notice the +2 bytes where to place char data
-			
-	addq.w  #8,a1   ; the next bpl starts one row
-                	; after the previous one	
-	dbra    d1,POINTBP
+    	;move.l  #SCREEN,d0  ; point to bitplane
+    	;lea BPLPOINTERS,a1  ; 
+   	;moveq   #bpls-1,d1  ; 2 BITPLANE
+;POINTBP:
+    	;move.w  d0,6(a1)    ; copy low word of pic address to plane
+    	;swap    d0          ; swap the the two words
+   	;move.w  d0,2(a1)    ; copy the high word of pic address to plane
+    	;swap    d0          ; swap the the two words
+        ;
+	;add.l   #ScrBpl,d0      ; BITPLANE point to next byte line data
+        ;                ; instead of the standard raw
+        ;                ; where bitplane is immediately
+        ;                ; after the previous bitplane
+        ;                ; standard raw (40*256)
+        ;                ; blitter raw (40)
+	;		; notice the +2 bytes where to place char data
+	;		
+	;addq.w  #8,a1   ; the next bpl starts one row
+        ;        	; after the previous one	
+	;dbra    d1,POINTBP
 	
 	move.l	#sprite, d0		; SPRITE pointer
 	lea	SPRITEPOINTERS,a1
@@ -160,10 +160,11 @@ fill_offset_tab:
 Main:
 	WAITVB  Main
 	
-	;***** COPPER MONITOR
+	bsr.w	swap_buffer
 	
 	bsr.s	read_mouse_coords
 
+	;***** COPPER MONITOR
 	;move.w  #$F00, $dff180
 	
 	bsr.w	print_char
@@ -174,12 +175,11 @@ Main:
 	;bsr.w	draw_point	; just for debug 
 	bsr.w	make_camel
 
-
+	;**** COPPER MONITOR
 	;move.w  #0, $dff180
 		
 	bsr.w	sprite_move
 		
-	;**** COPPER MONITOR
 	
 	
 Wait    WAITVB2 Wait
@@ -379,27 +379,108 @@ scroll_text:
 	move.w	#(FONT_HEIGHT*bpls*64)+21,BLTSIZE(a5)	; BLTSIZE
 	rts					
 
-
-copy_text_buffer_to_screen:
 	
+	
+copy_text_buffer_to_screen:
+		
+	move.w	y1(pc), d0
+	tst	d0
+	beq.w	copy_whole_text
+	
+;copy_left_area:
+
+	;move.l	draw_buffer(pc), a0
+	;addi.w	#SCREEN_VOFFSET, a0	; SCREEN offset
+	
+	move.w	w_x0(pc), d0	; w_x0 (words)
+	move.w	w_sine_length(pc), d1	; w_sine_length
+	add.w	d0, d1
+	cmpi.w	#20, d1	; check if whole text has to be rewritten
+	bne	copy_whole_text
+	
+	rts	; does not draw because it is useless
+
+	;THE MAIN PURPOSE OF THE CODE BELOW WAS TO DRAW JUST THE PARTIAL TEXT
+	;HOWEVER IT WAS COMMENTED BECAUSE IT DOES NOT IMPROVE PERFORMANCE
+	
+	
+;	move.w	d0, d1
+;	add.w	d1, d1	; w_x0 in bytes
+;	
+;	BLTWAIT BWT8
+;	
+;	move.l	#$09f00000, BLTCON0(a5)	; BLTCON0+BLTCON1 (A-D) 
+;	move.l	#$ffffffff, BLTAFWM(a5)	; BLTAFWM / BLTALWM	
+;	move.l	#BUFFER, BLTAPT(a5)	; BLTAPT - source
+;	move.l	a0, BLTDPT(a5)	; BLTDPT - dest
+;	
+;	moveq	#ScrBpl+2, d2
+;	sub.w	d1, d2
+;		
+;	move.w	d2, BLTAMOD(a5)
+;	subq	#2, d2
+;	move.w	d2, BLTDMOD(a5)
+;	
+;	move.w	#(FONT_HEIGHT*bpls*64), d2
+;	add.w	d0, d2
+;	move.w	d2, BLTSIZE(a5)	; BLTSIZE
+;	
+;copy_right_area:
+;	
+;	move.w	w_sine_length(pc), d1	; w_sine_length	
+;	add.w	d0, d1	; w_x0 + w_sine_length
+;	moveq	#20, d3	
+;	sub.w	d1, d3	; 20 - w_x0 + w_sine_length 
+;	tst	d3	; right area to copy in words
+;	beq	exit_copy_text_buffer_to_screen
+;	
+;	add.w	d1, d1	; w_x0 + w_sine_length in bytes
+;	move.w	d3, d0
+;	add.w	d0, d0	; right area to copy in bytes
+;	
+;	moveq	#ScrBpl+2, d2
+;	sub.w	d0, d2
+;
+;	BLTWAIT BWT9
+;	
+;	move.w	d2, BLTAMOD(a5)
+;	subq	#2, d2
+;	move.w	d2, BLTDMOD(a5)
+;	
+;	lea	BUFFER, a1
+;	add.w	d1, a1
+;	
+;	move.l	#$09f00000, BLTCON0(a5)	; BLTCON0+BLTCON1 (A-D) 
+;	move.l	#$ffffffff, BLTAFWM(a5)	; BLTAFWM / BLTALWM	
+;	move.l	a1, BLTAPT(a5)	; BLTAPT - source
+;	add.w	d1, a0
+;	move.l	a0, BLTDPT(a5)	; BLTDPT - dest
+;	
+;	move.w	#(FONT_HEIGHT*bpls*64), d2
+;	add.w	d3, d2
+;	move.w	d2, BLTSIZE(a5)	; BLTSIZE
+;	
+;exit_copy_text_buffer_to_screen:
+;	rts
+	
+	
+copy_whole_text:
+
 	BLTWAIT BWT3
 
-	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
-	move.w	#$0000,BLTCON1(a5)	; BLTCON1 use blitter ASC mode
-					
-
+	move.l	#$09f00000,BLTCON0(a5)	; BLTCON0+BLTCON1 (A-D) 
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
-					; BLTAFWM = $ffff  
-					; BLTALWM = $ffff 
-					
+	move.l	draw_buffer(pc), a0
+	addi.w	#SCREEN_VOFFSET, a0
 
 	move.l	#BUFFER,BLTAPT(a5)			; BLTAPT - source
-	move.l	#SCREEN+SCREEN_VOFFSET,BLTDPT(a5)	; BLTDPT - dest
+	move.l	a0,BLTDPT(a5)	; BLTDPT - dest
 
 	; scroll an image of the full screen width * FONT_HEIGHT
 
 	move.l	#$00020000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
 	move.w	#(FONT_HEIGHT*bpls*64)+20,BLTSIZE(a5)	; BLTSIZE
+
 	rts			
 
 
@@ -505,9 +586,6 @@ check_w_x0_pos:
 	move.w	w_x0(pc), d3	; w_x0 to d3
 	
 	sub.w	d3, d0
-	tst	d0
-	bne.s	w_x0_not_negative
-	moveq	#1, d0			; w_sine_length is at least 1
 w_x0_not_negative:
 	move.w	d0, d1			; w_x2 - w_x0
 	move.w	d1, d2
@@ -577,25 +655,39 @@ init_counter:
 *
 ********************************************
 
+old_y1:			dc.w	0
+old_w_x0:		dc.w	0
+old_w_sine_length:	dc.w	0
+
 clear_area:
 
 	BLTWAIT BWT4
 	
-	; clear under text area
+	; clear below text area
+	
+	move.l	draw_buffer(pc), a0
+	addi.w	#SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl*bpls), a0
 	
 	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
 	move.l	#0,BLTAPT(a5)		; BLTAPT - source	
-	move.l	#SCREEN+SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl*bpls),BLTDPT(a5)	; BLTDPT - dest
+	move.l	a0,BLTDPT(a5)	; BLTDPT - dest
 	move.w	#0, BLTAMOD(a5)	; BLTAMOD
 	move.w	#0, BLTDMOD(a5)	; BLTDMOD
 	move.w	#((h-TEXT_V_OFFSET-FONT_HEIGHT)*bpls*64)+20, BLTSIZE(a5)	; BLTSIZE
+
+	move.w	w_sine_length, d0
+	tst.w	d0
+	beq.s	exit_clear_area
 	
-	BLTWAIT BWT5
+	BLTWAIT BWT5	
 	
 	; clear text where sine is involved
-		
-	lea	SCREEN+SCREEN_VOFFSET, a0	
+	
+	move.l	draw_buffer(pc), a0
+	addi.w	#SCREEN_VOFFSET, a0
+	
+	;lea	SCREEN+SCREEN_VOFFSET, a0	
 	move.w	w_x0(pc), d0
 	add.w	d0, d0			; in bytes
 	lea	(a0,d0.w), a0	
@@ -612,6 +704,8 @@ clear_area:
 	move.w	#(FONT_HEIGHT*bpls*64), d0
 	add.w	d2, d0			; BLTAMOD
 	move.w	d0, BLTSIZE(a5)		; BLTSIZE
+
+exit_clear_area:
 	
 	rts
 
@@ -620,13 +714,21 @@ clear_area:
 	
 	
 make_camel:
+	move.w	w_sine_length(pc), d6	; word loop cnt	
+	tst.w	d6
+	beq.w	exit_sine_loop
+
+	subq	#1, d6
 	
 	lea	BUFFER, a1
 	move.w	w_x0(pc), d0
 	add.w	d0, d0
 	lea	(a1,d0.w), a1
 	
-	lea	SCREEN+SCREEN_VOFFSET, a2
+	;lea	SCREEN+SCREEN_VOFFSET, a2
+	move.l	draw_buffer(pc), a2
+	addi.w	#SCREEN_VOFFSET, a2
+	
 	lea	(a2,d0.w), a2
 	
 	move.w	xd0(pc), d0	
@@ -637,9 +739,6 @@ make_camel:
 	move.w	s_x2(pc), d4	; move s_x2 to d4		
 	move.w	#$C000, d5
 	
-	move.w	w_sine_length(pc), d6	; word loop cnt	
-	subq	#1, d6
-
 	BLTWAIT BWT7
 
 	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
@@ -754,7 +853,29 @@ translate_hstart_coord:
 	lsr.w   #1,d1       ; shift x position to right, translate x
 	move.b  d1,1(a1)    ; set x to HSTART byte
 	rts
+
 	
+swap_buffer:
+	move.l	draw_buffer(pc), d0
+	move.l	view_buffer(pc), draw_buffer
+	move.l	d0, view_buffer
+				
+	lea	BPLPOINTERS, a1
+	moveq	#bpls-1, d1
+POINTBP:
+	move.w	d0,6(a1)
+	swap	d0
+	move.w	d0,2(a1)
+	swap	d0
+	add.l	#ScrBpl, d0
+	addq.w	#8, a1
+	dbra	d1, POINTBP
+
+	rts
+
+view_buffer	dc.l	SCREEN		; displayed buffer
+draw_buffer	dc.l	SCREEN_2	; drawn buffer
+
 ;*****************************************************************************
 
 	SECTION	GRAPHIC,DATA_C
@@ -832,7 +953,8 @@ OFFSET_TAB:	; contains the effective address pointer for each line
 	
 SCREEN:
 	ds.b	ScrBpl*h*bpls		; 2 bitplane
-
+SCREEN_2:
+	ds.b	ScrBpl*h*bpls		; 2 bitplane
 BUFFER:
 	ds.b	(ScrBpl+2)*bpls*FONT_HEIGHT
 
