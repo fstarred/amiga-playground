@@ -359,9 +359,9 @@ scroll_text:
 
 	BLTWAIT BWT2
 
-	move.w	#$29f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
+	move.l	#$29f00002,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
 					; 1 pixel shift, LF = F0
-	move.w	#$0002,BLTCON1(a5)	; BLTCON1 use blitter DESC mode
+	;move.w	#$0002,BLTCON1(a5)	; BLTCON1 use blitter DESC mode
 					
 
 	move.l	#$ffff7fff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
@@ -652,42 +652,57 @@ init_counter:
 *
 ********************************************
 
-old_y1:			dc.w	0
-old_w_x0:		dc.w	0
-old_w_sine_length:	dc.w	0
+old_y1:			dc.w	0,0	; we store 2 values of old_y1, one for each buffer.
+					; Once we use the correct old_y1
+					; we swap the 2 words in order to work
+					; with the correct old_y1 value
 
 clear_area:
 
-	BLTWAIT BWT4
-	
-	; clear below text area
-	
 	move.l	draw_buffer(pc), a0
-	addi.w	#SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl*bpls), a0
+	addi.w	#(TEXT_V_OFFSET+FONT_HEIGHT)*ScrBpl*bpls, a0
 	
+	move.l	old_y1(pc), d3	; old_y1
+	
+	tst.w	d3
+	beq	clear_text_sine_involved
+	
+	BLTWAIT BWT4	
+	; clear below text area
+		
 	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
 	move.l	#0,BLTAPT(a5)		; BLTAPT - source	
 	move.l	a0,BLTDPT(a5)	; BLTDPT - dest
 	move.w	#0, BLTAMOD(a5)	; BLTAMOD
 	move.w	#0, BLTDMOD(a5)	; BLTDMOD
-	move.w	#((h-TEXT_V_OFFSET-FONT_HEIGHT)*bpls*64)+20, BLTSIZE(a5)	; BLTSIZE
-
-	move.w	w_sine_length, d0
+	
+	;lsl	#6, d3	; UNCOMMENT IF BPLS=1
+	lsl	#7, d3	; UNCOMMENT IF BPLS=2
+	addi.w	#20, d3
+	move.w	d3, BLTSIZE(a5)
+	
+clear_text_sine_involved:
+	
+	move.w	y1(pc), d0
 	tst.w	d0
-	beq.s	exit_clear_area
-	
-	BLTWAIT BWT5	
-	
-	; clear text where sine is involved
+	beq	exit_clear_area
 	
 	move.l	draw_buffer(pc), a0
 	addi.w	#SCREEN_VOFFSET, a0
 	
-	;lea	SCREEN+SCREEN_VOFFSET, a0	
 	move.w	w_x0(pc), d0
 	add.w	d0, d0			; in bytes
 	lea	(a0,d0.w), a0	
+	
+	BLTWAIT BWT5	
+	; clear text where sine is involved	
+	
+	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+	move.w	#0, BLTAPT(a5)
+	move.w	#0, BLTAMOD(a5)
+	
 	move.l	a0, BLTDPT(a5)		; BLTDPT
 	
 	move.w	w_sine_length(pc), d1
@@ -703,6 +718,10 @@ clear_area:
 	move.w	d0, BLTSIZE(a5)		; BLTSIZE
 
 exit_clear_area:
+	
+	move.w	y1(pc), d3	; store new value to old_y1
+	swap	d3		; swap w value because of double buffer
+	move.l	d3, old_y1	; store both values to old_y1
 	
 	rts
 
@@ -936,8 +955,9 @@ sprite:
 	dc.w	0,0	
 	
 FONT:
-	incdir  "dh1:own/demo/repository/resources/fonts/"
-	incbin  "16X16-F2_944_16_2.blt.raw"
+	incdir  "dh1:own/demo/repository/resources/fonts/"	
+	;incbin  "16X16-F2_944_16_1.raw"		; BPLS=1
+	incbin  "16X16-F2_944_16_2.blt.raw"	; BPLS=2
 	
 *****************************************************************************
 
