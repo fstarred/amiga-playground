@@ -232,7 +232,7 @@ sprite_move:
 
 	addq.l	#2, tab_x_pointer
 	move.l  tab_x_pointer(PC), a1 ; copy pointer x to a0
-	cmp.l   #ENDTABX-2, a1 ; check if X end is reached
+	cmpi.l  #ENDTABX-2, a1 ; check if X end is reached
 	bne.s   move_x_tab
 	move.l  #TABX-2, tab_x_pointer 
 
@@ -242,7 +242,7 @@ move_x_tab:
 	bne.s	test_color_flag
 	moveq	#TOTAL_MOVES/2, d0
 	bchg	#0, color_flag
-	bne	priority_high
+	bne.s	priority_high
 	clr.w	SPRITE_PRIORITY
 	bra.s	test_color_flag
 priority_high:
@@ -472,10 +472,10 @@ FONT_ADDRESS_LIST:
 *
 *****************************************************************************
 
-BAR_HEIGHT = 48
-DECREASE_SPEED = 2
+BAR_HEIGHT = 32
+DECREASE_SPEED = 1
 H_DESC_OFFSET = 20
-V_OFFSET = 120*ScrBpl
+V_OFFSET = 130*ScrBpl
 
 SCREEN_OFFSET =V_OFFSET+(BAR_HEIGHT*ScrBpl)+H_DESC_OFFSET
 
@@ -498,20 +498,24 @@ init_bar:
 start_equalizer:
 	
 	moveq	#4-1, d7	; init loop	
-	moveq	#0, d2		; pointer incremental for channel_address
+	moveq	#0, d2		; channel_address index (0-3)
+	moveq	#0, d3		; reset channel volume
 
 	lea	chan_level(pc), a1		
 check_channel_level:	
 	lea	channel_address(pc), a0	
 	
 	move.l	(a0,d2.w), a0	; channel temp address to a0
-	move.l	(a0), d0	; channel temp value to d0
+	move.l	(a0), d0	; channel temp touch to d0
+	move.b	19(a0), d3	; channel temp value to d3
 		
-	move.w	(a1),d1         ; channel level value to d1
+	move.w	(a1), d1         ; channel level value to d1
 	
 	tst.w	d0	; test current mt_channel
 	beq.s	no_sound
-	move.w	#BAR_HEIGHT-DECREASE_SPEED, d1	
+	move.w	d3, d1	; update channel level value
+	lsr.w	#1, d1	; halve value
+	;moveq	#BAR_HEIGHT-DECREASE_SPEED, d1		
 no_sound:	
 	tst.w	d1	; test channel level
 	beq.s	min_value	; no channel level subtract
@@ -538,7 +542,7 @@ clear_equalizer:
 	move.w	#ScrBpl-(4*2),BLTDMOD(a5)	; BLTDMOD 
 	move.l	#0, BLTAPT(a5)	; BLTAPT  ; point to BAR source
 	move.l	a0, BLTDPT(a5)		; BLTDPT  ; point to SCREEN destination
-	move.w	#64*(BAR_HEIGHT-2)+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
+	move.w	#64*BAR_HEIGHT+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
 	
 	lea	chan_level, a0	
 	lea	SCREEN+SCREEN_OFFSET-6, a1

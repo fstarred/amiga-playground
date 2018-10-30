@@ -244,7 +244,7 @@ BALL_WIDTH = 32
 sprite_move:
     addq.l  #1,tab_y_pointer     ; point to next TAB Y
     move.l  tab_y_pointer(PC),a0 ; copy pointer y to A0
-    cmp.l   #ENDTABY-1,a0  ; check if Y end is reached
+    cmpi.l   #ENDTABY-1,a0  ; check if Y end is reached
     bne.s   move_y_tab  ; 
     move.l  #TABY-1,tab_y_pointer ; reset to first tab Y
 move_y_tab:
@@ -253,7 +253,7 @@ move_y_tab:
 
     addq.l  #2,tab_x_pointer ; point to next TAB X
     move.l  tab_x_pointer(PC),a0 ; copy pointer x to a0
-    cmp.l   #ENDTABX-2,a0 ; check if X end is reached
+    cmpi.l   #ENDTABX-2,a0 ; check if X end is reached
     bne.s   move_x_tab
     move.l  #TABX-2,tab_x_pointer ; reset to first tab X
 move_x_tab:
@@ -287,7 +287,7 @@ move_x_tab:
 .check_right_margin
     cmpi #$11A, (a0)
     bne.s   check_left_margin
-    move.w  #0, SPRITE_PRIORITY ; all sprites over PLAYFIELD
+    clr.w   SPRITE_PRIORITY ; all sprites over PLAYFIELD
     bra.s   exit_sprite_move
 
 check_left_margin:
@@ -334,7 +334,7 @@ no_vstop_set:
 check_x_coord:
 
 ; horizontal position section
-    add.w   #128,d1     ; 128 - sprite center
+    addi.w  #128,d1     ; 128 - sprite center
     btst    #0,d1       ; is odd x position ?
     beq.s   clear_hstart_bit
     bset    #0,3(a1)    ; set HSTART bit (odd position)
@@ -488,7 +488,7 @@ move_stars:
     lea SPRITEPOINTERS,a1   ; SPRITE pointer
     
     move.l  #STARFIELD_SPRITE,d0        
-    add.w   #8*(5-1),a1         
+    addi.w   #8*(5-1),a1         
     move.w  d0,6(a1)    
     swap    d0              
     move.w  d0,2(a1)       
@@ -662,7 +662,7 @@ print_text:
 print_char:
     moveq   #0,d2       ; 
     move.b  (a0)+,d2    ; point to next char in D2
-    sub.b   #$20,d2     ; subtract 32 ASCII chars to d2                     
+    subi.b   #$20,d2     ; subtract 32 ASCII chars to d2                     
     add.l   d2,d2       ; get the char offset, because
                 ; every char is 16 pixel
     move.l  d2,a2       ; copy the offset to A2
@@ -880,7 +880,7 @@ fade_in_quick:
     move.w  d0, fade_counter    
     tst d0
     beq.s   end_fade_in_quick
-    add.l   #2, tabpointer
+    addq.l  #2, tabpointer
     rts
 end_fade_in_quick:
     move.w  #FADE_STEP_COUNT, fade_counter  ; reset fade counter
@@ -963,7 +963,7 @@ fade_out_quick:
     move.w  d0, fade_counter    
     tst d0
     beq.s   end_fade_out_quick
-    sub.l   #2, tabpointer
+    subq.l  #2, tabpointer
     rts
 end_fade_out_quick: 
     move.w  #FADE_STEP_COUNT,fade_counter

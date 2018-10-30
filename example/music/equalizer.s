@@ -185,7 +185,7 @@ no_sound:
 
 min_value:	
 	addq	#4, d2	; add to incremental pointer
-	addi.w	#2, a1	; point to next	chan_level
+	addq	#2, a1	; point to next	chan_level
 	
 	dbra	d7, check_channel_level
 
@@ -252,7 +252,7 @@ blit_bar:
 	move.l	a1,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
 	move.w	d1,BLTSIZE(a5)	; BLTSIZE: rectangle size
 	
-	addi.l	#2,a1
+	addq	#2,a1
 	
 	dbra	d7, change_mixer_level
 	

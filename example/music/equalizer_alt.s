@@ -194,12 +194,12 @@ check_channel_level:
 no_sound:	
 	tst.w	d1		; test channel level
 	beq.s	min_value	; no channel level subtract
-	sub.w	#DECREASE_SPEED, d1		; subtract channel level
+	subq.w	#DECREASE_SPEED, d1		; subtract channel level
 	move.w	d1, (a1)	; write new value to channel level
 
 min_value:	
 	addq	#4, d2	; add to incremental pointer
-	addi.w	#2, a1	; point to next	chan_level
+	addq	#2, a1	; point to next	chan_level
 	
 	dbra	d7, check_channel_level
 	
@@ -220,7 +220,7 @@ clear_equalizer:
 	move.w	#40-(4*2),BLTDMOD(a5)	; BLTDMOD 
 	move.l	#0,BLTAPT(a5)	; BLTAPT  ; point to BAR source
 	move.l	a0,BLTDPT(a5)		; BLTDPT  ; point to SCREEN destination
-	move.w	#64*64+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
+	move.w	#BAR_HEIGHT*64+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
 	
 	lea	chan_level, a0	
 	lea	SCREEN+SCREEN_OFFSET-6, a1
@@ -249,7 +249,7 @@ draw_equalizer:
 	move.l	a2,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
 	move.w	d0,BLTSIZE(a5)	; BLTSIZE: rectangle size
 	
-	addi.l	#2,a1
+	addq	#2,a1
 	
 	dbra	d7, draw_equalizer
 	
