@@ -1,3 +1,14 @@
+*********************************************
+*
+*	   STARRED MEDIASOFT
+*
+*		DEMO 3
+*
+*		VER 1.0 (2018)
+*
+*
+*********************************************
+
 	SECTION Code,CODE
 
 
@@ -33,12 +44,146 @@ INTENASET=     %1010000000000000
 ;   0   TBE Level 1 Transmit Buffer Empty Interrupt (serial port)
 
 
+
+
+
+P61mode	=1	;Try other modes ONLY IF there are no Fxx commands >= 20.
+		;(f.ex., P61.new_ditty only works with P61mode=1)
+
+
+;;    ---  options common to all P61modes  ---
+
+usecode	=-1	;CHANGE! to the USE hexcode from P61con for a big 
+		;CPU-time gain! (See module usecodes at end of source)
+		;Multiple songs, single playroutine? Just "OR" the 
+		;usecodes together!
+
+		;...STOP! Have you changed it yet!? ;)
+		;You will LOSE RASTERTIME AND FEATURES if you don't.
+
+P61pl=usecode&$400000
+
+split4	=1	;Great time gain, but INCOMPATIBLE with F03, F02, and F01
+		;speeds in the song! That's the ONLY reason it's default 0.
+		;So ==> PLEASE try split4=1 in ANY mode!
+		;Overrides splitchans to decrunch 1 chan/frame.
+		;See ;@@ note for P61_SetPosition.
+
+
+splitchans=1	;#channels to be split off to be decrunched at "playtime frame"
+		;0=use normal "decrunch all channels in the same frame"
+		;Experiment to find minimum rastertime, but it should be 1 or 2
+		;for 3-4 channels songs and 0 or 1 with less channels.
+
+visuctrs=1	;enables visualizers in this example: P61_visuctr0..3.w 
+		;containing #frames (#lev6ints if cia=1) elapsed since last
+		;instrument triggered. (0=triggered this frame.)
+		;Easy alternative to E8x or 1Fx sync commands.
+
+asmonereport	=0	;ONLY for printing a settings report on assembly. Use
+			;if you get problems (only works in AsmOne/AsmPro, tho)
+
+p61system=0	;1=system-friendly. Use for DOS/Workbench programs.
+
+p61exec	=0	;0 if execbase is destroyed, such as in a trackmo.
+
+p61fade	=0	;enable channel volume fading from your demo
+
+channels=4	;<4 for game sound effects in the higher channels. Incompatible
+		; with splitchans/split4.
+
+playflag=0	;1=enable music on/off capability (at run-time). .If 0, you can
+		;still do this by just, you know, not calling P61_Music...
+		;It's a convenience function to "pause" music in CIA mode.
+
+p61bigjtab=0	;1 to waste 480b and save max 56 cycles on 68000.
+
+opt020	=0	;1=enable optimizations for 020+. Please be 68000 compatible!
+		;splitchans will already give MUCH bigger gains, and you can
+		;try the MAXOPTI mode.
+
+p61jump	=0	;0 to leave out P61_SetPosition (size gain)
+		;1 if you need to force-start at a given position fex in a game
+
+C	=0	;If you happen to have some $dffxxx value in a6, you can 
+		;change this to $xxx to not have to load it before P61_Music.
+
+clraudxdat=0	;enable smoother start of quiet sounds. probably not needed.
+
+optjmp	=1	;0=safety check for jump beyond end of song. Clear it if you 
+		;play unknown P61 songs with erroneous Bxx/Dxx commands in them
+
+oscillo	=0	;1 to get a sample window (ptr, size) to read and display for 
+		;oscilloscope type effects (beta, noshorts=1, pad instruments)
+		;IMPORTANT: see ;@@ note about chipmem dc.w buffer.
+
+quietstart=0	;attempt to avoid the very first click in some modules
+		;IMPORTANT: see ;@@ note about chipmem dc.w buffer.
+
+use1Fx=0	;Optional extra effect-sync trigger (*). If your module is free
+		;from E commands, and you add E8x to sync stuff, this will 
+		;change the usecode to include a whole code block for all E 
+		;commands. You can avoid this by only using 1Fx. (You can 
+		;also use this as an extra sync command if E8x is not enough, 
+		;of course.)
+
+;(*) Slideup values>116 causes bugs in Protracker, and E8 causes extra-code 
+;for all E-commands, so I used this. It's only faster if your song contains 0
+;E-commands, so it's only useful to a few, I guess. Bit of cyclemania. :)
+
+;Just like E8x, you will get the trigger after the P61_Music call, 1 frame 
+;BEFORE it's heard. This is good, because it allows double-buffered graphics 
+;or effects running at < 50 fps to show the trigger synced properly.
+
+
+
+;;    ---  CIA mode options (default) ---
+
+	ifeq P61mode-1
+
+p61cia	=1	;call P61_Music on the CIA interrupt instead of every frame.
+
+lev6	=1	;1=keep the timer B int at least for setting DMA.
+		;0="FBI mode" - ie. "Free the B-timer Interrupt".
+
+		;0 requires noshorts=1, p61system=0, and that YOU make sure DMA
+		;is set at 11 scanlines (700 usecs) after P61_Music is called.
+		;AsmOne will warn you if requirements are wrong.
+
+		;DMA bits will be poked in the address you pass in A4 to 
+		;P61_init. (Update P61_DMApokeAddr during playing if necessary,
+		;for example if switching Coppers.)
+
+		;P61_Init will still save old timer B settings, and initialize
+		;it. P61_End will still restore timer B settings from P61_Init.
+		;So don't count on it 'across calls' to these routines.
+		;Using it after P61_Init and before P61_End is fine.
+
+noshorts=0	;1 saves ~1 scanline, requires Lev6=0. Use if no instrument is
+		;shorter than ~300 bytes (or extend them to > 300 bytes).
+		;It does this by setting repeatpos/length the next frame 
+		;instead of after a few scanlines,so incompatible with MAXOPTI
+
+dupedec	=0	;0=save 500 bytes and lose 26 cycles - I don't blame you. :)
+		;1=splitchans or split4 must be on.
+
+suppF01	=1	;0 is incompatible with CIA mode. It moves ~100 cycles of
+		;next-pattern code to the less busy 2nd frame of a notestep.
+		;If you really need it, you have to experiment as the support 
+		;is quite complex. Basically set it to 1 and try the various 
+		;P61modes, if none work, change some settings.
+
+	endc
+
+
 	
 *****************************************************************************
 	incdir	"dh1:own/demo/repository/startup/borchen/"
 	include	"startup.s"	
 	incdir	"dh1:own/demo/repository/shared/"	
 	include "hardware/custom.i"
+	incdir  "dh1:own/demo/repository/replay/"
+	include "P6112-Play.i"
 *****************************************************************************
 
 
@@ -55,8 +200,8 @@ ScrLBpl	=w_L/8
 bpls_H = 4
 bpls_L = 1
 
-wbl = $2c+h_H+4 (for copper monitor only)
-;wbl = 303
+;wbl = $2c+h_H+4 (for copper monitor only)
+wbl = $ff
 
 WAITVB MACRO
    	move.l  VPOSR(a5),d0      ; wait
@@ -111,26 +256,46 @@ POINTBP_H:
 	dbra    d1,POINTBP_H
 	
 	
-	move.l  #SCREEN_L,d0  ; point to bitplane
-    	lea BPLPOINTERS_L,a1  ; 
-   	moveq   #bpls_L-1,d1  ; 2 BITPLANE
-POINTBP_L:
-    	move.w  d0,6(a1)    ; copy low word of pic address to plane
-    	swap    d0          ; swap the the two words
-   	move.w  d0,2(a1)    ; copy the high word of pic address to plane
-    	swap    d0          ; swap the the two words
-
-	add.l   #ScrLBpl*h_L,d0      
-			
-	addq.w  #8,a1
-                	
-	dbra    d1,POINTBP_L
+;	move.l  #SCREEN_L,d0  ; point to bitplane
+;    	lea BPLPOINTERS_L,a1  ; 
+;   	moveq   #bpls_L-1,d1  ; 2 BITPLANE
+;POINTBP_L:
+;    	move.w  d0,6(a1)    ; copy low word of pic address to plane
+;    	swap    d0          ; swap the the two words
+;   	move.w  d0,2(a1)    ; copy the high word of pic address to plane
+;    	swap    d0          ; swap the the two words
+;
+;	add.l   #ScrLBpl*h_L,d0      
+;			
+;	addq.w  #8,a1
+;                	
+;	dbra    d1,POINTBP_L
+	
     
 	move.w  #DMASET,$dff096     ; enable necessary bits in DMACON
 	move.w  #INTENASET,$dff09a     ; INTENA
     
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
 	move.w  #0,$dff088      ; COPJMP1 activate copperlist
+
+	movem.l d0-a6,-(sp)	; P61_Init
+
+	lea M_DATA,a0
+	sub.l a1,a1
+	sub.l a2,a2
+	moveq #0,d0
+	jsr P61_Init
+
+	movem.l (sp)+,d0-a6
+
+	
+	lea	OFFSET_TAB, a0	
+	moveq	#0, d0		
+	move.w	#h_L-1, d7	
+fill_offset_tab:
+	move.w	d0,(a0)+		; put ScrBpl on each word value
+	add.w	#ScrLBpl*bpls_L, d0		; ScrBpl+ScrBpl...
+	dbra	d7, fill_offset_tab
 	
 	lea	$dff000,a5
 	
@@ -144,10 +309,15 @@ POINTBP_L:
 Main:
 	WAITVB  Main
 	
+	; IN ORDER TO DISPLAY COPPER MONITOR CORRECTLY
+	; COMMENT THE FOLLOWING ROUTINES:
+	; 1. init_copper_bars
+	; 2. clear_copper_area
+	; 3. rolling_copper_bars
 	
-;   ***** COPPER MONITOR
-;   move.w  #$F00, $dff180
-
+	
+;	***** COPPER MONITOR
+	;move.w  #$F00, $dff180
 
 	bsr.w	animate_chessboard
 
@@ -159,6 +329,7 @@ Main:
 	bsr.w   sprite_animation
 	bsr.w   sprite_move
 
+	bsr.w	swap_buffer
 	
 	bsr.w	print_char_scrolling_text
 	bsr.w	scroll_text
@@ -166,9 +337,10 @@ Main:
 	bsr.w	compute_offset
 	bsr.w	clear_scrtxt_area		
 	bsr.w	make_camel
+	
 			
-  	**** COPPER MONITOR
-	move.w  #0, $dff180
+;  	**** COPPER MONITOR
+	;move.w  #0, $dff180
 	
 Wait    WAITVB2 Wait
 
@@ -178,7 +350,11 @@ WaitRm:
 	
 continue:	
 	LMOUSE Main
-
+	
+	movem.l d0-a6,-(sp)	; P61_End
+	jsr P61_End
+	movem.l (sp)+,d0-a6
+	
 	rts		; exit
 
 FONTSET_HEADER_WIDTH   = 320   ; pixel
@@ -204,7 +380,7 @@ print_text_header:
 
 	BLTWAIT BWT1
 	
-	move.l	#$ffffffff,BLTAFWM(a5)	 ; BLTALWM, BLTAFWM
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTALWM, BLTAFWM
 	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1
 	move.l	#$00240074,BLTAMOD(a5)	; BLTAMOD = 36, BLTDMOD = 116
 			
@@ -244,19 +420,6 @@ end_text:
 	rts
 
 	
-close_chessboard:
-
-	move.b	#CHESSBOARD_CLOSE, chessboard_action
-
-	rts
-
-open_chessboard:
-
-	move.b	#CHESSBOARD_OPEN, chessboard_action
-
-	rts
-
-	
 CHESSBOARD_ANIM_SPEED = 2
 
 CHESSBOARD_CLOSE = 0
@@ -267,7 +430,7 @@ chessboard_action:	dc.b	CHESSBOARD_OPEN
 chessboard_anim_cnt:	dc.w	1
 
 animate_chessboard:
-	move.b	chessboard_counter, d1
+	move.b	chessboard_counter(pc), d1
 	tst.b	chessboard_action
 	bne.s	prepare_chessboard_open_action
 prepare_chessboard_close_action:
@@ -309,7 +472,8 @@ init_chessboard:
 	
 	; exit
 	
-
+SQUARE_HEIGHT = 8
+	
 ***********************************
 *
 *	draw chessboard routine
@@ -354,26 +518,22 @@ draw_cb_loop_alt:
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM + BLTALWM 
 
 	move.l	a0, BLTAPT(a5)	; BLTAPT
-	addi.l	#ScrHBpl*16, a0
+	addi.l	#ScrHBpl*SQUARE_HEIGHT*2, a0
 	move.l	a0, BLTDPT(a5) 	; BLTDPT
 	move.l	#$00740074, BLTAMOD(a5) ; BLTAMOD
-	move.w	#(32*64)+2, BLTSIZE(a5) ; BLTSIZE	
+	move.w	#((h_H-(SQUARE_HEIGHT*2))*64)+2, BLTSIZE(a5) ; BLTSIZE	
 	
 	lea	SCREEN_H+(ScrHBpl*h_H*3), a0	; move to bitplane 3	
-	moveq	#ScrHBpl/4-2, d7
-
 	
-fill_chessboard:
-
-	BLTWAIT BWT11
+	BLTWAIT BWT10
 
 	move.l	a0, BLTAPT(a5)	; BLTAPT	
 	addq.l	#4, a0
 	move.l	a0, BLTDPT(a5) 	; BLTDPT
+	move.w	#$0004, BLTAMOD(a5) ; BLTDMOD
+	move.w	#$0004, BLTDMOD(a5) ; BLTDMOD
 	
-	move.w	#(48*64)+2, BLTSIZE(a5) ; BLTSIZE	
-	
-	dbra	d7, fill_chessboard
+	move.w	#(h_H*64)+(ScrHBpl/2-2), BLTSIZE(a5) ; BLTSIZE		
 	
 	rts
 
@@ -770,7 +930,7 @@ FONT_SCRTXT_WIDTH  = 16 ; pixel
 FONT_SCRTXT_HEIGHT = 16 ; pixel
 
 SCRTEXT_V_OFFSET = 110
-SCREEN_VOFFSET = SCRTEXT_V_OFFSET*ScrLBpl*bpls_L
+SCREEN_VOFFSET = SCRTEXT_V_OFFSET*ScrLBpl
 
 	
 print_char_scrolling_text:
@@ -828,7 +988,7 @@ scroll_text:
 ; therefore blitter starts copying
 ; from right word and ends to left word
 
-	move.l	#BUFFER+(FONT_SCRTXT_HEIGHT*42*bpls_L)-2,d0 ; source and dest address
+	move.l	#BUFFER+(FONT_SCRTXT_HEIGHT*42)-2,d0 ; source and dest address
 
 	BLTWAIT BWT8
 
@@ -854,20 +1014,27 @@ scroll_text:
 
 
 copy_text_buffer_to_screen:
+		
+	move.w	y1(pc), d0
+	tst	d0
+	beq.s	copy_whole_text
+	
+	cmpi.w	#20, w_sine_length	; w_sine_length
+	bne.s	copy_whole_text
+	
+	rts	; does not draw because it is useless
+	
+copy_whole_text:
 	
 	BLTWAIT BWT3
 
-	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
-	move.w	#$0000,BLTCON1(a5)	; BLTCON1 use blitter ASC mode
-					
-
+	move.l	draw_buffer(pc), a0
+	addi.w	#SCREEN_VOFFSET, a0
+	
+	move.l	#$09f00000,BLTCON0(a5)	; BLTCON0+BLTCON1 (A-F) 
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
-					; BLTAFWM = $ffff  
-					; BLTALWM = $ffff 
-					
-
 	move.l	#BUFFER,BLTAPT(a5)			; BLTAPT - source
-	move.l	#SCREEN_L+SCREEN_VOFFSET,BLTDPT(a5)	; BLTDPT - dest
+	move.l	a0,BLTDPT(a5)	; BLTDPT - dest
 
 	; scroll an image of the full screen width * FONT_SCRTXT_HEIGHT
 
@@ -919,12 +1086,12 @@ MOUSEY_SPRITE_POINTER = SPRITE_HEIGHT+1
 compute_offset:
 
 	move.w	sprite_x(pc), x1
-	add.w	#MOUSEX_SPRITE_POINTER, x1
+	addi.w	#MOUSEX_SPRITE_POINTER, x1
 	move.w	sprite_y(pc), d0
-	add.w	#MOUSEY_SPRITE_POINTER, d0
-	sub.w	#SCRTEXT_V_OFFSET+h_H, d0	; SCREEN_L starts when h_H ends
+	addi.w	#MOUSEY_SPRITE_POINTER, d0
+	subi.w	#SCRTEXT_V_OFFSET+h_H, d0	; SCREEN_L starts when h_H ends
 	tst	d0
-	bge	compute_all_offset
+	bge.s	compute_all_offset
 	moveq	#0, d0
 
 compute_all_offset:
@@ -958,9 +1125,7 @@ check_w_x0_pos:
 	move.w	w_x0(pc), d3	; w_x0 to d3
 	
 	sub.w	d3, d0
-	tst	d0
-	bne.s	w_x0_not_negative
-	moveq	#1, d0			; w_sine_length is at least 1
+	
 w_x0_not_negative:
 	move.w	d0, d1			; w_x2 - w_x0
 	move.w	d1, d2
@@ -973,7 +1138,7 @@ set_word_loop_cnt:
 	move.w	d2, d0
 	move.w	d0, w_sine_length	; w_sine_length
 		
-	move.w	#ScrLBpl*bpls_L, d1	; const delta y	
+	;move.w	#ScrLBpl, d1	; const delta y	
 	
 	move.w	y1(pc), d3
 	add.w	d3, d3		; y1 * 2 (sine projection)	
@@ -992,7 +1157,11 @@ s_x0_negative:
 	move.w	x0(pc), d0
 	neg.w	d0
 	lsr	#1, d0
-	mulu	d1, d0		
+	;mulu	d1, d0
+	lea	OFFSET_TAB, a1
+	add.w	d0, d0
+	move.w	(a1,d0.w), d0
+	
 	move.w	d0, xd0		; set delta x
 	
 	bra.s	init_loop
@@ -1027,43 +1196,76 @@ init_counter:
 *     	clear possible dirty area
 *
 ********************************************
+old_y1:			dc.w	0,0	; we store 2 values of old_y1, one for each buffer.
+					; Once we use the correct old_y1
+					; we swap the 2 words in order to work
+					; with the correct old_y1 value
 
 clear_scrtxt_area:
 
+	move.l	draw_buffer(pc), a0
+	addi.w	#(SCRTEXT_V_OFFSET+FONT_SCRTXT_HEIGHT)*ScrLBpl*bpls_L, a0
+	
+	move.l	old_y1(pc), d3	; old_y1
+	
+	tst.w	d3
+	beq	clear_text_sine_involved
+
 	BLTWAIT BWT4
 	
-	; clear under text area
+	; clear below text area
+
+	move.l	draw_buffer(pc), a0
+	addi.w	#SCREEN_VOFFSET+(FONT_SCRTXT_HEIGHT*ScrLBpl), a0	
 	
-	move.w	#$0100,BLTCON0(a5)	; BLTCON0 delete (only D)
-	move.w	#$0000,BLTCON1(a5)	; BLTCON1 use blitter ASC mode
+	move.l	#$01000000,BLTCON0(a5)	; BLTCON0+BLTCON1 delete (only D)
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
-	move.l	#0,BLTAPT(a5)		; BLTAPT - source	
-	move.l	#SCREEN_L+SCREEN_VOFFSET+(FONT_SCRTXT_HEIGHT*ScrLBpl*bpls_L),BLTDPT(a5)	; BLTDPT - dest
-	move.w	#0, BLTAMOD(a5)	; BLTAMOD
-	move.w	#ScrLBpl-40, BLTDMOD(a5)	; BLTDMOD
+	move.l	#0, BLTAPT(a5)		; BLTAPT - source	
+	move.l	a0, BLTDPT(a5)	; BLTDPT - dest
+	move.l	#0, BLTAMOD(a5)	; BLTAMOD+BLTDMOD
 	move.w	#((h_L-SCRTEXT_V_OFFSET-FONT_SCRTXT_HEIGHT)*64)+20, BLTSIZE(a5)	; BLTSIZE
+	
+clear_text_sine_involved:
+
+	move.w	y1(pc), d0
+	tst.w	d0
+	beq	exit_clear_area
+	
+	move.l	draw_buffer(pc), a0
+	addi.w	#SCREEN_VOFFSET, a0
+	
+	move.w	w_x0(pc), d0
+	add.w	d0, d0			; in bytes
+	lea	(a0,d0.w), a0	
 	
 	BLTWAIT BWT5
 	
 	; clear text where sine is involved
-		
-	lea	SCREEN_L+SCREEN_VOFFSET, a0	
-	move.w	w_x0(pc), d0
-	add.w	d0, d0			; in bytes
-	lea	(a0,d0.w), a0	
+
+	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+	move.w	#0, BLTAPT(a5)
+	move.w	#0, BLTAMOD(a5)	
 	move.l	a0, BLTDPT(a5)		; BLTDPT
 	
 	move.w	w_sine_length(pc), d1
+	move.w	d1, d2			; copy w_sine_length to d2
 	
 	move.w	#ScrLBpl, d0
 	sub.w	d1, d0
 	sub.w	d1, d0
 	move.w	d0, BLTDMOD(a5)		; BLTDMOD
 	
-	move.w	w_sine_length(pc), d2
-	move.w	#(FONT_SCRTXT_HEIGHT*64), d0
+	move.w	#(FONT_SCRTXT_HEIGHT*bpls_L*64), d0
 	add.w	d2, d0			; BLTAMOD
 	move.w	d0, BLTSIZE(a5)		; BLTSIZE
+	
+
+exit_clear_area:
+	
+	move.w	y1(pc), d3	; store new value to old_y1
+	swap	d3		; swap w value because of double buffer
+	move.l	d3, old_y1	; store both values to old_y1
 	
 	rts
 
@@ -1072,31 +1274,50 @@ clear_scrtxt_area:
 	
 	
 make_camel:
+
+	move.w	w_sine_length(pc), d6	; word loop cnt			
+	tst.w	d6		
+	beq.w	exit_sine_loop				
+	subq	#1, d6
 	
 	lea	BUFFER, a1
 	move.w	w_x0(pc), d0
 	add.w	d0, d0
 	lea	(a1,d0.w), a1
-	
-	lea	SCREEN_L+SCREEN_VOFFSET, a2
+
+	move.l	draw_buffer(pc), a2
+	addi.w	#SCREEN_VOFFSET, a2
+
 	lea	(a2,d0.w), a2
 	
 	move.w	xd0(pc), d0	
-	move.w	#ScrLBpl*bpls_L, d1	; const delta y		
+	move.w	#ScrLBpl, d1	; const delta y		
 	moveq	#0, d2		; sine counter
 	move.w	s_x0(pc), d3	; move s_x0 to d3
+	lea	s_x1(pc), a4	; load s_x1 to a4
 	move.w	s_x2(pc), d4	; move s_x2 to d4		
 	move.w	#$C000, d5
 	
 	move.w	w_sine_length(pc), d6	; word loop cnt	
 	subq	#1, d6
+
+	BLTWAIT BWTA
+
+	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
+	move.l	#$0bfa0000, BLTCON0(a5)	; BLTCON0/BLTCON1 - A,C,D
+					; D=A OR C
+
+	move.w	#$0026, BLTCMOD(a5)	; BLTCMOD=40-2=$26
+	move.l	#$00280026, BLTAMOD(a5)	; BLTAMOD=42-2=$28
+					; BLTDMOD=40-2=$26
+
 	
 word_loop:
 	moveq	#8-1, d7		; slice loop cnt
 slice_loop:	
 	cmp.w	d3, d2		; check if x0 is reached	
 	blt.s	start_slice	
-	cmp.w	s_x1(pc), d2	; check if x1 is reached	
+	cmp.w	(a4), d2	; check if x1 is reached	
 	bne.s	add_delta
 	neg.w	d1		; y1 is reached, set direction up
 add_delta:
@@ -1110,15 +1331,7 @@ start_slice:
 	
 	BLTWAIT BWT6
 
-	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
 	move.w	d5, BLTALWM(a5)		; BLTALWM 
-
-	move.l	#$0bfa0000, BLTCON0(a5)	; BLTCON0/BLTCON1 - A,C,D
-					; D=A OR C
-
-	move.w	#$0026, BLTCMOD(a5)	; BLTCMOD=40-2=$26
-	move.l	#$00280026, BLTAMOD(a5)	; BLTAMOD=42-2=$28
-					; BLTDMOD=40-2=$26
 
 	move.l	a1, BLTAPT(a5)		; BLTAPT  
 	move.l	a3, BLTCPT(a5)		; BLTCPT
@@ -1139,8 +1352,21 @@ exit_sine_loop:
 	rts
 	
 TEXT:
-	dc.b	"THIS IS A SCROLLING TEXT EXAMPLE..."
-	dc.b	"HOPE YOU LIKE IT !!!    "
+	dc.b	'HELLO AMIGAS !!! WELCOME TO THIS DEMO RELEASED BY STARRED MEDIASOFT '
+	dc.b	'            '
+	dc.b	'THIS SONG IS CALLED "SUNNY WALKING ON PIAZZA VENEZIA": '
+	dc.b	'AS A WEIRD FACT, THE BAD WEATHER OF THESE DAYS '
+	dc.b	'CAUSED SEVERAL INCONVENIENCES ALL OVER THE CITY... :( '
+	dc.b	'IF YOU ARE INTERESTED ON COMPOSING MOD WITH A 3RD GENERATION TRACKER '
+	dc.b	'CHECK XRNS2XMOD. IT IS AVAILABLE FOR WINDOWS, MAC AND LINUX '
+	dc.b	'    :::::::::::::::::   '
+	dc.b	'MANY GREETINGS TO ALL EAB FORUM '
+	dc.b	'    (((::::::::::::::)))   '
+	dc.b	'GRAPHICS, MUSIC AND CODE BY FABRIZIO STELLATO '
+	dc.b	'  :::::   '
+	dc.b	'STARRED MEDIASOFT  2018       '
+	dc.b	'                                              '
+	
 	EVEN
 
 	
@@ -1302,13 +1528,15 @@ check_bottom_1:
 	cmp.l	a0, d1
 	bne.s	check_bottom_2
 	move.w	#$0012, SPRITE_PRIORITY
-	bsr.w	close_chessboard
+	;bsr.w	close_chessboard
+	move.b	#CHESSBOARD_CLOSE, chessboard_action	; close chessboard square
 check_bottom_2:
 	lea	TABY+280, a0
 	cmp.l	a0, d1
 	bne.s	exit_sprite_move
 	move.w	#0, SPRITE_PRIORITY
-	bsr.w	open_chessboard
+	;bsr.w	open_chessboard
+	move.b	#CHESSBOARD_OPEN, chessboard_action	; open chessboard square
 
 exit_sprite_move:   
 	rts
@@ -1398,7 +1626,31 @@ TABY:
 	incbin	"coord_Y"
 
 ENDTABY
+
+
+swap_buffer:
+	move.l	draw_buffer(pc), d0		
+	move.l	view_buffer(pc), draw_buffer	
+	move.l	d0, view_buffer			
+				
+	lea	BPLPOINTERS_L, a1	
+	moveq	#bpls_L-1, d1	
+POINTBP:
+	move.w	d0,6(a1)
+	swap	d0
+	move.w	d0,2(a1)
+	swap	d0
 	
+	addi.l	#ScrLBpl*h_L, d0
+	
+	addq.w	#8, a1
+	
+	dbra	d1, POINTBP
+
+	rts
+
+view_buffer	dc.l	SCREEN_L	; displayed buffer
+draw_buffer	dc.l	SCREEN_L_2	; drawn buffer
 	
 ;*****************************************************************************
 
@@ -1445,7 +1697,7 @@ SPRITE_PRIORITY:
 ;190-19e -> depth 4
 	
 CLR_STRT = $182
-CLR_BOARD= $208
+CLR_BOARD= $104
 PALETTE:	
 
 	dc.w CLR_STRT+00,$0cb2,CLR_STRT+02,$0ee3,CLR_STRT+04,$0ffd
@@ -1456,9 +1708,26 @@ PALETTE:
 	dc.w CLR_STRT+20,$0ffd,CLR_STRT+22,$0a81,CLR_STRT+24,$0860
 	dc.w CLR_STRT+26,$0000
 
-
-
-
+	dc.w	$3007, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$001
+	dc.w	$3407, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$101
+	dc.w	$3807, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$102
+	dc.w	$3c07, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$202
+	dc.w	$4007, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$203
+	dc.w	$4407, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$303
+	dc.w	$4807, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$304
+	dc.w	$4c07, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$404
+	dc.w	$5007, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$405
+	dc.w	$5407, $fffe
+	dc.w	CLR_STRT+14, CLR_BOARD+$505
 
 START_LORES = ($2c+h_H)*$100+07
 
@@ -1579,7 +1848,11 @@ frame8:
 *****************************************************************************
 
 	SECTION	Data,DATA_C
-
+	
+OFFSET_TAB:	; contains the effective address pointer for each line
+	ds.w	256
+		; for standard lores bitplane is 0=0, 1=40, 2=80, etc
+		; for interleaved lores bitplane is 0=0, 1=40*bpls, 2=80*bpls, etc
 
 FONT_HEADER:
 	incdir	"dh1:own/demo/repository/resources/fonts/"
@@ -1591,14 +1864,24 @@ FONT:
 
 *****************************************************************************
 
+	SECTION Music,DATA_C
+M_DATA:
+	incdir  "dh1:own/demo/repository/resources/mod/"
+	incbin  "p61.venezia"
+	
+*****************************************************************************
+
 	SECTION	SCREEN, BSS_C	
 
 SCREEN_H:
 	ds.b	ScrHBpl*h_H*bpls_H		
 SCREEN_L:
 	ds.b	ScrLBpl*h_L*bpls_L
+SCREEN_L_2:
+	ds.b	ScrLBpl*h_L*bpls_L
 BUFFER:
 	ds.b	(ScrLBpl+2)*bpls_L*FONT_SCRTXT_HEIGHT
+	
 	end
 	
 ; STANDARD RAW BITPLANE (raw)

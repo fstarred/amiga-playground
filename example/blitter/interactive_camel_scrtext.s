@@ -701,8 +701,7 @@ clear_text_sine_involved:
 	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
 	move.w	#0, BLTAPT(a5)
-	move.w	#0, BLTAMOD(a5)
-	
+	move.w	#0, BLTAMOD(a5)	
 	move.l	a0, BLTDPT(a5)		; BLTDPT
 	
 	move.w	w_sine_length(pc), d1
