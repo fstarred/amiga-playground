@@ -4,7 +4,7 @@
 *
 *		DEMO 2
 *
-*		VER 1.0 (2018)
+*		VER 1.1 (2018)
 *
 *
 *********************************************
@@ -225,7 +225,7 @@ MOVE_DELAY	= 2
 
 sprite_move:
 
-	sub.w	#1, move_counter_delay
+	subq.w	#1, move_counter_delay
 	bne.w	exit_move	
 
 	move.w	#MOVE_DELAY, move_counter_delay
@@ -237,16 +237,17 @@ sprite_move:
 	move.l  #TABX-2, tab_x_pointer 
 
 move_x_tab:
-	move.w	move_counter, d0
+	move.w	move_counter(pc), d0
 	subq	#1, d0
-	bne	test_color_flag
+	bne.s	test_color_flag
 	moveq	#TOTAL_MOVES/2, d0
 	bchg	#0, color_flag
 	bne	priority_high
 	clr.w	SPRITE_PRIORITY
 	bra.s	test_color_flag
 priority_high:
-	move.w	#12, SPRITE_PRIORITY
+	moveq	#12, d1
+	move.w	d1, SPRITE_PRIORITY
 test_color_flag:
 	move.w	d0, move_counter
 	lea	START_GRAY, a0
@@ -254,26 +255,26 @@ test_color_flag:
 	beq.s	add_col
 	bne.s	sub_col
 add_col:
-	add.b	#3,(a0)
+	addq.b	#3, (a0)
 	bra.s	move_x_sprite
 sub_col:
-	sub.b	#3,(a0)
+	subq.b	#3, (a0)
 move_x_sprite:
-	move.w	(a1),d0
+	move.w	(a1), d0
 	lea	SPRITE_POS, a0
 	lea	SPRITE_CTL, a1
 
-	add.w   #128,d0     ; 128 - sprite center
-	btst    #0,d0       ; is odd x position ?
+	addi.w   #128, d0   ; 128 - sprite center
+	btst    #0, d0       ; is odd x position ?
 	beq.s   clear_hstart_bit
-	bset    #0,1(a1)    ; set HSTART bit (odd position)
+	bset    #0, 1(a1)    ; set HSTART bit (odd position)
 	bra.w   translate_hstart_coord
 
 clear_hstart_bit:
-	bclr    #0,1(a1)    	; clear HSTART bit (even pos)
+	bclr    #0, 1(a1)    	; clear HSTART bit (even pos)
 translate_hstart_coord:
 	lsr.w   #1,d0		; shift x position to right, translate x
-	move.w  d0,(a0)		; move x to SPR0POS
+	move.w  d0, (a0)		; move x to SPR0POS
 exit_move:
 	rts	
 
@@ -319,41 +320,41 @@ text_offset_pointer:	dc.l	TEXT
 	
 print_char:
 	move.l	text_offset_pointer(PC),a0
-	subq.w	#1,counter	; decrease counter 
+	subq.w	#1, counter	; decrease counter 
 	bne.s	no_print	; if counter != 0 do nothing
 	move.w	#SCROLL_COUNT,counter	; if counter = 0 reset counter
 
-	moveq	#0,d2		; clear D2
-	move.b	(a0)+,d2	; go next char 
+	moveq	#0, d2		; clear D2
+	move.b	(a0)+, d2	; go next char 
 	bne.s	noreset		; if D2 != 0 print char
-	lea	TEXT(PC),a0	; if D2 == 0 restart TEXT
-	move.b	(a0)+,d2	; go next char 
+	lea	TEXT(PC), a0	; if D2 == 0 restart TEXT
+	move.b	(a0)+, d2	; go next char 
 	
 noreset:
 	move.l	a0, text_offset_pointer
-	subi.b	#$20,d2		; retrieve font position
-	lsl.w	#2,d2		; in charset by multipling
+	subi.b	#$20, d2		; retrieve font position
+	lsl.w	#2, d2		; in charset by multipling
 				; 4 bytes (font is 32 pixel)
 				
 	lea	FONT_ADDRESS_LIST(PC),a2
-	move.l	0(a2,d2.w),a2		
+	move.l	(a2,d2.w),a2		
 	
 	;BLTWAIT BWT1
 	
-	moveq	#-1,d1
-	move.l	d1,BLTAFWM(a5)	 	; BLTALWM, BLTAFWM
+	moveq	#-1, d1
+	move.l	d1, BLTAFWM(a5)	 	; BLTALWM, BLTAFWM
 	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1 - copia normale
 	move.l	#$00240028,BLTAMOD(a5)	; BLTAMOD = 36, BLTDMOD = 40
 					; 320/8-4, 44-4
 	lea	SCREEN+SCREEN_VOFFSET+40,a1	; Destination
 
-	moveq	#bpls_font-1,d7		; bitplanes
+	moveq	#bpls_font-1, d7	; bitplanes
 CopyCharL:
 
 	BLTWAIT BWT2
 
-	move.l	a2,BLTAPT(a5)		; BLTAPT (fontset)
-	move.l	a1,BLTDPT(a5)		; BLTDPT (bitplane)
+	move.l	a2, BLTAPT(a5)		; BLTAPT (fontset)
+	move.l	a1, BLTDPT(a5)		; BLTDPT (bitplane)
 	move.w	#FONT_HEIGHT*64+(FONT_WIDTH/16),BLTSIZE(a5)	; BLTSIZE
 	
 	;addi.w	#ScrBpl*h,a1
@@ -386,7 +387,7 @@ scroll_text:
 
 	move.l	#SCREEN+SCREEN_VOFFSET+(FONT_HEIGHT*ScrBpl)-6,d0 ; source and dest address
 
-	moveq	#bpls-1,d7
+	moveq	#bpls-1, d7
 
 scroll_loop:
 
@@ -402,15 +403,15 @@ scroll_loop:
 					; BLTALWM = $ffff 
 
 
-	move.l	d0,BLTAPT(a5)			; BLTAPT - source
-	move.l	d0,BLTDPT(a5)			; BLTDPT - dest
+	move.l	d0, BLTAPT(a5)			; BLTAPT - source
+	move.l	d0, BLTDPT(a5)			; BLTDPT - dest
 
 	; scroll an image of the full screen width * FONT_HEIGHT
 
-	move.l	#$00000000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
+	move.l	#$00000000, BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
 	move.w	#(FONT_HEIGHT*64)+22,BLTSIZE(a5)	; BLTSIZE
 
-	add.l	#ScrBpl*h,d0
+	addi.l	#ScrBpl*h, d0
 
 	dbra	d7, scroll_loop
 
@@ -484,15 +485,13 @@ init_bar:
 
 	BLTWAIT	bltw1
 		
-	move.w	#$ffff,BLTAFWM(a5)		; BLTAFWM 
-	move.w	#$ffff,BLTALWM(a5)		; BLTALWM 
-	move.w	#$09f0,BLTCON0(a5)		; BLTCON0 ; A-D
-	move.w	#$0002,BLTCON1(a5)		; BLTCON1 ; DESC
-	move.w	#0,BLTAMOD(a5)		; BLTAMOD 
+	move.l	#$ffffffff,BLTAFWM(a5)		; BLTAFWM+BLTALWM	
+	move.l	#$09f00002,BLTCON0(a5)		; BLTCON0+BLTCON1 ; A-D DESC
+	move.w	#0, BLTAMOD(a5)		; BLTAMOD 
 	move.w	#ScrBpl-(4*2),BLTDMOD(a5)	; BLTDMOD 
-	move.l	#BAR+14,BLTAPT(a5)	; BLTAPT  ; point to BAR source
-	move.l	a0,BLTDPT(a5)		; BLTDPT  ; point to SCREEN destination
-	move.w	#64*2+4,BLTSIZE(a5)	; BLTSIZE: rectangle size
+	move.l	#BAR+14, BLTAPT(a5)	; BLTAPT  ; point to BAR source
+	move.l	a0, BLTDPT(a5)		; BLTDPT  ; point to SCREEN destination
+	move.w	#64*2+4, BLTSIZE(a5)	; BLTSIZE: rectangle size
 		
 	rts
 	
@@ -501,11 +500,11 @@ start_equalizer:
 	moveq	#4-1, d7	; init loop	
 	moveq	#0, d2		; pointer incremental for channel_address
 
-	lea	chan_level(PC), a1		
+	lea	chan_level(pc), a1		
 check_channel_level:	
-	lea	channel_address(PC), a0	
+	lea	channel_address(pc), a0	
 	
-	move.l	(a0,d2.w),a0	; channel temp address to a0
+	move.l	(a0,d2.w), a0	; channel temp address to a0
 	move.l	(a0), d0	; channel temp value to d0
 		
 	move.w	(a1),d1         ; channel level value to d1
@@ -516,11 +515,11 @@ check_channel_level:
 no_sound:	
 	tst.w	d1	; test channel level
 	beq.s	min_value	; no channel level subtract
-	sub.w	#DECREASE_SPEED, d1		; subtract channel level
+	subq	#DECREASE_SPEED, d1		; subtract channel level
 	move.w	d1, (a1)	; write new value to channel level
 min_value:	
 	addq	#4, d2	; add to incremental pointer
-	addi.w	#2, a1	; point to next	chan_level
+	addq	#2, a1	; point to next	chan_level
 	
 	dbra	d7, check_channel_level
 	
@@ -533,14 +532,12 @@ clear_equalizer:
 
 	BLTWAIT	bltw2
 		
-	move.w	#$ffff,BLTAFWM(a5)		; BLTAFWM 
-	move.w	#$ffff,BLTALWM(a5)		; BLTALWM 
-	move.w	#$0100,BLTCON0(a5)		; BLTCON0 ; A-D
-	move.w	#$0002,BLTCON1(a5)		; BLTCON1 ; DESC
-	move.w	#0,BLTAMOD(a5)		; BLTAMOD 
+	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM + BLTALWM
+	move.l	#$01000002,BLTCON0(a5)	; BLTCON0+BLTCON1 ; D DESC
+	move.w	#0, BLTAMOD(a5)		; BLTAMOD 
 	move.w	#ScrBpl-(4*2),BLTDMOD(a5)	; BLTDMOD 
-	move.l	#0,BLTAPT(a5)	; BLTAPT  ; point to BAR source
-	move.l	a0,BLTDPT(a5)		; BLTDPT  ; point to SCREEN destination
+	move.l	#0, BLTAPT(a5)	; BLTAPT  ; point to BAR source
+	move.l	a0, BLTDPT(a5)		; BLTDPT  ; point to SCREEN destination
 	move.w	#64*(BAR_HEIGHT-2)+4,BLTSIZE(a5)	; BLTSIZE: rectangle size	
 	
 	lea	chan_level, a0	
@@ -548,9 +545,9 @@ clear_equalizer:
 	
 draw_equalizer:
 	
-	move.w	(a0)+,d0
+	move.w	(a0)+, d0
 
-	addi.w	#DECREASE_SPEED, d0	; won't blit 0 lines
+	addq	#DECREASE_SPEED, d0	; won't blit 0 lines
 	
 	lsl.w	#6,d0
 	addq	#1,d0	
@@ -560,17 +557,15 @@ draw_equalizer:
 	
 	BLTWAIT	bltw3
 		
-	move.w	#$ffff,BLTAFWM(a5)	; BLTAFWM 
-	move.w	#$ffff,BLTALWM(a5)	; BLTALWM 
-	move.w	#$09f0,BLTCON0(a5)	; BLTCON0 ; D
-	move.w	#$0002,BLTCON1(a5)	; BLTCON1
-	move.w	#ScrBpl-2,BLTAMOD(a5)		; BLTAMOD 
-	move.w	#ScrBpl-2,BLTDMOD(a5)	; BLTDMOD 
-	move.l	a1,BLTAPT(a5)	; BLTAPT  ; point to picture source
-	move.l	a2,BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
-	move.w	d0,BLTSIZE(a5)	; BLTSIZE: rectangle size
+	move.l	#$ffffffff, BLTAFWM(a5)	; BLTAFWM+BLTALWM
+	move.l	#$09f00002, BLTCON0(a5)	; BLTCON0+BLTCON1 A-D DESC
+	move.w	#ScrBpl-2, BLTAMOD(a5)	; BLTAMOD 
+	move.w	#ScrBpl-2, BLTDMOD(a5)	; BLTDMOD 
+	move.l	a1, BLTAPT(a5)	; BLTAPT  ; point to picture source
+	move.l	a2, BLTDPT(a5)	; BLTDPT  ; point to SCREEN destination
+	move.w	d0, BLTSIZE(a5)	; BLTSIZE: rectangle size
 	
-	addi.l	#2,a1
+	addq	#2, a1
 	
 	dbra	d7, draw_equalizer
 	
