@@ -472,10 +472,10 @@ FONT_ADDRESS_LIST:
 *
 *****************************************************************************
 
-BAR_HEIGHT = 32
+BAR_HEIGHT = 48
 DECREASE_SPEED = 1
 H_DESC_OFFSET = 20
-V_OFFSET = 130*ScrBpl
+V_OFFSET = 120*ScrBpl
 
 SCREEN_OFFSET =V_OFFSET+(BAR_HEIGHT*ScrBpl)+H_DESC_OFFSET
 
@@ -514,8 +514,16 @@ check_channel_level:
 	tst.w	d0	; test current mt_channel
 	beq.s	no_sound
 	move.w	d3, d1	; update channel level value
-	lsr.w	#1, d1	; halve value
-	;moveq	#BAR_HEIGHT-DECREASE_SPEED, d1		
+
+	; this code transform max channel value (64) to 
+	; fit with bar height (48)
+	; the final value will be x = 48/64 = 3/4
+
+	add.w	d1, d1	; 
+	add.w	d3, d1	; * 3 
+	lsr.w	#2, d1	; / 4
+	
+	
 no_sound:	
 	tst.w	d1	; test channel level
 	beq.s	min_value	; no channel level subtract
