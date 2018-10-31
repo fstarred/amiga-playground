@@ -809,7 +809,7 @@ TEXT_9:     ;         11111111112
     dc.b    '  ALSO I WANT   ****' ; 2
     dc.b    '  TO SAY MANY   ****' ; 3
     dc.b    '   THANKS TO    ****' ; 4
-    dc.b    '   SLAMMY A.Z.  ****' ; 5
+    dc.b    '   SLAMY A.Z.   ****' ; 5
     dc.b    '     FOR ITS    ****' ; 6
     dc.b    ' CONTRIBUTE AND ****' ; 7
     dc.b    '  GREAT EFFORT  ****' ; 8
