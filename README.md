@@ -83,6 +83,32 @@ So said, the precalc sine tabs of *TABX* is made of word values, whereas *TABY* 
 
 The sine tables values were created using **IS** (Create Sine) **AsmOne** command.
 
+Notice that when the right margin is reached, the animating ball is shown below the text until it reaches the left margin, and so on.
+This effect is achieved by doing this:
+
+```
+.check_right_margin
+    cmpi #$11A, (a0)
+    bne.s   check_left_margin
+    clr.w   SPRITE_PRIORITY ; all sprites over PLAYFIELD
+    bra.s   exit_sprite_move
+
+check_left_margin:
+    tst (a0)
+    bne.s   exit_sprite_move    
+    move.w  #$0012, SPRITE_PRIORITY ; sprite couple (1,2) (3,4) behind PLAYFIELD
+    
+    ...
+    
+COPPERLIST:
+       
+    dc.w    $104 
+
+SPRITE_PRIORITY:
+    dc.w    $0012 ; sprite couple 1,2 over playfield 1  
+                 ; code 010 twice (%010010%)
+    
+```
 
 #### Top and bottom margin bars
 
