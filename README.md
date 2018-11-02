@@ -83,7 +83,10 @@ So said, the precalc sine tabs of *TABX* is made of word values, whereas *TABY* 
 
 The sine tables values were created using **IS** (Create Sine) **AsmOne** command.
 
-Notice that when the right margin is reached, the animating ball is shown below the text until it reaches the left margin, and so on.
+Notice that when the right margin is reached, the animating ball moves behind the text. 
+
+When the ball reaches the left margin it appers in front of the text instead.
+
 This effect is achieved by doing this:
 
 ```
@@ -265,5 +268,87 @@ Same logic of *fade in* routine, but with inverted color progression of *tabpoin
 Clear all text on the screen by blitting with only channel D enabled.
 The deletion does not involve the starfield that is independent from bitplanes. 
 
+#### Interleaved mode
+
+Text image (and so bitplanes) are stored in interleaved mode.
+To better explain the difference, have a look on how bitplanes are disposed on standard mode:
+
+###### STANDARD BITPLANE
+
+line 0 BITPLANE 1
+line 1 BITPLANE 1
+line 2 BITPLANE 1
+..
+line 255 BITPLANE 1
+
+line 0 BITPLANE 2
+line 1 BITPLANE 2
+line 2 BITPLANE 2
+..
+line 255 BITPLANE 2
+
+line 0 BITPLANE 3
+line 1 BITPLANE 3
+line 2 BITPLANE 3
+..
+line 255 BITPLANE 3
+.. and so on
+
+
+###### INTERLEAVED (OR RAWBLIT) BITPLANE
+
+line 0 BITPLANE 1
+line 0 BITPLANE 2
+line 0 BITPLANE 3
+line 1 BITPLANE 1
+line 1 BITPLANE 2
+line 1 BITPLANE 3
+...
+line 255 BITPLANE 1
+line 255 BITPLANE 2
+line 255 BITPLANE 3
+
+
+Setting BITPLANE as INTERLEAVED:
+
+1. Make point the next BPLxPTH and BPLxPTL after the next line of the previous BITPLANE address (Tipically 40 bytes for LORES and 80 for HIRES)
+
+```
+    move.l  #SCREEN,d0  ; point to bitplane
+    lea BPLPOINTERS,a1  ; 
+    MOVEQ   #bpls-1,d1      ; 2 BITPLANE
+POINTBP:
+    move.w  d0,6(a1)    ; copy low word of pic address to plane
+    swap    d0          ; swap the the two words
+    move.w  d0,2(a1)    ; copy the high word of pic address to plane
+    swap    d0          ; swap the the two words
+
+    add.l   #40,d0      ; BITPLANE point to next byte line data
+                        ; instead of the standard raw
+                        ; where bitplane is immediately
+                        ; after the previous bitplane
+                        ; standard raw (40*256)
+                        ; blitter raw (40)
+    addq.w  #8,a1       ; the next bpl starts one row
+                ; after the previous one
+    dbra    d1,POINTBP
+```
+
+2. Set the BITPLANE MODULO in order to skip the others BITPLANE data. The formula is (Fetched Bytes x line) * (number of bitplanes -1).
+So let's say we have a 3 bitplanes LORES, the value will be: x = 40 * (3-1) = 80
+
+```
+    dc.w    $108,ScrBpl*(bpls-1)    ; Bpl1Mod (interleaved) 
+    dc.w    $10a,ScrBpl*(bpls-1)    ; Bpl2Mod (interleaved)
+```
+
+
+## Demo 2
+
+![screenshot](https://github.com/fstarred/amiga_playground/blob/master/docs/demo_2.png?raw=true) 
+
 
 [1]: http://corsodiassembler.ramjam.it/index_en.htm
+
+
+#### Ball animation / move
