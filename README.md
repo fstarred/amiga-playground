@@ -475,9 +475,9 @@ Notice the above formula is not good as well for INTERLEAVED bitplane.
 
 #### HIRES and LORES
 
-One great feature of the Amiga is the ability of display both LORES and HIRES at the same time, as well as changing other screen modes (+ o - bitplanes).
+One great feature of the Amiga is the ability of display both LORES and HIRES at the same time, as well as diffent screen modes (+ o - bitplanes).
 
-This is demo screen setup:
+This is how we setup the screen:
 
 
 ```
