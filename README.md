@@ -19,11 +19,40 @@ Most of the code present on this repository is inspired from RamJam italian cour
 
 #### Ball animation / move
 
-The animated ball is composed by 4 sprites of 16x32px; 2 sprites are in ATTACHED mode which allow to use 16 colors instead of the standard 4 expected for standard sprites (3 + background).
+The animated ball is composed by 4 sprites of 16x32px, in which 2 are in ATTACHED mode. This allow to use 16 colors instead of the standard 4 expected for standard sprites (3 + background).
+
+```    
+frame1:
+
+    dc.w $0000,$0000
+    dc.w $0000,$0000,$0000,$0000,$0007,$0007,$003f,$003f
+    dc.w $00ff,$00ff,$03ff,$03ff,$07fe,$07ff,$0ffe,$07ff
+    dc.w $07fe,$07ff,$03fe,$07ff,$03fe,$01ff,$003d,$00fe
+    dc.w $000f,$0000,$0001,$000e,$0000,$40ff,$0000,$03ff
+    dc.w $0000,$3ffe,$0000,$5ffe,$0000,$4ff8,$0000,$01e0
+    dc.w $0000,$0000,$2000,$2000,$0000,$1000,$0000,$1800
+    dc.w $0400,$0600,$0100,$0780,$0000,$0382,$0000,$01c2
+    dc.w $0000,$00fe,$0000,$003f,$0000,$0007,$0000,$0000
+    dc.w 0,0
+
+frame1a:
+    dc.w $0000,$0080 ; ATTACHED MODE! bit 7 set for odd sprite
+    dc.w $0000,$0000,$0000,$0007,$0004,$003b,$0040,$00ff
+    dc.w $0100,$01ff,$0000,$03ff,$0000,$07ff,$0800,$0fff
+    dc.w $0800,$1fff,$0000,$1fff,$0201,$3fff,$0102,$3fff
+    dc.w $0030,$3fff,$0001,$7ff0,$0000,$3f00,$4000,$3c00
+    dc.w $0001,$0000,$2001,$0000,$1007,$0000,$261f,$0000
+    dc.w $21ff,$0000,$0c3f,$0000,$1f07,$0000,$1f82,$0000
+    dc.w $0380,$0000,$0680,$0000,$0382,$0000,$01c2,$0000
+    dc.w $00fe,$0000,$003f,$0000,$0007,$0000,$0000,$0000
+    dc.w 0,0
+    
+    [...]
+```
 
 Either sprite animation and move routines are ripped from RamJam course.
 
-The *sprite animation* routine roll up the *FRAMETAB* table with an infinite loop and then load the selected frame animation address on SPRxPTH and SPRxPTL registers.
+The *sprite animation* routine roll up the *FRAMETAB* table in an infinite loop, so the current frame animation address is load on SPRxPTH and SPRxPTL registers.
 
 ```
     lea FRAMETAB(PC), a0 ; 
@@ -81,15 +110,24 @@ Both X and Y coords are pixel values, so for a standard LORES mode X coord may r
 
 So said, the precalc sine tabs of *TABX* is made of word values, whereas *TABY* is made of bytes.
 
-The sine tables values were created using **IS** (Create Sine) **AsmOne** command.
+The sine tables values were created using **IS** (Create Sine) **AsmOne** command, available from version **1.07**.
 
-Notice that when the right margin is reached, the animating ball moves behind the text. 
+When the right margin is reached, the animating ball moves behind the text. 
 
 When the ball reaches the left margin it appers in front of the text instead.
 
-This effect is achieved by doing this:
+This can be done by setting the **BPLCON2** register.
 
 ```
+    
+;CODE      |    000    |    001    |    010    |    011    |    100    |
+;----------------------------------------------------------------------------
+;PRI. MAX  | PLAYFIELD | COUPLE 1  | COUPLE 1  | COUPLE 1  | COUPLE 1  |
+;          | COUPLE 1  | PLAYFIELD | COUPLE 2  | COUPLE 2  | COUPLE 2  |
+;          | COUPLE 2  | COUPLE 2  | PLAYFIELD | COUPLE 3  | COUPLE 3  |
+;          | COUPLE 3  | COUPLE 3  | COUPLE 3  | PLAYFIELD | COUPLE 4  |
+;PRI. MIN  | COUPLE 4  | COUPLE 4  | COUPLE 4  | COUPLE 4  | PLAYFIELD |
+
 .check_right_margin
     cmpi #$11A, (a0)
     bne.s   check_left_margin
@@ -115,8 +153,8 @@ SPRITE_PRIORITY:
 
 #### Top and bottom margin bars
 
-The *move_tb_margin_bars* routine realize a carousel effect on both top and bottom horizontal screen bars. 
-This mean each color roll down of a position till the last one, while the latter takes the 1st position, like a pile stack.
+The *move_tb_margin_bars* routine realize a carousel effect on top and bottom horizontal bars of the screen.
+This mean each color roll down of a position until the last one, whereas the latter takes the 1st position, like a pile stack.
 
 ```
 ************************************************************************
@@ -149,8 +187,8 @@ rolling_color_hbar:
 
 #### Starfield
 
-The *move_stars* routine is another routine taken from RamJam course; it draws a starfield, where stars moves at 3 different speed. 
-To enrich the depth effect of the space, stars may be more bright or dark using properly WAIT and MOVE commands of the COPPERLIST.
+The *move_stars* routine is another routine taken from RamJam course; it draws a starfield composed by objects moving with 3 different speeds.
+To enrich the depth effect of the space, stars may be more bright or dark using properly *WAIT* and *MOVE* commands of the COPPERLIST.
 
 ```
 STAR_S_COL = $0444
@@ -270,43 +308,44 @@ The deletion does not involve the starfield that is independent from bitplanes.
 
 #### Interleaved mode
 
-Text image (and so bitplanes) are stored in interleaved mode.
+Text image (and so bitplanes) are stored in *interleaved mode*.
 To better explain the difference, have a look on how bitplanes are disposed on standard mode:
 
 ###### STANDARD BITPLANE
 
-line 0 BITPLANE 1
-line 1 BITPLANE 1
-line 2 BITPLANE 1
-..
-line 255 BITPLANE 1
-
-line 0 BITPLANE 2
-line 1 BITPLANE 2
-line 2 BITPLANE 2
-..
-line 255 BITPLANE 2
-
-line 0 BITPLANE 3
-line 1 BITPLANE 3
-line 2 BITPLANE 3
-..
-line 255 BITPLANE 3
+line 0 BITPLANE 1<br/>
+line 1 BITPLANE 1<br/>
+line 2 BITPLANE 1<br/>
+..<br/>
+line 255 BITPLANE 1<br/>
+<br/>
+line 0 BITPLANE 2<br/>
+line 1 BITPLANE 2<br/>
+line 2 BITPLANE 2<br/>
+..<br/>
+line 255 BITPLANE 2<br/>
+<br/>
+line 0 BITPLANE 3<br/>
+line 1 BITPLANE 3<br/>
+line 2 BITPLANE 3<br/>
+..<br/>
+line 255 BITPLANE 3<br/>
 .. and so on
 
 
 ###### INTERLEAVED (OR RAWBLIT) BITPLANE
 
-line 0 BITPLANE 1
-line 0 BITPLANE 2
-line 0 BITPLANE 3
-line 1 BITPLANE 1
-line 1 BITPLANE 2
-line 1 BITPLANE 3
-...
-line 255 BITPLANE 1
-line 255 BITPLANE 2
-line 255 BITPLANE 3
+line 0 BITPLANE 1<br/>
+line 0 BITPLANE 2<br/>
+line 0 BITPLANE 3<br/>
+line 1 BITPLANE 1<br/>
+line 1 BITPLANE 2<br/>
+line 1 BITPLANE 3<br/>
+...<br/>
+line 255 BITPLANE 1<br/>
+line 255 BITPLANE 2<br/>
+line 255 BITPLANE 3<br/>
+
 
 
 Setting BITPLANE as INTERLEAVED:
@@ -334,7 +373,7 @@ POINTBP:
     dbra    d1,POINTBP
 ```
 
-2. Set the BITPLANE MODULO in order to skip the others BITPLANE data. The formula is (Fetched bytes x line) * (number of bitplanes -1).
+2. Set the BITPLANE MODULO value to skip the others BITPLANE data. The formula is (Fetched bytes x line) * (number of bitplanes -1).
 So let's say we have a 3 bitplanes LORES, the value will be: x = 40 * (3-1) = 80
 
 ```
@@ -389,6 +428,31 @@ By using this mode, the rules are the following:
 
 In this mode it is also possible to redraw the sprite on the same vertical line by disabling and reactivating it using SPRxCTL register on the proper column of the copperlist
 
+#### Color VS Gray effect
+
+The logo was produces using 2 different palettes, one colourized and one with gray tones.
+To make the up & down color effect, it is enough to set a palette to a fixed vertical position and to delay the other palette.
+
+```
+LOGO_COLOR:
+	dc.w $0180,$0000,$0182,$018f,$0184,$0148,$0186,$0455
+	dc.w $0188,$005b,$018a,$0999,$018c,$007f,$018e,$0124
+	dc.w $0190,$0268,$0192,$0ddd,$0194,$068a,$0196,$0bbb
+	dc.w $0198,$0677,$019a,$00af,$019c,$0eff,$019e,$0037
+
+
+START_GRAY:
+	dc.w	$5b07,$fffe	
+
+LOGO_GRAY:
+
+	dc.w $0180,$0000,$0182,$099a,$0184,$0778,$0186,$0455
+	dc.w $0188,$0899,$018a,$0999,$018c,$0aaa,$018e,$0444
+	dc.w $0190,$0888,$0192,$0bbb,$0194,$099a,$0196,$0bbb
+	dc.w $0198,$0677,$019a,$09aa,$019c,$0bbb,$019e,$0555
+```
+
+
 #### Equalizer
 
 Equalizer is composed by four bars that increase its height with a repeated pattern according to channel volume
@@ -407,7 +471,7 @@ The channel volume can be fetched from the 19th byte of the above register.
 #### Scrolling text
 
 Font text is stored on 3 bitplanes non-interleaved data.
-The right font char address is achieved by lookup a proper font address data.
+The current font char address may be get by reading a lookup table data.
 
 ```
 FONT_ADDRESS_LIST:
@@ -448,8 +512,8 @@ Font size is 32x32px, so table address was built following these rules:
 
 The scrolling text effect can be achieved by drawing next character outer the right side of the screen, and then do a shift blit on the whole part of the screen of the text area with DESC mode, because we want text to scroll towards left direction.
 
-In order to print font character out the screen, we need to extend the bitplane size adding the font width pixel; 
-so let's say we have a font width of 32pixel, we must initialize all LORES bitplanes with (40+4) * 256 bytes.
+In order to print font character out the screen, we need to extend the bitplane size by adding the space needed for the font; 
+in this case we must initialize all LORES bitplanes with (40+4) * 256 bytes.
 
 If fetched line data doesn't change, we need to set BITPLANE MODULO = + 4 in order to skip the font to the right margin
 
@@ -465,7 +529,7 @@ x = -((bytes per line * y) + (y-1 * *BPLxMOD*)).
 
 In this way, the next line data will jump and fetch the "old" line data.
 
-Notice the above formula is not good as well for INTERLEAVED bitplane.
+Notice the above formula won't work for INTERLEAVED bitplane.
 
 
 
@@ -679,7 +743,14 @@ The *rolling_copper_bars* write the proper color on the eight bars and move them
 
 #### Sprite animation and move
 
-This works exactly as Demo 1
+This works exactly as Demo 1; as a plus we make the ball rolling faster as it approaches the text.
+
+```
+ANIMATION_SLOW = 4
+ANIMATION_FAST = 2
+
+animation_frame_delay:	dc.w	ANIMATION_SLOW
+```
 
 #### Interactive camel scrolling text
 
@@ -689,7 +760,7 @@ The effect is realized in 6 steps:
 2. Scroll text area of the memory buffer using SHIFT BLIT on DESC mode (see Demo 2)
 3. Copy text buffer to SCREEN
 4. Calculate all the involved points needed to create the camel effect
-5. Clear all the dirty area involved from the previous frame
+5. Clear dirty area
 6. Create the camel effect
 
 The camel effect takes inspiration from the well-know sinus scroll, where each slice of text (usually 1,2 or 4 pixel) is drawn at different height from each other; 
@@ -697,10 +768,12 @@ Every piece of text is BLITTED with BLTCON0/1 = 0bfa0000 and A,C,D channels enab
 
 The low edge of the text is reached on the ball sprite Y+HEIGHT position.
 
-
 #### Double buffering
 
-Because camel scrolling text can be a bit heavy, we ensure to show all screen operations within the displayed frame.
+Camel scrolling text can heavily stress the CPU; to make sure the raster beam will draw all of the displayed frame before it reaches the VBLANK, double buffering tecnique may be useful.
+
+With DB, all the draw operations are done on a "draw screen", while the other is displayed. 
+Once VBLANK occurs, the draw screen is displayed whereas the other one will take its place.
 
 The screens are so swapped:
 
