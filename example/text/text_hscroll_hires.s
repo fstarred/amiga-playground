@@ -293,7 +293,7 @@ OWNBPLCON1:
 	dc.b	0		; BplCon1 low byte value (used)
 	dc.w	$104,0		; BplCon2
 	dc.w	$108,40-4	; Bpl1Mod (40 for large pic)
-	dc.w	$10a,40-4	; Bpl2Mod -2 fits the DdfStart value
+	dc.w	$10a,40-4	; Bpl2Mod -4 fits the DdfStart value
 
 	dc.w	$100,bpls*$1000+$8200	; bplcon0 - bitplane hires
 
