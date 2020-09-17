@@ -59,7 +59,7 @@ INTENASET=     %1010000000000000
 w	=320
 h	=256
 bplsize	=w*h/8
-ScrBpl	=w/8+4	; standard screen width + 2 bytes
+ScrBpl	=w/8+4	; standard screen width + 4 bytes
 		; where we'll place the char data
 
 bpls = 3
