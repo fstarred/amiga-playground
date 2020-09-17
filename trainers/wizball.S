@@ -2,7 +2,7 @@
 *
 *	   STARRED MEDIASOFT
 *
-*		Impossible Mission II TRAINER
+*		WIZBALL TRAINER
 *
 *		VER 1.0 (2020)
 *
@@ -148,13 +148,11 @@ LOADGAME
 
 
 	MOVE.L	A0,A1			;COPY ADDRESS OF FILE LOADED
-	LEA	PATCH_BEGIN(PC),A2	;POINTER TO PATCH CODE	
-
-	ADD.L	#$F27A,A1		;MOVE TO LAST JMP
-
+	
 	LEA	SPARE_MEM,A3		;SPARE MEMORY FOR PATCH
-	MOVE.L	A3,(A1)			;COPY NEW ADDRESS INTO FINAL JMP (WHICH IS LOCALTED AT INITIAL FILE ADDRESS + $B0)
+	MOVE.L	A3,$82(A1)			;COPY NEW ADDRESS INTO FINAL JMP (WHICH IS LOCALTED AT INITIAL FILE ADDRESS + $B0)
 
+	LEA	PATCH_BEGIN(PC),A2	;POINTER TO PATCH CODE	
 	MOVE.W	#(PATCH_END-PATCH_BEGIN)-1,D0;SIZE OF PATCH TO COPY
 COPY_PATCH:
 	MOVE.B	(A2)+,(A3)+		;COPY FROM START OF PATCH ROUTINE
@@ -168,19 +166,24 @@ COPY_PATCH:
 	RTS
 	
 ;----------------------------------------------------
-; Impossible Mission II trainer code
+; Beyond The Ice Palace trainer code
 ;----------------------------------------------------
 	
 PATCH_BEGIN:
+	lea	APPLYPATCH(PC),a0
+	MOVE.L	A0, $78124
+	JMP	$78000
+APPLYPATCH:
 	LEA	BUTTONS,A0		; DO NOT USE PC RELATIVE ADDR!!!
 	MOVE.B	(A0),D0
 	TST	D0
 	BEQ	PATCH_JMP
-	MOVE.L	#$4E714E71,$18344	; NO TIMER
-	MOVE.L	#$4E714E71,$1835C	; PLAYER DEATH
+	LEA	$5AEEA,A0
+	MOVE.L	#$4E714E71,(A0)+
+	MOVE.W	#$4E71,(A0)
 PATCH_JMP
 	IFNE	DEBUG
-	JMP	$207EA
+	JMP	$58000
 	ENDC
 PATCH_END:
 
@@ -313,9 +316,9 @@ doslib:
 	dc.b	'dos.library',0
 
 
-	; place a copy of Impossible Mission II executable on DH1
+	
 filename:
-	dc.b	'df0:im2',0
+	dc.b	'df0:wizboot',0
 	EVEN
 
 ;*** WAIT VERTICAL BLANK ***
@@ -350,11 +353,11 @@ OFF:
 
 MENUTEXT:
 	dc.b	0,0, '----------------------------------------',0
-	dc.b	10,2,'IMPOSSIBLE MISSION II',0
+	dc.b	16,2,'WIZBALL',0
 	dc.b	0,4, '----------------------------------------',0
 	dc.b	5,8, 'TRAINER BY FABRIZIO STELLATO',0
 	dc.b	0,10,'----------------------------------------',0
-	dc.b	8,14,'F1 UNLIMITED TIME     OFF',0
+	dc.b	8,14,'F1 UNLIMITED LIVES    OFF',0
 	dc.b	0,30,'----------------------------------------',$ff
 	
 	incdir	"dh1:own/demo/repository/trainers/"
