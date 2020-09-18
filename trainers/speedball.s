@@ -3,6 +3,7 @@
 *	   STARRED MEDIASOFT
 *
 *		SPEEDBALL TRAINER
+*	Speedball (1988)(ImageWorks)[cr QTX]
 *
 *		VER 1.0 (2020)
 *
@@ -33,7 +34,7 @@ CloseLibrary	= -414
 LoadSeg			= -150
 
 DMASET=	%1000000111000000
-;	 -----a-bcdefghij
+;	 	 -----a-bcdefghij
 
 ;	a: Blitter Nasty
 ;	b: Bitplane DMA (if this isn't set, sprites disappear!)
@@ -42,6 +43,16 @@ DMASET=	%1000000111000000
 ;	e: Sprite DMA
 ;	f: Disk DMA
 ;	g-j: Audio 3-0 DMA
+
+	INCDIR	"DH1:OWN/DEMO/REPOSITORY/SHARED/"
+	INCLUDE "HARDWARE/CUSTOM.I"
+	
+BLTWAIT	MACRO
+	tst $dff002			;for compatibility
+\1
+	btst #6,$dff002
+	bne.s \1
+	ENDM
 
 START:
 	MOVEM.L	D0-D7/A0-A6,-(A7)	; Put registers on stack
@@ -63,9 +74,9 @@ START:
 	JSR	CloseLibrary(A6)	; Close graphics library
 
 	LEA	$DFF000,A6
-	MOVE.W	$1C(A6),INTENA		; Store old INTENA
-	MOVE.W	$2(A6),DMACON		; Store old DMACON
-	MOVE.W	$10(A6),ADKCON		; Store old ADKCON
+	MOVE.W	$1C(A6),OLDINTENA		; Store old INTENA
+	MOVE.W	$2(A6),OLDDMACON		; Store old DMACON
+	MOVE.W	$10(A6),OLDADKCON		; Store old ADKCON
 	
 	MOVE.L  #SCREEN,D0  ; POINT TO BITPLANE
     LEA BPLPOINTERS,A1  ; 
@@ -122,13 +133,13 @@ LOOP:
 	MOVE.L	OldCop1(PC),$80(A6)	; Restore old copper1
 	MOVE.L	OldCop2(PC),$84(A6)	; Restore old copper1
 	MOVE.L	OldInter(PC),$6C.W	; Restore inter pointer
-	MOVE.W	DMACON,D0		; Restore old DMACON
+	MOVE.W	OLDDMACON,D0		; Restore old DMACON
 	OR.W	#$8000,D0
 	MOVE.W	D0,$96(A6)		
-	MOVE.W	ADKCON,D0		; Restore old ADKCON
+	MOVE.W	OLDADKCON,D0		; Restore old ADKCON
 	OR.W	#$8000,D0
 	MOVE.W	D0,$9E(A6)
-	MOVE.W	INTENA,D0		; Restore inter data
+	MOVE.W	OLDINTENA,D0		; Restore inter data
 	OR.W	#$C000,D0
 	MOVE.W	#$7FFF,$9C(A6)
 	MOVE.W	D0,$9A(A6)
@@ -217,8 +228,6 @@ PROBLEM:
 	MOVEQ	#0,D0
 	RTS
 	
-NOFONT:
-	RTS
 
 KEYGET:
 	MOVEQ	#0,D0
@@ -236,9 +245,9 @@ GENEFEIL:
 DELAY:	DBF	D1,DELAY
 	BCLR	#6,$BFEE01
 	CMP.B	#$50,D0
-	BLT.S	NOFONT		; IF < 50 EXIT
+	BLT.W	NOFONT		; IF < 50 EXIT
 	CMP.B	#$53,D0
-	BGT.S	NOFONT		; IF > 53 EXIT
+	BGT.W	NOFONT		; IF > 53 EXIT
 	SUB.B	#$50,D0		; IF BEETWEN 50 AND 57 SUBTRACT
 ELABSWITCH:
 	IFEQ DEBUG
@@ -332,11 +341,69 @@ PRINTLOOP:
 END:
 	RTS
 
+PLOT:
+	SUBQ.W	#1,COUNTER
+	BNE.S	NOFONT
+	MOVE.W	#8,COUNTER
+INITTEXTPTR:
+	LEA	SCROLLINGTEXT(PC),A0
+	MOVE.W	TEXTPTR,D1
+	ADD.W	D1,A0
+	ADDQ	#1, D1
+	MOVE.W	D1, TEXTPTR
+	
+	MOVEQ	#0,D0
+	MOVE.B	(A0),D0
+	BNE.S	NORESET
+	MOVE.W	#0,TEXTPTR
+	BRA		INITTEXTPTR
+NORESET:	
+	LEA FONT(PC), A3
+	LEA	SCREEN+(40*5*37)+40,A2	; PLOTPOSITION
+	
+STARTPLOT:
+	BSR	SETFONT
+	MOVE.B	(A4),(A2)
+	MOVE.B	1(A4),42(A2)	
+	MOVE.B	2(A4),84(A2)	
+	MOVE.B	3(A4),126(A2)	
+	MOVE.B	4(A4),168(A2)	
+NOFONT:
+	RTS
+
 SETFONT:
 	SUB.B	#$20,D0
 	MULU	#5,D0
 	LEA	(A3,D0.W),A4
 	RTS
+	
+SCROLL
+
+	MOVE.L	#SCREEN+(40*5*37)+(42*5)+40, D0
+
+	LEA	$DFF000,A5
+	
+	BLTWAIT BWT1
+
+	MOVE.W	#$19F0,BLTCON0(A5)	; BLTCON0 COPY FROM A TO D ($F) 
+					; 1 PIXEL SHIFT, LF = F0
+	MOVE.W	#$0002,BLTCON1(A5)	; BLTCON1 USE BLITTER DESC MODE
+					
+	MOVE.L	#$FFFFFFFF,BLTAFWM(A5)	; BLTAFWM / BLTALWM
+					; BLTAFWM = $FFFF - 
+					; BLTALWM = $FFFF 
+
+
+	MOVE.L	D0,BLTAPT(A5)			; BLTAPT - SOURCE
+	MOVE.L	D0,BLTDPT(A5)			; BLTDPT - DEST
+
+	; SCROLL AN IMAGE OF THE FULL SCREEN WIDTH * FONT_HEIGHT
+
+	MOVE.L	#$00000000,BLTAMOD(A5)	; BLTAMOD + BLTDMOD 
+	MOVE.W	#(6*64)+21,BLTSIZE(A5)	; BLTSIZE
+	
+	RTS
+	
 
 ;**********************************
 ;*				  *
@@ -352,6 +419,8 @@ INTER:
 ;---  Place your interrupt routine here  ---
 
 	BSR	KEYGET
+	BSR	PLOT
+	BSR	SCROLL
 
 	MOVE.W	#$4020,$9C(A6)		; Clear interrupt request
 	MOVEM.L	(A7)+,D0-D7/A0-A6	; Get registers from stack
@@ -384,9 +453,9 @@ DosBase		DC.L	0
 OldInter	DC.L	0
 OldCop1		DC.L	0
 OldCop2		DC.L	0
-INTENA		DC.W	0
-DMACON		DC.W	0
-ADKCON		DC.W	0
+OLDINTENA		DC.W	0
+OLDDMACON		DC.W	0
+OLDADKCON		DC.W	0
 
 COORDS:		; switch trainer coordinate values
 	dc.b	30,14
@@ -398,7 +467,7 @@ ON:
 	dc.b 0,0,'ON ',$ff
 OFF:
 	dc.b 0,0,'OFF',$ff
-TimePercLab:
+TIMEPERCLAB:
 	dc.b 0,0,'OFF',$ff
 	dc.b 0,0,' 60',$ff
 	dc.b 0,0,' 40',$ff
@@ -409,23 +478,33 @@ MENUTEXT:
 	dc.b	10,2,'SPEEDBALL TRAINER',0
 	dc.b	0,4, '----------------------------------------',0
 	dc.b	11,6,'CRACKED BY ORACLE',0
-	dc.b	5,8, 'TRAINER BY FABRIZIO STELLATO',0
+	dc.b	5,8, 'TRAINER BY STARRED MEDIASOFT',0
 	dc.b	0,10,'----------------------------------------',0
 	dc.b	8,14,'F1 NO SCORE P1        OFF',0
 	dc.b	8,18,'F2 NO SCORE P2        OFF',0
 	dc.b	8,22,'F3 UNLIMITED COINS    OFF',0
 	dc.b	8,26,'F4 GAME DURATION      OFF',0
-	dc.b	0,30,'----------------------------------------',$ff
+	dc.b	0,29,'----------------------------------------',$ff
+SCROLLINGTEXT:
+	DC.B	'SPEEDBALL TRAINER BY STARRED MEDIASOFT  '
+	DC.B	'           '
+	DC.B	'THANKS TO EAB ANIME FORUM FOR THE SUPPORT'
+	DC.B	'           ',0
 	
-	incdir	"dh1:own/demo/repository/trainers/"
-FONT:
-	incbin	"font"
 BUTTONS:
-	dc.b	SW1_VALUE
-	dc.b	SW2_VALUE
-	dc.b	SW3_VALUE
-	dc.b	SW4_VALUE
+	DC.B	SW1_VALUE
+	DC.B	SW2_VALUE
+	DC.B	SW3_VALUE
+	DC.B	SW4_VALUE
+COUNTER:
+	DC.W	8
+TEXTPTR
+	DC.W	0
 
+
+	INCDIR	"DH1:OWN/DEMO/REPOSITORY/TRAINERS/"
+FONT:
+	INCBIN	"FONT"
 	
 ;*****************************
 ;*			     *
@@ -450,21 +529,18 @@ BPLPOINTERS:
 	dc.w	$00e2,$0000 ; BITPLANE 0
 
 	dc.w	$2707, $fffe
+	DC.W	$0108, $0000
 	dc.w	$0180, $055f
 	dc.w	$2807, $fffe
 	dc.w	$0180, $0004
 
 	dc.w	$0182, $066f
-	dc.w	$e607, $fffe
-	dc.w	$0108, $0002
-	dc.w	$00e0, $0004
-	dc.w	$00e2, $1e02
-	dc.w	$e007, $fffe
-	dc.w	$0100, $0000
-	dc.w	$eb07, $fffe
+	dc.w	$e107, $fffe
 	dc.w	$0180, $055f
-	dc.w	$ec07, $fffe
+	dc.w	$e207, $fffe
 	dc.w	$0180, $0000
+	dc.w	$e507, $fffe
+	dc.w	$0108, $0002
 
 	DC.L	$FFFFFFFE
 
@@ -476,4 +552,4 @@ BPLPOINTERS:
 
 	SECTION	Screen,BSS_C
 
-SCREEN	DS.B	40*256
+SCREEN	DS.B	42*256
