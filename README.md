@@ -875,6 +875,9 @@ In order to find all JMP from the file pointer, you may use a search with 4EF9; 
 
 s 4EF9 \<address\>
 
+*NOTE*
+OPCODES can be found either on some 68k documentations or with use of assembler. In the latter case, if you use DEBUGGER on ASM-ONE, you can see on bottom of the screen the opcode of the current instruction.
+
 ### Calling LoadSeg function
 
 Here's a snippet that shows how to use LoadSeg
