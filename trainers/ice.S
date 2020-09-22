@@ -3,6 +3,7 @@
 *	   STARRED MEDIASOFT
 *
 *		BEYOND THE ICE PALACE TRAINER
+*	Beyond the Ice Palace (1988)(Elite)[cr Ackerlight]
 *
 *		VER 1.0 (2020)
 *

@@ -2,14 +2,13 @@
 *
 *	   STARRED MEDIASOFT
 *
-*		WIZBALL TRAINER
-*	Wizball (1988)(Ocean)
+*		DEFLEKTOR TRAINER
+*	Deflektor (1988)(Gremlin)[cr QTX]
 *
 *		VER 1.0 (2020)
 *
 *	MANY THANKS TO EAB ABIME FORUM,
-*	ESPECIALLY TO GALAHAD/FLT FOR
-*	WRITING THE MAIN CODE SNIPPET
+*	ESPECIALLY TO GALAHAD/FLT
 *
 *********************************************
 
@@ -20,12 +19,14 @@
 DEBUG = 1 			; 0 = enabled, otherwise disabled
 DEBUG_KEYPRESS = 0		; simulate key pressed (debug mode)
 
-SPARE_MEM = $C0
+SPARE_MEM = $90
 
 SW1_VALUE = 0
+SW2_VALUE = 0
+SW3_VALUE = 0
 
 FONT_HEIGHT = 5
-LAST_JMP_ADDR = $82
+LAST_JMP_ADDR = $158
 
 ; look at http://amigadev.elowar.com/ Includes_and_Autodocs_2
 
@@ -34,7 +35,7 @@ CloseLibrary	= -414
 LoadSeg			= -150
 
 DMASET=	%1000000111000000
-;	 -----a-bcdefghij
+;	 	 -----a-bcdefghij
 
 ;	a: Blitter Nasty
 ;	b: Bitplane DMA (if this isn't set, sprites disappear!)
@@ -53,7 +54,7 @@ BLTWAIT	MACRO
 	btst #6,$dff002
 	bne.s \1
 	ENDM
-	
+
 START:
 	MOVEM.L	D0-D7/A0-A6,-(A7)	; Put registers on stack
 
@@ -161,11 +162,12 @@ LOADGAME
 
 
 	MOVE.L	A0,A1			;COPY ADDRESS OF FILE LOADED
-	
-	LEA	SPARE_MEM,A3		;SPARE MEMORY FOR PATCH
-	MOVE.L	A3,LAST_JMP_ADDR(A1)			;COPY NEW ADDRESS INTO FINAL JMP (WHICH IS LOCALTED AT INITIAL FILE ADDRESS + $B0)
+	LEA	PATCH_BEGIN(PC),A2		;POINTER TO PATCH CODE
 
-	LEA	PATCH_BEGIN(PC),A2	;POINTER TO PATCH CODE	
+
+	LEA	SPARE_MEM,A3		;SPARE MEMORY FOR PATCH
+	MOVE.L	A3,LAST_JMP_ADDR(A1)		;COPY NEW ADDRESS INTO FINAL JMP (WHICH IS LOCALTED AT INITIAL FILE ADDRESS + $B0)
+	
 	MOVE.W	#(PATCH_END-PATCH_BEGIN)-1,D0;SIZE OF PATCH TO COPY
 COPY_PATCH:
 	MOVE.B	(A2)+,(A3)+		;COPY FROM START OF PATCH ROUTINE
@@ -179,24 +181,29 @@ COPY_PATCH:
 	RTS
 	
 ;----------------------------------------------------
-; Beyond The Ice Palace trainer code
+; Speedball trainer code
 ;----------------------------------------------------
 	
 PATCH_BEGIN:
-	lea	APPLYPATCH(PC),a0
-	MOVE.L	A0, $78124
-	JMP	$78000
-APPLYPATCH:
 	LEA	BUTTONS,A0		; DO NOT USE PC RELATIVE ADDR!!!
-	MOVE.B	(A0),D0
+	MOVE.L	#$4E714E71, D1
+	MOVE.B	(A0)+,D0
+	BEQ	CHECK_NEXT1
+	MOVE.L	D1, $3782	; NO ENERGY DRAIN
+	MOVE.W	D1, $3786
+CHECK_NEXT1:
+	MOVE.B	(A0)+,D0
+	BEQ	CHECK_NEXT2
+	MOVE.L	D1, $36F8	; NO OVERLOAD
+	MOVE.W	D1, $36FC	
+CHECK_NEXT2:
+	MOVE.B	(A0)+,D0
 	BEQ	PATCH_JMP
-	LEA	$5AEEA,A0
-	MOVE.L	#$4E714E71,D1
-	MOVE.L	D1,(A0)+
-	MOVE.W	D1,(A0)
+	MOVE.L	D1, $0C78	; UNLIMITED LIVES
+	MOVE.W	D1, $0C7C
 PATCH_JMP
 	IFNE	DEBUG
-	JMP	$58000
+	JMP	$800
 	ENDC
 PATCH_END:
 
@@ -205,6 +212,7 @@ PROBLEM:
 	MOVEQ	#0,D0
 	RTS
 	
+
 KEYGET:
 	MOVEQ	#0,D0
 	MOVE.B	$BFED01.L,D0
@@ -351,6 +359,7 @@ SCROLL
 	
 	RTS
 	
+
 ;**********************************
 ;*				  *
 ;*    INTERRUPT ROUTINE. LEVEL 3  *
@@ -377,9 +386,9 @@ doslib:
 	dc.b	'dos.library',0
 
 
-	
+	; place a copy of speedball executable on DH1
 filename:
-	dc.b	'df0:wizboot',0
+	dc.b	'df0:deflektor',0
 	EVEN
 
 ;*** WAIT VERTICAL BLANK ***
@@ -399,13 +408,14 @@ DosBase		DC.L	0
 OldInter	DC.L	0
 OldCop1		DC.L	0
 OldCop2		DC.L	0
-OldINTENA	DC.W	0
-OldDMACON	DC.W	0
-OldADKCON	DC.W	0
+OLDINTENA		DC.W	0
+OLDDMACON		DC.W	0
+OLDADKCON		DC.W	0
 
 COORDS:		; switch trainer coordinate values
 	dc.b	30,14
-
+	dc.b	30,18
+	dc.b	30,22
 	
 ON:
 	dc.b 0,0,'ON ',$ff
@@ -414,28 +424,36 @@ OFF:
 
 MENUTEXT:
 	dc.b	0,0, '----------------------------------------',0
-	dc.b	16,2,'WIZBALL',0
+	dc.b	10,2,'DEFLEKOR TRAINER',0
 	dc.b	0,4, '----------------------------------------',0
+	dc.b	11,6,'CRACKED BY QUARTEX',0
 	dc.b	5,8, 'TRAINER BY STARRED MEDIASOFT',0
 	dc.b	0,10,'----------------------------------------',0
-	dc.b	8,14,'F1 UNLIMITED LIVES    OFF',0
-	dc.b	0,27,'----------------------------------------',$ff
+	dc.b	8,14,'NO ENERGY DRAIN       OFF',0
+	dc.b	8,18,'NO OVERLOAD           OFF',0
+	dc.b	8,22,'UNLIMITED LIVES       OFF',0
+	dc.b	0,29,'----------------------------------------',$ff
 SCROLLINGTEXT:
-	DC.B	'WIZBALL TRAINER BY STARRED MEDIASOFT   '
+	DC.B	'DEFLEKTOR TRAINER BY STARRED MEDIASOFT   '
 	DC.B	'           '
 	DC.B	'THANKS TO EAB ANIME FORUM FOR THE SUPPORT'
 	DC.B	'           ',0
-	incdir	"dh1:own/demo/repository/trainers/"
-FONT:
-	incbin	"font"
+	
 BUTTONS:
-	dc.b	SW1_VALUE
+	DC.B	SW1_VALUE
+	DC.B	SW2_VALUE
+	DC.B	SW3_VALUE
+
 	EVEN
 COUNTER:
 	DC.W	8
 TEXTPTR
 	DC.W	0
 
+
+	INCDIR	"DH1:OWN/DEMO/REPOSITORY/TRAINERS/"
+FONT:
+	INCBIN	"FONT"
 	
 ;*****************************
 ;*			     *
@@ -483,4 +501,4 @@ BPLPOINTERS:
 
 	SECTION	Screen,BSS_C
 
-SCREEN	DS.B	40*256
+SCREEN	DS.B	42*256
