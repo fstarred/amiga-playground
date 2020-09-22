@@ -833,6 +833,8 @@ To create a game trainer, you have to:
 
 If you have no idea where to start, just take a look to existing sources on [this link][3]
 
+![screenshot](https://github.com/fstarred/amiga-playground/blob/master/docs/deflktor_trainer.png?raw=true) 
+
 ### Create a patch code
 
 First off, it is enough to say that no programming skills are required for finding some basic features like infinite lives, time, etc etc.
