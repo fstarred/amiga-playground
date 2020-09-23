@@ -3,7 +3,6 @@
 *	   STARRED MEDIASOFT
 *
 *		Impossible Mission II TRAINER
-*		NOT WORKING !!!
 *
 *		VER 1.0 (2020)
 *
@@ -24,13 +23,16 @@ SPARE_MEM = $C0
 
 LAST_JMP_ADDR=$125EE
 
+FONT_HEIGHT = 5
+
 SW1_VALUE = 0
 
 ; look at http://amigadev.elowar.com/ Includes_and_Autodocs_2
 
 OldOpenLibrary	= -408
 CloseLibrary	= -414
-LoadSeg			= -150
+LoadSeg		= -150
+UnLoadSeg	= -156
 
 DMASET=	%1000000111000000
 ;	 -----a-bcdefghij
@@ -42,6 +44,16 @@ DMASET=	%1000000111000000
 ;	e: Sprite DMA
 ;	f: Disk DMA
 ;	g-j: Audio 3-0 DMA
+
+	INCDIR	"DH1:OWN/DEMO/REPOSITORY/SHARED/"
+	INCLUDE "HARDWARE/CUSTOM.I"
+	
+BLTWAIT	MACRO
+	tst $dff002			;for compatibility
+\1
+	btst #6,$dff002
+	bne.s \1
+	ENDM
 
 START:
 	MOVEM.L	D0-D7/A0-A6,-(A7)	; Put registers on stack
@@ -63,9 +75,9 @@ START:
 	JSR	CloseLibrary(A6)	; Close graphics library
 
 	LEA	$DFF000,A6
-	MOVE.W	$1C(A6),INTENA		; Store old INTENA
-	MOVE.W	$2(A6),DMACON		; Store old DMACON
-	MOVE.W	$10(A6),ADKCON		; Store old ADKCON
+	MOVE.W	$1C(A6),OLDINTENA		; Store old INTENA
+	MOVE.W	$2(A6),OLDDMACON		; Store old DMACON
+	MOVE.W	$10(A6),OLDADKCON		; Store old ADKCON
 	
 	MOVE.L  #SCREEN,D0  ; POINT TO BITPLANE
     LEA BPLPOINTERS,A1  ; 
@@ -91,7 +103,6 @@ START:
 
 ;****       Your main routine      ****
 
-	BSR	CLEARSCREEN
 	BSR	PRINTTEXT
 
 	IFEQ	DEBUG
@@ -122,13 +133,13 @@ LOOP:
 	MOVE.L	OldCop1(PC),$80(A6)	; Restore old copper1
 	MOVE.L	OldCop2(PC),$84(A6)	; Restore old copper1
 	MOVE.L	OldInter(PC),$6C.W	; Restore inter pointer
-	MOVE.W	DMACON,D0		; Restore old DMACON
+	MOVE.W	OLDDMACON,D0		; Restore old DMACON
 	OR.W	#$8000,D0
 	MOVE.W	D0,$96(A6)		
-	MOVE.W	ADKCON,D0		; Restore old ADKCON
+	MOVE.W	OLDADKCON,D0		; Restore old ADKCON
 	OR.W	#$8000,D0
 	MOVE.W	D0,$9E(A6)
-	MOVE.W	INTENA,D0		; Restore inter data
+	MOVE.W	OLDINTENA,D0		; Restore inter data
 	OR.W	#$C000,D0
 	MOVE.W	#$7FFF,$9C(A6)
 	MOVE.W	D0,$9A(A6)
@@ -151,7 +162,14 @@ LOADGAME
 
 
 	MOVE.L	A0,A1			;COPY ADDRESS OF FILE LOADED
+	MOVE.L	A0,A5
+	ADDI.L	#$125F2,A5		;JMP OFFSET FROM POINTER
+	MOVE.L	A5,PATCH_JMP+2
 	ADD.L	#LAST_JMP_ADDR,A1	;MOVE TO LAST JMP
+
+	MOVE.L	A0,A5
+	ADDI.L	#$81D0,A5		;COPY PATCH ADDR
+	MOVE.L	A5,PATCH_ADDR+2
 
 	LEA	SPARE_MEM,A3		;SPARE MEMORY FOR PATCH
 	MOVE.L	A3,(A1)			;COPY NEW ADDRESS INTO FINAL JMP (WHICH IS LOCALTED AT INITIAL FILE ADDRESS + $B0)
@@ -165,6 +183,8 @@ COPY_PATCH:
 					;UNTIL COPIED
 	IFNE DEBUG	
 	JMP	4(A0)			;EXECUTE FILE LOADED BY LOADSEG
+	ELSE
+	JSR	UNLOADSEG(A6)
 	ENDC
 	
 	RTS
@@ -178,11 +198,13 @@ PATCH_BEGIN:
 	MOVE.B	(A0),D0
 	BEQ	PATCH_JMP
 	MOVE.L	#$4E714E71,D1		
-	MOVE.L	D1,$18344	; NO TIMER
-	MOVE.L	D1,$1835C	; PLAYER DEATH
+PATCH_ADDR
+	LEA	$FFFFF,A0
+	MOVE.L	D1,(A0)		; NO TIMER
+	MOVE.L	D1,$18(A0)	; PLAYER DEATH
 PATCH_JMP
 	IFNE	DEBUG
-	JMP	$22CE6
+	JMP	$FFFFF
 	ENDC
 PATCH_END:
 
@@ -191,9 +213,6 @@ PROBLEM:
 	MOVEQ	#0,D0
 	RTS
 	
-NOFONT:
-	RTS
-
 KEYGET:
 	MOVEQ	#0,D0
 	MOVE.B	$BFED01.L,D0
@@ -210,10 +229,10 @@ GENEFEIL:
 DELAY:	DBF	D1,DELAY
 	BCLR	#6,$BFEE01
 	CMP.B	#$50,D0
-	BLT.S	NOFONT		; IF < 50 EXIT
-	CMP.B	#$50,D0
-	BGT.S	NOFONT		; IF > 50 EXIT
-	SUB.B	#$50,D0		; IF BEETWEN 50 AND 50 SUBTRACT
+	BLT.W	NOFONT		; IF < 50 EXIT
+	CMP.B	#$52,D0
+	BGT.W	NOFONT		; IF > 52 EXIT
+	SUB.B	#$50,D0		; IF BEETWEN 50 AND 52 SUBTRACT
 ELABSWITCH:
 	IFEQ DEBUG
 	MOVEQ	#DEBUG_KEYPRESS,D0
@@ -247,13 +266,6 @@ TRAINERON:
 	BSR	TEXT2
 	RTS
 
-CLEARSCREEN:
-	LEA	SCREEN,A0
-	MOVE.W	#2000,D0
-CLEARLOOP:
-	CLR.L	(A0)+
-	DBF	D0,CLEARLOOP
-	RTS
 PRINTTEXT:
 	LEA	MENUTEXT(PC),A0
 TEXT2:
@@ -285,11 +297,68 @@ PRINTLOOP:
 END:
 	RTS
 
+PLOT:
+	SUBQ.W	#1,COUNTER
+	BNE.S	NOFONT
+	MOVE.W	#8,COUNTER
+INITTEXTPTR:
+	LEA	SCROLLINGTEXT(PC),A0
+	MOVE.W	TEXTPTR,D1
+	ADD.W	D1,A0
+	ADDQ	#1, D1
+	MOVE.W	D1, TEXTPTR
+	
+	MOVEQ	#0,D0
+	MOVE.B	(A0),D0
+	BNE.S	NORESET
+	MOVE.W	#0,TEXTPTR
+	BRA		INITTEXTPTR
+NORESET:	
+	LEA FONT(PC), A3
+	LEA	SCREEN+(40*FONT_HEIGHT*37)+40,A2	; PLOTPOSITION
+	
+STARTPLOT:
+	BSR	SETFONT
+	MOVE.B	(A4),(A2)
+	MOVE.B	1(A4),42(A2)	
+	MOVE.B	2(A4),84(A2)	
+	MOVE.B	3(A4),126(A2)	
+	MOVE.B	4(A4),168(A2)	
+NOFONT:
+	RTS
+
 SETFONT:
 	SUB.B	#$20,D0
-	MULU	#5,D0
+	MULU	#FONT_HEIGHT,D0
 	LEA	(A3,D0.W),A4
 	RTS
+	
+SCROLL
+
+	MOVE.L	#SCREEN+(40*FONT_HEIGHT*37)+(42*FONT_HEIGHT)+40, D0 ; AT LINE 38 MULU=+2
+
+	LEA	$DFF000,A5
+	
+	BLTWAIT BWT1
+
+	MOVE.L	#$19F00002,BLTCON0(A5)	; BLTCON0 COPY FROM A TO D ($F) 
+									; 1 PIXEL SHIFT, LF = F0
+									; BLTCON1 USE BLITTER DESC MODE
+					
+	MOVE.L	#$FFFFFFFF,BLTAFWM(A5)	; BLTAFWM / BLTALWM
+									; BLTAFWM = $FFFF - 
+									; BLTALWM = $FFFF 
+
+	MOVE.L	D0,BLTAPT(A5)			; BLTAPT - SOURCE
+	MOVE.L	D0,BLTDPT(A5)			; BLTDPT - DEST
+
+	; SCROLL AN IMAGE OF THE FULL SCREEN WIDTH * FONT_HEIGHT
+
+	MOVE.L	#$00000000,BLTAMOD(A5)	; BLTAMOD + BLTDMOD 
+	MOVE.W	#((FONT_HEIGHT+1)*64)+21,BLTSIZE(A5)	; BLTSIZE
+	
+	RTS
+	
 
 ;**********************************
 ;*				  *
@@ -305,6 +374,8 @@ INTER:
 ;---  Place your interrupt routine here  ---
 
 	BSR	KEYGET
+	BSR	PLOT
+	BSR	SCROLL
 
 	MOVE.W	#$4020,$9C(A6)		; Clear interrupt request
 	MOVEM.L	(A7)+,D0-D7/A0-A6	; Get registers from stack
@@ -337,9 +408,9 @@ DosBase		DC.L	0
 OldInter	DC.L	0
 OldCop1		DC.L	0
 OldCop2		DC.L	0
-INTENA		DC.W	0
-DMACON		DC.W	0
-ADKCON		DC.W	0
+OLDINTENA	DC.W	0
+OLDDMACON	DC.W	0
+OLDADKCON	DC.W	0
 
 COORDS:		; switch trainer coordinate values
 	dc.b	30,14
@@ -354,16 +425,26 @@ MENUTEXT:
 	dc.b	0,0, '----------------------------------------',0
 	dc.b	10,2,'IMPOSSIBLE MISSION II',0
 	dc.b	0,4, '----------------------------------------',0
-	dc.b	5,8, 'TRAINER BY FABRIZIO STELLATO',0
+	dc.b	5,8, 'TRAINER BY STARRED MEDIASOFT',0
 	dc.b	0,10,'----------------------------------------',0
 	dc.b	8,14,'F1 UNLIMITED TIME     OFF',0
-	dc.b	0,30,'----------------------------------------',$ff
-	
-	incdir	"dh1:own/demo/repository/trainers/"
-FONT:
-	incbin	"font"
+	dc.b	0,27,'----------------------------------------',$ff
+SCROLLINGTEXT:
+	DC.B	'IMPOSSIBLE MISSION II TRAINER BY STARRED MEDIASOFT  '
+	DC.B	'           '
+	DC.B	'THANKS TO EAB ANIME FORUM FOR THE SUPPORT'
+	DC.B	'           ',0
 BUTTONS:
-	dc.b	SW1_VALUE
+	dc.b	SW1_VALUE	
+COUNTER:
+	DC.W	8
+TEXTPTR
+	DC.W	0
+
+
+	INCDIR	"DH1:OWN/DEMO/REPOSITORY/TRAINERS/"
+FONT:
+	INCBIN	"FONT"
 
 	
 ;*****************************
@@ -389,21 +470,18 @@ BPLPOINTERS:
 	dc.w	$00e2,$0000 ; BITPLANE 0
 
 	dc.w	$2707, $fffe
+	DC.W	$0108, $0000
 	dc.w	$0180, $055f
 	dc.w	$2807, $fffe
 	dc.w	$0180, $0004
 
 	dc.w	$0182, $066f
-	dc.w	$e607, $fffe
-	dc.w	$0108, $0002
-	dc.w	$00e0, $0004
-	dc.w	$00e2, $1e02
-	dc.w	$e007, $fffe
-	dc.w	$0100, $0000
-	dc.w	$eb07, $fffe
+	dc.w	$e107, $fffe
 	dc.w	$0180, $055f
-	dc.w	$ec07, $fffe
+	dc.w	$e207, $fffe
 	dc.w	$0180, $0000
+	dc.w	$e507, $fffe
+	dc.w	$0108, $0002
 
 	DC.L	$FFFFFFFE
 
