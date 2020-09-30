@@ -826,8 +826,10 @@ To create a game trainer, you have to:
 1. Create a splash screen with available menu, then store user's selection somewhere on available RAM
 2. Create a patch code
 3. Call [LoadSeg()][2] function with game executable. This will load file and allocate it on available ram, returning the pointer on it.
-4. Copy the patch code on available ram
-5. Jump to that pointer
+4. Find the final JMP address that the packed file will jump to after depacking has finished.
+5. Replace the JMP address with the patch code
+6. After patch code is applied, let JMP to original address (point 5)
+6. Jump to the pointer returned by LoadSeg()
 
 ### Create a splash screen
 
