@@ -44,8 +44,8 @@ DMASET=	%1000000111000000
 ;	f: Disk DMA
 ;	g-j: Audio 3-0 DMA
 
-	INCDIR	"DH1:OWN/DEMO/REPOSITORY/SHARED/"
-	INCLUDE "HARDWARE/CUSTOM.I"
+	INCDIR	"DH1:AMIGA-PLAYGROUND"
+	INCLUDE "/SHARED/HARDWARE/CUSTOM.I"
 	
 BLTWAIT	MACRO
 	tst $dff002			;for compatibility
@@ -179,7 +179,7 @@ COPY_PATCH:
 	RTS
 	
 ;----------------------------------------------------
-; Beyond The Ice Palace trainer code
+; Wizball trainer code
 ;----------------------------------------------------
 	
 PATCH_BEGIN:
@@ -426,11 +426,10 @@ MENUTEXT:
 SCROLLINGTEXT:
 	DC.B	'WIZBALL TRAINER BY STARRED MEDIASOFT   '
 	DC.B	'           '
-	DC.B	'THANKS TO EAB ANIME FORUM FOR THE SUPPORT'
+	DC.B	'THANKS TO EAB ABIME FORUM FOR THE SUPPORT'
 	DC.B	'           ',0
-	incdir	"dh1:own/demo/repository/trainers/"
 FONT:
-	incbin	"font"
+	incbin	"/trainers/font"
 BUTTONS:
 	dc.b	SW1_VALUE
 	EVEN

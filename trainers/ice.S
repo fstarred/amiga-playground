@@ -357,10 +357,10 @@ MENUTEXT:
 	dc.b	0,10,'----------------------------------------',0
 	dc.b	8,14,'F1 UNLIMITED LIVES    OFF',0
 	dc.b	0,30,'----------------------------------------',$ff
-	
-	incdir	"dh1:own/demo/repository/trainers/"
+
+	INCDIR	"DH1:AMIGA-PLAYGROUND"
 FONT:
-	incbin	"font"
+	incbin	"/TRAINERS/FONT"
 BUTTONS:
 	dc.b	SW1_VALUE
 

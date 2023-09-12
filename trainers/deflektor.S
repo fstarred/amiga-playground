@@ -45,8 +45,8 @@ DMASET=	%1000000111000000
 ;	f: Disk DMA
 ;	g-j: Audio 3-0 DMA
 
-	INCDIR	"DH1:OWN/DEMO/REPOSITORY/SHARED/"
-	INCLUDE "HARDWARE/CUSTOM.I"
+	INCDIR	"DH1:AMIGA-PLAYGROUND"
+	INCLUDE "/SHARED/HARDWARE/CUSTOM.I"
 	
 BLTWAIT	MACRO
 	tst $dff002			;for compatibility
@@ -389,7 +389,6 @@ doslib:
 	dc.b	'dos.library',0
 
 
-	; place a copy of speedball executable on DH1
 filename:
 	dc.b	'df0:deflektor',0
 	EVEN
@@ -427,7 +426,7 @@ OFF:
 
 MENUTEXT:
 	dc.b	0,0, '----------------------------------------',0
-	dc.b	10,2,'DEFLEKOR TRAINER',0
+	dc.b	10,2,'DEFLEKTOR TRAINER',0
 	dc.b	0,4, '----------------------------------------',0
 	dc.b	11,6,'CRACKED BY QUARTEX',0
 	dc.b	5,8, 'TRAINER BY STARRED MEDIASOFT',0
@@ -439,7 +438,7 @@ MENUTEXT:
 SCROLLINGTEXT:
 	DC.B	'DEFLEKTOR TRAINER BY STARRED MEDIASOFT   '
 	DC.B	'           '
-	DC.B	'THANKS TO EAB ANIME FORUM FOR THE SUPPORT'
+	DC.B	'THANKS TO EAB ABIME FORUM FOR THE SUPPORT'
 	DC.B	'           ',0
 	
 BUTTONS:
@@ -454,9 +453,8 @@ TEXTPTR
 	DC.W	0
 
 
-	INCDIR	"DH1:OWN/DEMO/REPOSITORY/TRAINERS/"
 FONT:
-	INCBIN	"FONT"
+	INCBIN	"/TRAINERS/FONT"
 	
 ;*****************************
 ;*			     *
