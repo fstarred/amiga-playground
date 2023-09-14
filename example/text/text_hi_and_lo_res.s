@@ -35,11 +35,11 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
-	include	"startup.s"	; 
-	incdir	"dh1:own/demo/repository/shared/"	
-	include "hardware/custom.i"
+	incdir	"dh1:amiga-playground"
+	include	"/startup/borchen/startup.s"	 
+	include "/shared/hardware/custom.i"
 *****************************************************************************
+
 
 
 ;;    ---  SCREEN_H buffer dimensions  ---
@@ -290,8 +290,7 @@ BPLPOINTERS_L:
 
 
 FONT:
-	incdir	"dh1:own/demo/repository/resources/fonts/"
-	incbin	"nice-8x8.fnt"
+	incbin	"/resources/fonts/nice-8x8.fnt"
 	
 *****************************************************************************
 

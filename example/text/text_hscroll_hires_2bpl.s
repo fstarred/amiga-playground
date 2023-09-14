@@ -35,10 +35,9 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
-	include	"startup.s"	; 
-	incdir	"dh1:own/demo/repository/shared/"	
-	include "hardware/custom.i"
+	incdir	"dh1:amiga-playground"
+	include	"/startup/borchen/startup.s"	; 
+	include "/shared/hardware/custom.i"
 *****************************************************************************
 
 
@@ -324,7 +323,7 @@ COPPERLIST:
 	dc.w	$90,$2cc1	; DiwStop
 	dc.w	$92,$3c-4	; DdfStart
 	dc.w	$94,$d4		; DdfStop
-	        
+       	        
 	dc.w	$102		; BplCon1 reg address
 	dc.b	0		; BplCon1 high byte value (unused)
 OWNBPLCON1:
@@ -354,8 +353,7 @@ BPLPOINTERS:
 
 
 FONT:
-	incdir	"dh1:own/demo/repository/resources/fonts/"
-	incbin	"nice-8x8.fnt"
+	incbin	"/resources/fonts/nice-8x8.fnt"
 	
 *****************************************************************************
 
