@@ -29,13 +29,14 @@ IO_OFFSET=44
 ;----- Command type for IO_COMMAND
 CMD_FLUSH=$9
 
-BLK_RD_LEN=195	; numbers of sectors/blocks to read
+BLK_OFFSET=0
+BLK_LEN=195	; numbers of sectors/blocks to read
 
 ;----- Begin program
 	lea.l	buffer,a0  ; move buffer address into a0
 	move.l	#0,d0      ; move 0 into d0 (diskStation = internal drive)
-	move.l	#0,d1      ; move 0 into d1 (block = block 0)
-	move.l	#BLK_RD_LEN,d2    ; move block to read lenngth into d2
+	move.l	#BLK_OFFSET,d1 ; move 0 into d1 (block = block 0)
+	move.l	#BLK_LEN,d2    ; move block to read lenngth into d2
 	move.l	#1,d3      ; move 1 into d3 (mode = READ)
 
 	bsr	sector
@@ -98,4 +99,4 @@ ws_devicename:
 
 
 buffer:
-	blk.b	512*BLK_RD_LEN,0           ; allocate buffer for 512*n blocks
+	blk.b	512*BLK_LEN,0           ; allocate buffer for 512*n blocks

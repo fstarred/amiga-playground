@@ -143,7 +143,7 @@ getchr:					;get one character from keyboard
 	move.l  a1,d2
 	move.l  dosbase,a6
 	jsr     read(a6)
-	clr.l   d0
+	moveq   #0,d0
 	move.b  inbuff,d0
 	rts
 

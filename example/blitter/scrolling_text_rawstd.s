@@ -47,10 +47,9 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
-	include	"startup.s"	; 
-	incdir	"dh1:own/demo/repository/shared/"
-	include "hardware/custom.i"
+	incdir	"dh1:amiga-playground"
+	include	"/startup/borchen/startup.s"	; 
+	include "/shared/hardware/custom.i"
 *****************************************************************************
 
 
@@ -354,8 +353,7 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 	
 FONT:
-	incdir  "dh1:own/demo/repository/resources/fonts/"
-	incbin  "32x32-FH.raw"
+	incbin  "/resources/fonts/32x32-FH.raw"
 	
 *****************************************************************************
 
