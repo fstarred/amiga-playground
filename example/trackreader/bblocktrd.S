@@ -25,7 +25,7 @@ MAIN_ADDRESS = $70000
 
 DoIo = -456
 
-Writeflag = 0
+Writeflag = 1
 
 	IF WriteFlag = 1
 	AUTO	WS\BOOTBLOCK\0\3\CC\

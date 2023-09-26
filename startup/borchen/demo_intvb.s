@@ -43,8 +43,8 @@ bpls = 1
 
 	
 ;*****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
-	include	"startup.s"	; 
+	incdir	"dh1:amiga-playground"
+	include	"/startup/borchen/startup.s"	; 
 ;*****************************************************************************
 
 WAITVB	MACRO
