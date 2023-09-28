@@ -52,11 +52,12 @@ bootEntry:
 	jmp	(a5)				; Jmp to sysoff
 
 bootEnd:
-	ds.b	(1024-(bootEnd-bootblock))	; fill remaining space with 0
+	ds.b	(1024-(bootEnd-bootblock))	; fill remaining space 
+						; of the 2 sectors with $00
 mainStart:
 	incbin	"dh1:/sysoff"
 mainEnd:
-	ds.b	512-(mainEnd-mainStart)		; fill remaining space with 0.
+	ds.b	512-(mainEnd-mainStart)		; fill remaining space with $0.
 						; Depending og the bin size,
 						; you must use multiple of 512
 						; (i.e. if bin size = 1120,

@@ -1,3 +1,23 @@
+*************************************************
+*						*
+*						*
+*	System OFF with VBLANK Interrupt	*
+*						*
+*						*
+*************************************************
+
+; If you want to debug with Assembler (i.e. ASM-One),
+; comment the following lines:
+;
+; MOVE.L #$7FFF7FFF,$9A(A6)	; disable INTENA/INTREQ ; at least disable
+;				INTREQ
+; MOVE.W #$7FFF, $96(A6)	; disable DMACON
+; MOVE.L #COPPERLIST, $80(A6)	; this trigger our custom copperlist
+;
+; MOVE.L #INTER,$6C.W		: set interrupt pointer
+; MOVE.W #INTENA,$9A(A6)	; set bit of INTENA
+
+
 
 OldOpenLibrary = -408
 CloseLibrary = -414
@@ -6,16 +26,25 @@ CloseLibrary = -414
 
 ;DMACON     096      W     A D P   DMA control write (clear or set)
 ;DMACONR    002      R     A   P   DMA control (and blitter status) read
-DMASET=		%1000000110000000 ($8180)
-;		 -----a-bcdefghij
+DMASET=	%1000001110000000 ($8380)
+;	 fedcba9876543210
 
-;		a: Blitter Nasty
-;		b: Bitplane DMA (if this isn't set sprites won't show)
-;		c: Copper DMA
-;		d: Blitter DMA
-;		e: Sprite DMA
-;		f: Disk DMA
-;	      	g-j: Audio 3-0 DMA
+;	f: Set/Clear control bit
+;	e: Blitter busy status bit (read only)
+;	d: Blotter logic zero status bit (read only)
+;	c: X
+;	b: X
+;	a: Blitter DMA priority (blitter nasty)
+;	9: Enable all DMA below
+;	8: Bitplane DMA enable
+;	7: Copper DMA enable
+;	6: Blitter DMA enable
+;	5: Sprite DMA enable
+;	4: Disk DMA enable
+;	3: Audio channel 3 DMA enable
+;	2: Audio channel 2 DMA enable
+;	1: Audio channel 1 DMA enable
+;	0: Audio channel 0 DMA enable
 
 ;INTENA     09A      W       P    Interrupt enable bits (clear or set bits)
 ;INTENAR    01C      R       P    Interrupt enable bits (read)
@@ -40,7 +69,8 @@ INTENA=	%1100000000100000 ($C020)
 ;	0: Serial port transmit buffere empty
 
 START:
-**** STORE OLD REGISTER SETTINGS  ****
+
+;--- Store Old Register Settings ---
 
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 
@@ -55,23 +85,24 @@ START:
 	MOVE.W	$1C(A6),OldIntena	; store old INTENA (INTENAR)
 	MOVE.W	$02(A6),OldDma		; store old DMACON (DMACONR)	
 
-**** DISABLE CUSTOM REGISTERS ****
+;--- Disable Intena/Intreq/Dmacon ---
 
 	MOVE.L	#$7FFF7FFF,$9A(A6)	; disable INTENA/INTREQ
 	MOVE.W	#$7FFF, $96(A6)		; disable DMACON
 
 
-**** SET REGISTER SETTINGS ****
+;--- Set Register Settings ---
 
-	BSR	WAITVB
+	BSR	WAITVB			; Wait for VBLANK
 
 	MOVE.W	#DMASET,$96(A6)		; set bits of DMACON state
 	MOVE.L	#COPPERLIST, $80(A6)	; set custom COPPERLIST
 
+;--- Program Interrupt ---
+
 	MOVE.L	$6C.W,OldInter		; store old INTER PTR
 
 	MOVE.L	#INTER,$6C.W		: set interrupt pointer
-	MOVE.W	#$7FFF,$9C(A6)		; clear request
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
 	
 
@@ -83,9 +114,10 @@ LEFTMOUSE
 
 	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
 
+	BSR.S	WAITVB
+
 	LEA	$DFF000,A6
 	
-	MOVE.W	#$7FFF,$96(A6)		; clear DMACON
 	MOVE.W	OldDma(PC),D0
 	OR.W	#$8000,D0		; set bits of DMACON state
 	MOVE.W	D0,$96(A6)		; restore original DMACON
@@ -96,6 +128,8 @@ LEFTMOUSE
 	MOVE.W	OldIntena(PC),D0
 	OR.W	#$C000,D0		; set bits of INTENA state
 	MOVE.W	D0,$9A(A6)		; restore original INTENA
+
+	MOVE.W	#$7FFF,$9C(A6)		; clear requests
 	
 	MOVEM.L (SP)+,D0-D7/A0-A6
 
