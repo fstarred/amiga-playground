@@ -1,5 +1,16 @@
+***********************************
+*
+*
+*	VERTICAL LINE MOOVER
+*
+*
+***********************************
 
-WriteFlag=0
+; attached with bblocktrd code
+; note: all addresses must be relative referenced (i.e. with PC)
+
+
+WriteFlag=1
 
 	IF WriteFlag=1
 	AUTO	WB\START\END\
@@ -14,7 +25,7 @@ FreeRaster=	-498
 
 ;DMACON     096      W     A D P   DMA control write (clear or set)
 ;DMACONR    002      R     A   P   DMA control (and blitter status) read
-DMASET=	%1000000110000000 ($8380)
+DMASET=	%1000001110000000 ($8380)
 ;	 fedcba9876543210
 
 ;	f: Set/Clear control bit
@@ -71,12 +82,13 @@ START:
 
 	MOVE.L	#SCR_WIDTH,D0		; Width
 	MOVE.L	#SCR_HEIGHT,D1		; Higth
-	JSR	AllocRaster(A6)
-	MOVE.L	D0,ScreenPtr
+	JSR	AllocRaster(A6)		; Allocate memory for bitplane WxH
+	LEA	ScreenPtr(PC),A0	
+	MOVE.L	D0,(A0)			; Write btpl ptr on ScreenPtr
 	
 ;--- Clear screen  ---
 
-	MOVE.L	D0,A0
+	MOVE.L	(A0),A0			; Point A0 to bitplane address
 	MOVE.W	#SCR_WIDTH/8*SCR_HEIGHT/4-1,D1	; Clear 320/8 bytes wide
 	MOVEQ	#0,D2			; times 260 bytes high
 	
@@ -114,9 +126,9 @@ START:
 
 ;--- Set copperlist ---
 
-	LEA	COPPERLIST(PC),A0
-	MOVE.L	A0,$80(A6)
-	MOVE.W	$88(A6),D0
+	LEA	COPPERLIST(PC),A0	
+	MOVE.L	A0,$80(A6)		; write our copperlist to COP1 loc reg
+	MOVE.W	$88(A6),D0		; Launch COPJMP1
 
 ;--- Set Dma ---
 
@@ -127,9 +139,9 @@ START:
 	BNE.S	.LEFTMOUSE
 	
 	LEA	COLOR01+2(PC),A0
-	MOVE.W	(A0),D0
-	ROR	#4,D0
-	MOVE.W	D0,(A0)
+	MOVE.W	(A0),D0			; read $0182 (COLOR1) 
+	ROR	#4,D0			; change color
+	MOVE.W	D0,(A0)			; write color to $0182
 	BRA.S	.LEFTMOUSE
 	
 	RTS
@@ -144,41 +156,42 @@ WAITVB:
 
 INTER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)
-	MOVE.L	ScreenPtr,A0
+	
+	MOVE.L	ScreenPtr(PC),A0
+	LEA	LinePos(PC),A1
 	
 	MOVEQ	#0,D1
-	MOVE.B	LinePos,D1
-	MOVE.L	D1,D2
+	MOVE.B	(A1),D1
+	MOVE.L	D1,D2			; Set vline position to D2
 
 	MULU.W	#40,D1
-	ADD.L	D1,A0
+	ADD.L	D1,A0			; Point to screen according to line pos
 
 	MOVEQ	#10-1,D0
 .DELLINE
 	MOVE.L	#$00000000,(A0)+
-	DBF	D0,.DELLINE
+	DBF	D0,.DELLINE		; Delete line at screen position
 	
 	MOVEQ	#10-1,D0
 .WRTLINE
 	MOVE.L	#$FFFFFFFF,(A0)+
-	DBF	D0,.WRTLINE
+	DBF	D0,.WRTLINE		; Write line at screen position
 
 	ADDQ	#1,D2
-	MOVE.B	D2,LinePos
+	MOVE.B	D2,(A1)			; Update LinePos+1
 	
-	MOVE.W	#$4020,$9C(A6)		; clear interrupt request
+	MOVE.W	#$4020,$9C(A6)		; Clear interrupt request
 	MOVEM.L	(SP)+,D0-D7/A0-A6
 	
 	RTE
 	
-
+ScreenPtr:	
+	DC.L	0
+LinePos:	
+	DC.B	$FF
+	EVEN
 GFXNAME:
 	DC.B	'graphics.library',0
-	EVEN
-ScreenPtr
-	DC.L	0
-LinePos
-	DC.B	0
 	EVEN
 COPPERLIST:
 	DC.L	$01800000

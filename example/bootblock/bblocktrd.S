@@ -55,7 +55,7 @@ bootEnd:
 	ds.b	(1024-(bootEnd-bootblock))	; fill remaining space 
 						; of the 2 sectors with $00
 mainStart:
-	incbin	"dh1:/sysoff"
+	incbin	"dh1:/bbmain"
 mainEnd:
 	ds.b	512-(mainEnd-mainStart)		; fill remaining space with $0.
 						; Depending og the bin size,
