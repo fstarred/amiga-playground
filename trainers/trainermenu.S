@@ -434,32 +434,32 @@ OLDDMACON		DC.W	0
 OLDADKCON		DC.W	0
 
 COORDS:		; switch trainer coordinate values
-	dc.b	30,14
-	dc.b	30,18
-	dc.b	30,22
-	dc.b	30,26
+	DC.B	30,14
+	DC.B	30,18
+	DC.B	30,22
+	DC.B	30,26
 
 FIXEDVALUE:
-	dc.b 0,0,'OFF',$ff
-	dc.b 0,0,' ON',$ff
+	DC.B 0,0,'OFF',$ff
+	DC.B 0,0,' ON',$ff
 NUMVALUE:
-	dc.b 0,0,'  0',$ff
+	DC.B 0,0,'  0',$ff
 MIXEDVALUE:
-	dc.b 0,0,'MAX',$ff
-	dc.b 0,0,'MIN',$ff
+	DC.B 0,0,'MAX',$ff
+	DC.B 0,0,'MIN',$ff
 	
 	
 MENUTEXT:
-	dc.b	0,0, '----------------------------------------',0
-	dc.b	8,2,'TRAINER MENU TEMPLATE',0
-	dc.b	0,4, '----------------------------------------',0
-	dc.b	14,6,'--- ---',0
-	dc.b	6,8, 'MENU BY FABRIZIO STELLATO',0
-	dc.b	0,10,'----------------------------------------',0
-	dc.b	8,14,'F1 FIXED VALUES       OFF',0
-	dc.b	8,18,'F2 NUMBER VALUES       00',0
-	dc.b	8,22,'F3 MIXED VALUES       MAX',0
-	dc.b	0,29,'----------------------------------------',$ff
+	DC.B	0,0, '----------------------------------------',0
+	DC.B	10,2,'TRAINER MENU TEMPLATE',0
+	DC.B	0,4, '----------------------------------------',0
+	DC.B	16,6,'--- ---',0
+	DC.B	8,8, 'MENU BY FABRIZIO STELLATO',0
+	DC.B	0,10,'----------------------------------------',0
+	DC.B	8,14,'F1 FIXED VALUES       OFF',0
+	DC.B	8,18,'F2 NUMBER VALUES       00',0
+	DC.B	8,22,'F3 MIXED VALUES       MAX',0
+	DC.B	0,29,'----------------------------------------',$ff
 SCROLLINGTEXT:
 	DC.B	'TRAINER MENU BY FABRIZIO STELLATO   '
 	DC.B	'           ',0
@@ -498,22 +498,22 @@ COPLIST:
 	DC.W	$0092,$0038	; H-start
 	DC.W	$0094,$00D0	; H-stop
 BPLPOINTERS:
-	dc.w	$00e0,$0000 ; BITPLANE 0
-	dc.w	$00e2,$0000 ; BITPLANE 0
+	DC.W	$00e0,$0000 ; BITPLANE 0
+	DC.W	$00e2,$0000 ; BITPLANE 0
 
-	dc.w	$2707, $fffe
+	DC.W	$2707, $fffe
 	DC.W	$0108, $0000
-	dc.w	$0180, $055f
-	dc.w	$2807, $fffe
-	dc.w	$0180, $0004
+	DC.W	$0180, $055f
+	DC.W	$2807, $fffe
+	DC.W	$0180, $0004
 
-	dc.w	$0182, $066f
-	dc.w	$e107, $fffe
-	dc.w	$0180, $055f
-	dc.w	$e207, $fffe
-	dc.w	$0180, $0000
-	dc.w	$e507, $fffe
-	dc.w	$0108, $0002
+	DC.W	$0182, $066f
+	DC.W	$e107, $fffe
+	DC.W	$0180, $055f
+	DC.W	$e207, $fffe
+	DC.W	$0180, $0000
+	DC.W	$e507, $fffe
+	DC.W	$0108, $0002
 
 	DC.L	$FFFFFFFE
 
