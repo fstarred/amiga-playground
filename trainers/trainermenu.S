@@ -437,7 +437,6 @@ COORDS:		; switch trainer coordinate values
 	DC.B	30,14
 	DC.B	30,18
 	DC.B	30,22
-	DC.B	30,26
 
 FIXEDVALUE:
 	DC.B 0,0,'OFF',$ff
