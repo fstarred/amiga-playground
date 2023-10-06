@@ -6,9 +6,7 @@
 *
 *************************************
 
-; before running with WriteFlag=1,
-; ensure to prepare binary of sysoff.s
-; (check instructions on sysoff source
+; WARNING! WriteFlag=1 will write data to disk on df0:
 
 ; - In BootBlock, device commands CMD_CLEAR, TH_CHANGENUM and CDM_READ
 ; can be executed without error
@@ -25,10 +23,12 @@ MAIN_ADDRESS = $70000
 
 DoIo = -456
 
+Sectors=4
+
 Writeflag = 1
 
 	IF WriteFlag = 1
-	AUTO	WS\BOOTBLOCK\0\3\CC\
+	AUTO	WS\BOOTBLOCK\0\Sectors\CC\
 	ENDC
 	
 bootblock:
@@ -40,7 +40,7 @@ bootEntry:
 
 	lea	MAIN_ADDRESS,a5
 
-	move.l	#(end-mainStart),36(a1)		; Length (512)
+	move.l	#(endBBlock-mainStart),36(a1)	; Length (512)
 	move.l	a5,40(a1)			; ReadBuffer
 	move.l	#mainStart-bootblock,44(a1)	; Offset (1024)
 	jsr	DoIo(a6)			; execute
@@ -55,11 +55,13 @@ bootEnd:
 	ds.b	(1024-(bootEnd-bootblock))	; fill remaining space 
 						; of the 2 sectors with $00
 mainStart:
-	incbin	"dh1:/bbmain"
+	incdir	"dh1:/amiga-playground"
+	include	"/example/bootblock/trainer/trainer.S"
 mainEnd:
-	ds.b	512-(mainEnd-mainStart)		; fill remaining space with $0.
-						; Depending og the bin size,
+	ds.b	(Sectors-2)*512-(mainEnd-mainStart)	
+						; fill remaining space with $0.
+						; Depending og the prog size,
 						; you must use multiple of 512
 						; (i.e. if bin size = 1120,
 						; use 1536)
-End:
+EndBblock
