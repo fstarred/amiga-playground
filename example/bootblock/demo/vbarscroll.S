@@ -1,7 +1,7 @@
 ***********************************
 *
 *
-*	VERTICAL LINE MOOVER
+*	VERTICAL BAR SCROLLER
 *
 *
 ***********************************
@@ -9,12 +9,7 @@
 ; attached with bblocktrd code
 ; note: all addresses must be relative referenced (i.e. with PC)
 
-
-WriteFlag=1
-
-	IF WriteFlag=1
-	AUTO	WB\START\END\
-	ENDC
+;Standalone	; left mouse change bar color, right mouse exit
 
 OldOpenLibrary = -408
 CloseLibrary = -414
@@ -72,11 +67,19 @@ SCR_WIDTH=320
 SCR_HEIGHT=256
 
 START:
-
+	IFD	Standalone
+	MOVEM.L	D0-D7/A0-A6,-(SP)
+	ENDC
+	
 	MOVE.L	$4.W,A6
 	LEA	GFXNAME(PC),A1
 	JSR	OldOpenLibrary(A6)	; load graphics library
 	MOVE.L	D0,A6
+	
+	IFD	Standalone
+	LEA	OldCopper(PC),A0
+	MOVE.L	$26(A6),(A0)
+	ENDC
 	
 ;---  Allocate Raster  ---
 
@@ -109,11 +112,26 @@ START:
 
 	LEA	$DFF000,A6
 
+	IFD 	Standalone
+
+	LEA	OldIntena(PC),A0
+	MOVE.W	$1C(A6),(A0)		; store old INTENA (INTENAR)
+	LEA	OldDma(PC),A0
+	MOVE.W	$02(A6),(A0)		; store old DMACON (DMACONR)	
+	LEA	OldInter(PC),A0		
+	MOVE.L	$6C.W,(A0)		; store old INTER
+
+	ENDC
+
 ;--- Disable Interrupt
 
 	MOVE.W	#$7FFF,$9A(A6)		; Clear interrupt enable
 	BSR.L	WAITVB			; Wait for VBLANK
-	
+
+;--- Disable Dma
+
+	MOVE.W	#$7FFF,$96(A6)		; Dma disable	
+
 ;--- Set Interrupt request ---
 
 	LEA	INTER(PC),A0
@@ -136,15 +154,50 @@ START:
 
 .LEFTMOUSE
 	BTST	#6,$BFE001
+	IFND	Standalone
 	BNE.S	.LEFTMOUSE
 	
+	ELSE
+	BEQ.S	.CHANGECOLOR
+.RIGHTMOUSE
+	BTST	#2,$DFF016
+	BNE	.LEFTMOUSE
+	
+	LEA	$DFF000,A6
+	
+	MOVE.W	#$7FFF,$9A(A6)		; disable interrupts
+
+	BSR.W	WAITVB
+
+	MOVE.W	#$7FFF,$96(A6)		; disable DMA
+	
+	MOVE.W	OldDma(PC),D0
+	OR.W	#$8000,D0		; set bits of DMACON state
+	MOVE.W	D0,$96(A6)		; restore original DMACON
+
+	MOVE.L	OldCopper(PC),$80(A6)	; restore original COPPERLIST
+	CLR.W	$88(A6)			; activate original COPPERLIST
+
+	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
+
+	MOVE.W	#$7FFF,$9C(A6)		; clear requests
+
+	MOVE.W	OldIntena(PC),D0
+	OR.W	#$C000,D0		; set bits of INTENA state
+	MOVE.W	D0,$9A(A6)		; restore original INTENA
+
+	MOVEM.L (SP)+,D0-D7/A0-A6
+
+	RTS
+	
+	ENDC
+	
+.CHANGECOLOR	
 	LEA	COLOR01+2(PC),A0
 	MOVE.W	(A0),D0			; read $0182 (COLOR1) 
 	ROR	#4,D0			; change color
 	MOVE.W	D0,(A0)			; write color to $0182
 	BRA.S	.LEFTMOUSE
-	
-	RTS
 
 WAITVB:
 	TST.B	$DFF005
@@ -190,6 +243,14 @@ ScreenPtr:
 LinePos:	
 	DC.B	$FF
 	EVEN
+OldCopper:
+	DC.L	0
+OldIntena:
+	DC.W	0
+OldDma:
+	DC.W	0
+OldInter:
+	DC.L	0
 GFXNAME:
 	DC.B	'graphics.library',0
 	EVEN
@@ -213,4 +274,3 @@ BITPLANES:
 	DC.L	$009400D0	; DDFSTOP
 	DC.L	$FFFFFFFE
 
-END
