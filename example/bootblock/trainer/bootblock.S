@@ -23,12 +23,12 @@ MAIN_ADDRESS = $70000
 
 DoIo = -456
 
-Sectors=4
+ProgSectors=2	; trainer expected size expressed in sectors
 
 Writeflag = 1
 
 	IF WriteFlag = 1
-	AUTO	WS\BOOTBLOCK\0\Sectors\CC\
+	AUTO	WS\BOOTBLOCK\0\ProgSectors+2\CC\
 	ENDC
 	
 bootblock:
@@ -40,9 +40,9 @@ bootEntry:
 
 	lea	MAIN_ADDRESS,a5
 
-	move.l	#(endBBlock-mainStart),36(a1)	; Length (512)
+	move.l	#(ProgSECTORS)*512,36(a1)	; Length
 	move.l	a5,40(a1)			; ReadBuffer
-	move.l	#mainStart-bootblock,44(a1)	; Offset (1024)
+	move.l	#1024,44(a1)			; Offset
 	jsr	DoIo(a6)			; execute
 
 	move.l	#0,36(a1)			; motor off
@@ -52,16 +52,13 @@ bootEntry:
 	jmp	(a5)				; Jmp to sysoff
 
 bootEnd:
-	ds.b	(1024-(bootEnd-bootblock))	; fill remaining space 
-						; of the 2 sectors with $00
+	cnop	0,1024				; fill remaining space 
+						; of first 2 sectors with $00
 mainStart:
 	incdir	"dh1:/amiga-playground"
 	include	"/example/bootblock/trainer/trainer.S"
 mainEnd:
-	ds.b	(Sectors-2)*512-(mainEnd-mainStart)	
-						; fill remaining space with $0.
-						; Depending og the prog size,
-						; you must use multiple of 512
-						; (i.e. if bin size = 1120,
-						; use 1536)
-EndBblock
+	cnop	0,ProgSectors*512		; fill remaining space
+						; of prog sectors with $00
+End
+
