@@ -112,11 +112,13 @@ LEFTMOUSE
 
 **** EXIT - RESTORE OLD REG SETTINGS ****
 
-	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
+	LEA	$DFF000,A6
+
+	MOVE.W	#$7FFF,$9A(A6)		; disable interrupts	
 
 	BSR.S	WAITVB
 
-	LEA	$DFF000,A6
+	MOVE.W	#$7FFF,$96(A6)		; disable DMA
 	
 	MOVE.W	OldDma(PC),D0
 	OR.W	#$8000,D0		; set bits of DMACON state
@@ -125,11 +127,13 @@ LEFTMOUSE
 	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
 	CLR.W	$88(A6)			; activate original COPPERLIST
 
+	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
+
+	MOVE.W	#$7FFF,$9C(A6)		; clear requests
+
 	MOVE.W	OldIntena(PC),D0
 	OR.W	#$C000,D0		; set bits of INTENA state
 	MOVE.W	D0,$9A(A6)		; restore original INTENA
-
-	MOVE.W	#$7FFF,$9C(A6)		; clear requests
 	
 	MOVEM.L (SP)+,D0-D7/A0-A6
 
