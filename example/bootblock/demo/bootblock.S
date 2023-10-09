@@ -54,12 +54,18 @@ bootEntry:
 	jmp	(a5)				; Jmp to sysoff
 
 bootEnd:
-	cnop	0,1024				; fill remaining space 
+	ds.b	1024-(bootEnd-bootBlock)	; fill remaining space 
 						; of first 2 sectors with $00
 mainStart:
 	incdir	"dh1:/amiga-playground"
 	include	"/example/bootblock/demo/vbarscroll.S"	
 mainEnd:
-	cnop	0,ProgSectors*512		; fill remaining space 
+	ds.b	(ProgSectors*512)-(mainEnd-mainStart)		
+						; fill remaining space 
 						; of prog sectors with $00
 End
+
+	PRINTT	"BOOTBLOCK REAL SIZE..."
+	PRINTV	bootEnd
+	PRINTT	"MAIN PROG REAL SIZE..."
+	PRINTV	mainEnd-mainStart
