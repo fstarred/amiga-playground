@@ -1,7 +1,7 @@
 ***********************************
 *
 *
-*	TRAINER FROM BOOTBLOCK
+*	Stunt Car Racer Trainer
 *
 *
 ***********************************
@@ -11,7 +11,7 @@
 
 SECTORS=3
 
-WriteFlag=0
+WriteFlag=1
 
 	IF WriteFlag=1
 	AUTO	WS\START\$73C00/$200\SECTORS\CC\
@@ -77,13 +77,10 @@ SW1_MAXVALUES = 2
 
 SW1_VALUE = 0
 SW2_VALUE = 0
-;SW3_VALUE = 1
 
 
 FONT_HEIGHT=8
-SCROLL_V_OFFSET=(40*FONT_HEIGHT*24+2)+(42*FONT_HEIGHT)
-		; for the first 24 rows modulo is default
-		; on 25th row, modulo is + 2
+SCROLL_V_OFFSET=(42*FONT_HEIGHT*25)
 
 
 BLTWAIT	MACRO
@@ -334,7 +331,7 @@ LOOPER:
 	MOVEQ	#0,D1		; RESET D1
 	MOVE.B	(A0)+,D0	; MOVE COORD X TO D0
 	MOVE.B	(A0)+,D1	; MOVE COORD Y TO D1
-	MULU	#[8*40],D1	; MULTIPLY COORD Y * CHARLEN * 40 LINES
+	MULU	#[8*42],D1	; MULTIPLY COORD Y * CHARLEN * 40 LINES
 				; IN ORDER TO POINT ON SCREEN AT Y COORD
 	ADD.W	D1,D0		; ADD COORD Y TO X IN ORDER TO GET
 				; POINT ON SCREEN
@@ -347,15 +344,9 @@ PRINTLOOP:
 	CMP.B	#$FF,D0		; IF CHAR==$FF EXIT
 	BEQ.S	ENDWT
 	BSR.B	SETFONT		; GET CHAR FONT ADDRESS PTR
+	BSR.B	PLOTCHAR
 
-	MOVEQ	#8-1,D0			; copy 8 bytes
-.LOOP1	
-	MOVE.B	(A4),(A2)		; Copy one byte from char
-	ADD.W	D7,A4			; next byte in char
-	ADD.W	#40,A2			; next raster line
-	DBF	D0,.LOOP1		; Loop ^	
-
-	SUB.L	#SCR_WIDTH-16-1,A2	; POINT TO SCREEN POSITION + 1
+	SUB.L	#SCR_WIDTH-1,A2		; POINT TO SCREEN POSITION + 1
 	BRA.S	PRINTLOOP		; TURN BACK TO CHECK NEXT CHAR
 ENDWT:
 	RTS
@@ -394,14 +385,18 @@ NORESET:
 	
 STARTPLOT:
 	BSR.S	SETFONT
+	BSR.S	PLOTCHAR
+NOFONT:
+	RTS
+
+PLOTCHAR:
 	MOVEQ	#8-1,D0			; copy 8 bytes
 .LOOP1	
 	MOVE.B	(A4),(A2)		; Copy one byte from char
 	ADD.W	D7,A4			; next byte in char
 	ADD.W	#42,A2			; next raster line
 	DBF	D0,.LOOP1		; Loop ^	
-NOFONT:
-	RTS
+	RTS	
 
 SCROLL:
 	MOVE.L	ScreenPtr(PC),D0
@@ -472,8 +467,8 @@ FONTNAME:	DC.B	'topaz.font',0
 GFXNAME:
 	DC.B	'graphics.library',0
 MENUTEXT:
-	DC.B	8,2, 'STUNT CAR RACER TRAINER',0
-	DC.B	10,7, 'BY FABRIZIO STELLATO',0
+	DC.B	7,2, 'STUNT CAR RACER TRAINER',0
+	DC.B	9,7, 'BY FABRIZIO STELLATO',0
 	DC.B	8,14,'F1 UNLIMITED BOOST    OFF',0
 	DC.B	8,18,'F2 NO CAR DAMAGE      OFF'
 	DC.B	$FF
@@ -488,10 +483,10 @@ FIXEDVALUE:
 	DC.B 0,0,'OFF',$ff
 	DC.B 0,0,' ON',$ff
 COUNTER:
-	DC.B	8	; TODO check len
+	DC.B	8
 	EVEN
 TEXTPTR
-	DC.W	0	; TODO check len	
+	DC.W	0
 COPPERLIST:
 	DC.L	$01800000
 	DC.L	$01820FFF
@@ -510,6 +505,7 @@ BITPLANES:
 	DC.L	$00920038	; DDFSTRT
 	DC.L	$009400D0	; DDFSTOP
 
+	DC.L	$01080002	; Bitplane modulo (odd planes)
 
 	DC.L	$2E07FFFE
 	DC.L	$01800955
@@ -532,7 +528,6 @@ BITPLANES:
 	DC.L	$01800400
 	
 	DC.L	$EB07FFFE
-	DC.L	$01080002	; Bitplane modulo (odd planes)
 
 	DC.L	$FFFFFFFE
 END
