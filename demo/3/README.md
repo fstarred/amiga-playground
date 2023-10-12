@@ -4,11 +4,9 @@
 
 ## Premise
 
-## Premise
-
 Most of the code present on this repository is inspired from [RamJam italian course][1]
 
-#### HIRES and LORES
+## HIRES and LORES
 
 One great feature of the Amiga is the ability of display both LORES and HIRES at the same time, as well as diffent screen modes (+ o - bitplanes).
 
@@ -36,7 +34,7 @@ bpls_L = 1
 
 
 
-#### Chessboard
+## Chessboard
 
 The *draw_chessboard* receives 2 long word input as the square pattern to draw.
 
@@ -95,7 +93,7 @@ Then we do 2 blit: One will fill repeating the pattern data vertically, and one 
 	rts
 ```
 
-#### Chessboard animation
+## Chessboard animation
 
 When the ball reaches the *x* position, it activate the chessboard "open courtaine" animation.
 
@@ -140,7 +138,7 @@ no_chessboard_animation:
 Notice the above routine prepare the input D0 and D1 before calling *draw_chessboard* routine.
 
 
-#### Scroll header screen
+## Scroll header screen
 
 The scroll screen effect can be achieved by adding / subtracting a value within $11 and $77 on the *BPLCON1* register.
 For *LORES* mode, BPLCON1 value can be:
@@ -186,7 +184,7 @@ The value of *BPLxMOD* must change to fit the DdfStart value
 ```
 	
 
-#### Copper bars
+## Copper bars
 
 The copper bars routines are ripped from RamJam course.
 The effect is accompished in 3 steps:
@@ -212,7 +210,7 @@ The *clear_copper_area* routine set all the COLOR00 registers of the *BARCOPPER*
 The *rolling_copper_bars* write the proper color on the eight bars and move them following precalc *POSLIST* tab label
 
 
-#### Sprite animation and move
+## Sprite animation and move
 
 This works exactly as Demo 1; as a plus we make the ball rolling faster as it approaches the text.
 
@@ -223,9 +221,9 @@ ANIMATION_FAST = 2
 animation_frame_delay:	dc.w	ANIMATION_SLOW
 ```
 
-#### Interactive camel scrolling text
+## Interactive camel scrolling text
 
-The effect is realized in 6 steps:
+The effect is achieved with 6 steps:
 
 1. Print next char on a memory buffer of (40+font width bytes) * (font height pixels)
 2. Scroll text area of the memory buffer using SHIFT BLIT on DESC mode (see Demo 2)
@@ -239,7 +237,7 @@ Every piece of text is BLITTED with BLTCON0/1 = 0bfa0000 and A,C,D channels enab
 
 The low edge of the text is reached on the ball sprite Y+HEIGHT position.
 
-#### Double buffering
+## Double buffering
 
 Camel scrolling text can heavily stress the CPU; to make sure the raster beam will draw all of the displayed frame before it reaches the VBLANK, double buffering tecnique may be useful.
 
