@@ -6,7 +6,7 @@
 
 Most of the code present on this repository is inspired from [RamJam italian course][1]
 
-#### Ball animation / move
+## Ball animation / move
 
 The animated ball is composed by 4 sprites of 16x32px, in which 2 are in ATTACHED mode. This allow to use 16 colors instead of the standard 4 expected for standard sprites (3 + background).
 
@@ -140,7 +140,7 @@ SPRITE_PRIORITY:
     
 ```
 
-#### Top and bottom margin bars
+## Top and bottom margin bars
 
 The *move_tb_margin_bars* routine realize a carousel effect on top and bottom horizontal bars of the screen.
 This mean each color roll down of a position until the last one, whereas the latter takes the 1st position, like a pile stack.
@@ -174,7 +174,7 @@ rolling_color_hbar:
 ```
 
 
-#### Starfield
+## Starfield
 
 The *move_stars* routine is another routine taken from RamJam course; it draws a starfield composed by objects moving with 3 different speeds.
 To enrich the depth effect of the space, stars may be more bright or dark using properly *WAIT* and *MOVE* commands of the COPPERLIST.
@@ -201,7 +201,7 @@ STAR_F_COL = $0eee
     dc.w $5b07,$fffe
 ```
 
-#### Display text
+## Display text
 
 The *show_text* routine is divided by 4 stages or routines that are addressed on a rout_table.
 
@@ -295,12 +295,12 @@ Same logic of *fade in* routine, but with inverted color progression of *tabpoin
 Clear all text on the screen by blitting with only channel D enabled.
 The deletion does not involve the starfield that is independent from bitplanes. 
 
-#### Interleaved mode
+## Interleaved mode
 
 Text image (and so bitplanes) are stored in *interleaved mode*.
 To better explain the difference, have a look on how bitplanes are disposed on standard mode:
 
-###### STANDARD BITPLANE
+### STANDARD BITPLANE
 
 line 0 BITPLANE 1<br/>
 line 1 BITPLANE 1<br/>
@@ -322,7 +322,7 @@ line 255 BITPLANE 3<br/>
 .. and so on
 
 
-###### INTERLEAVED (OR RAWBLIT) BITPLANE
+### INTERLEAVED (OR RAWBLIT) BITPLANE
 
 line 0 BITPLANE 1<br/>
 line 0 BITPLANE 2<br/>
