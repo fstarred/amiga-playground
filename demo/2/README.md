@@ -1,4 +1,4 @@
-## Demo 2
+# Demo 2
 
 ![screenshot](https://github.com/fstarred/amiga_playground/blob/master/docs/demo_2.png?raw=true) 
 
@@ -6,7 +6,7 @@
 
 Most of the code present on this repository is inspired from [RamJam italian course][1]
 
-#### Logo
+## Logo
 
 The logo is blitted before the main loop; 
 
@@ -35,7 +35,7 @@ LOGO_GRAY:
 ```
 
 
-#### Vertical Bar 
+## Vertical Bar 
 
 The vertical bar moving around the logo is a sprite activated with DIRECT ACCESS to register instead of DMA access.
 
@@ -47,7 +47,7 @@ By using this mode, the rules are the following:
 
 In this mode it is also possible to redraw the sprite on the same vertical line by disabling and reactivating it using SPRxCTL register on the proper column of the copperlist
 
-#### Color VS Gray effect
+## Color VS Gray effect
 
 The logo was produces using 2 different palettes, one colourized and one with gray tones.
 To make the up & down color effect, it is enough to set a palette to a fixed vertical position and to delay the other palette.
@@ -72,7 +72,7 @@ LOGO_GRAY:
 ```
 
 
-#### Equalizer
+## Equalizer
 
 Equalizer is composed by four bars that increase its height with a repeated pattern according to channel volume
 
@@ -87,7 +87,7 @@ With *Blitter* is possible to draw a repeated pattern for *x* times by just incr
 To see if channel is "touched" or played, there is the register *pt_audchanXtemp* (where x can be 1,2,3,4).
 The channel volume can be fetched from the 19th byte of the above register.
 
-#### Scrolling text
+## Scrolling text
 
 Font text is stored on 3 bitplanes non-interleaved data.
 The current font char address may be get by reading a lookup table data.
@@ -141,7 +141,7 @@ If fetched line data doesn't change, we need to set BITPLANE MODULO = + 4 in ord
 	dc.w	$10a,+4 ; Bpl2Mod  +4
 ```
 
-#### Mirror effect
+## Mirror effect
 
 The well-know Amiga mirror effect can be achieved by setting the *BPLxMOD* register to a negative value, often calcuted as 
 x = -((bytes per line * y) + (y-1 * *BPLxMOD*)).
