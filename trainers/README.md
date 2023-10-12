@@ -6,7 +6,7 @@
 
 The typical steps for creating a trainer for a DOS game are:
 
-1. Create a splash screen with available menu, then store user's selection somewhere on available RAM
+1. Create a splash screen trainer menu, then store user's selection somewhere on available RAM
 2. Create a patch code
 3. Call [LoadSeg()][2] function with game executable. This will load file and allocate it on available ram, returning the pointer on it.
 4. Find the final JMP address that the packed file will jump to after depacking has finished.
@@ -107,3 +107,63 @@ PATCH_BEGIN
 ; some code here
 PATCH_END
 ```	
+
+## NDOS disks
+
+The typical steps for creating a trainer for a NDOS game are:
+
+1. Create a splash screen trainer menu
+2. Read the bootblock from disk, try to understand what happens. Typically there should be some calls with trackdisk device or a custom track loader
+3. Write the trainer menu as binary on disk's available space 
+4. Load the above trainer from bootblock, using trackdisk device or a custom track loader
+5. Replace the last jump with your game's patch address
+6. From the game's patch code, jmp to the address just replaced before
+
+### Read the bootblock from disk
+
+With Asm-One:
+
+1. Insert game disk on df0:
+2. Type RS (read sector) command
+3. RAMPTR=$70000
+4. DISKPTR=0
+5. LENGTH =2
+
+The bootblock should be loaded on address $70000
+
+At this point, you can use command 'D $70000' for disassembling.
+
+By using useful commands such below it is also possible to regenerate the code from memory (i.e. the bootblock):
+
+1. ID (insert disassemble)
+2. IH (insert hex dump)
+3. IN (insert ASCII)
+
+### Write the trainer menu as binary on disk's available space 
+
+With Asm-One
+
+1. Insert game disk on df0:
+2. Type WS (write sector) command
+3. RAMPTR=<address where to start from, typicall a label>
+4. DISKPTR=<disk sector where to start from>
+5. LENGTH=<sectors to write>
+
+Let's say your trainer menu takes 1146 bytes, it will takes 3 sectors (1 sector = 512 byte) 
+
+### Load the above trainer from bootblock
+
+This is a call example using trackdisk device library:
+
+'''
+	MOVE.L	#TRAINER_ADDRESS,$0028(A1)	; BUFFER
+	MOVE.L	#TRAINER_OFFSET, $002C(A1)	; OFFSET
+	MOVE.L	#TRAINER_SECSIZE,$0024(A1)	; LEN		
+	JSR	DoIo(A6)			; load trainer
+'''
+
+For further reading on **trackdisk.device**, read the Amiga Machine Language from Abacus
+
+### Replace the last jump with your game's patch address
+
+Typically you should write the trainer address on disk directly (see RS / F / WS commands on Asm-One).
