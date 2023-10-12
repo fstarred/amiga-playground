@@ -145,22 +145,32 @@ With Asm-One
 
 1. Insert game disk on df0:
 2. Type WS (write sector) command
-3. RAMPTR=<address where to start from, typicall a label>
-4. DISKPTR=<disk sector where to start from>
-5. LENGTH=<sectors to write>
+3. RAMPTR=\<address where to start from, typicall a label places at the code begin\>
+4. DISKPTR=\<disk sector where to start from\>
+5. LENGTH=\<sectors to write\>
 
 Let's say your trainer menu takes 1146 bytes, it will takes 3 sectors (1 sector = 512 byte) 
+
+#### Amiga disk format
+
+A disk contains 80 tracks on both sides, each containing 11 sectors (80*2*11 = 1760 sectors).     
+Each sector consists of 512 bytes.       
+The boot biock is two sectors long (1024 bytes), and starts at sector 0.    
+The disk name is placed at sector 880 (on normal disks it is).  
+
+Thus:  
+80 tracks * 2 sides * 11 sectors * 512 bytes = 901120 bytes (880 Kb) available on a double density formatted disk
 
 ### Load the above trainer from bootblock
 
 This is a call example using trackdisk device library:
 
-'''
+```
 	MOVE.L	#TRAINER_ADDRESS,$0028(A1)	; BUFFER
 	MOVE.L	#TRAINER_OFFSET, $002C(A1)	; OFFSET
 	MOVE.L	#TRAINER_SECSIZE,$0024(A1)	; LEN		
 	JSR	DoIo(A6)			; load trainer
-'''
+```
 
 For further reading on **trackdisk.device**, read the Amiga Machine Language from Abacus
 
