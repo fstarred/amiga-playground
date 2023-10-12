@@ -4,7 +4,7 @@
 
 ## Premise
 
-Most of the code present on this repository is inspired from RamJam italian course, which is downloadable from [this link][1]
+Most of the code present on this repository is inspired from [RamJam italian course][1]
 
 #### Ball animation / move
 
@@ -369,3 +369,5 @@ So let's say we have a 3 bitplanes LORES, the value will be: x = 40 * (3-1) = 80
     dc.w    $108,ScrBpl*(bpls-1)    ; Bpl1Mod (interleaved) 
     dc.w    $10a,ScrBpl*(bpls-1)    ; Bpl2Mod (interleaved)
 ```
+
+[1]: http://corsodiassembler.ramjam.it/index_en.htm
