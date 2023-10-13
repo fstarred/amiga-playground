@@ -3,7 +3,7 @@
 *	   STARRED MEDIASOFT
 *
 *		Impossible Mission II TRAINER
-*
+*		(Version is lost)
 *		VER 1.1 (2020)
 *
 *	MANY THANKS TO EAB ABIME FORUM,
@@ -16,8 +16,9 @@
 ;*   Constants   *
 ;*****************
 
-DEBUG = 1 			; 0 = enabled, otherwise disabled
-DEBUG_KEYPRESS = 0		; simulate key pressed (debug mode)
+DEBUG	 			; decomment to debug
+DEBUG_KEYPRESS=0		; simulate key pressed (debug mode) 
+				; 0=F1, 1=F2, 2=F3 etc..
 
 SPARE_MEM = $C0
 
@@ -87,7 +88,7 @@ START:
     SWAP    D0          ; SWAP THE THE TWO WORDS
    	MOVE.W  D0,2(A1)    ; COPY THE HIGH WORD OF PIC ADDRESS TO PLANE
 
-	IFNE DEBUG
+	IFND DEBUG
 	MOVE.W	#$7FFF,$9A(A6)		; Clear interrupt enable
 
 	BSR.L	Wait_Vert_Blank
@@ -106,17 +107,11 @@ START:
 
 	BSR	PRINTTEXT
 
-	IFEQ	DEBUG
-	BSR	ELABSWITCH
-	BSR	PATCH_BEGIN
-	ENDC
-
-
 ;**** Main Loop  Test mouse button ****
-	IFNE	DEBUG
-LOOP:
+	IFND	DEBUG
+.LOOP
 	BTST	#6,$BFE001		; Test left mouse button
-	BNE.S	LOOP
+	BNE.S	.LOOP
 	ENDC
 ;*****************************************
 ;*					 *
@@ -125,7 +120,9 @@ LOOP:
 ;*****************************************
 
 	LEA	$DFF000,A6
-	IFNE DEBUG
+
+	IFND 	DEBUG
+
 	MOVE.W	#$7FFF,$9A(A6)		; Disable interrupts
 
 	BSR.W	Wait_Vert_Blank
@@ -144,13 +141,14 @@ LOOP:
 	OR.W	#$C000,D0
 	MOVE.W	#$7FFF,$9C(A6)
 	MOVE.W	D0,$9A(A6)
+
 	ENDC
 	MOVEM.L	(A7)+,D0-D7/A0-A6	; Get registers from stack
 
-LOADGAME
+LOADGAME:
 	MOVE.L	4.W,A6			;GET EXECBASE
-		LEA	DOSLIB(PC),A1		;POINTER TO 'DOS.LIBRARY'
-	JSR	-$198(A6)		;OPEN DOS.LIBRARY
+	LEA	DOSLIB(PC),A1		;POINTER TO 'DOS.LIBRARY'
+	JSR	OldOpenLibrary(A6)	;OPEN DOS.LIBRARY
 	TST.L	D0			;IF D0 = 0 THEN LIBRAY OPEN FAILED
 	BEQ.W	PROBLEM
 	MOVE.L	D0,A6			;PUT DOS.LIBRARY BASE ADDRESS IN A6
@@ -182,8 +180,8 @@ COPY_PATCH:
 					;TO SPARE MEMORY
 	DBRA	D0,COPY_PATCH		;SUBRACT FROM PATCH SIZE AND LOOP
 					;UNTIL COPIED
-	IFNE DEBUG	
-;	JMP	4(A0)			;EXECUTE FILE LOADED BY LOADSEG
+	IFND 	DEBUG	
+	JMP	4(A0)			;EXECUTE FILE LOADED BY LOADSEG
 	ELSE
 	JSR	UNLOADSEG(A6)
 	ENDC
@@ -221,7 +219,7 @@ NEXT_PATCH_1
 ;	MOVE.W	D1,$F4A(A1)	; SKIP ADD TIME BOMB
 ;	MOVE.W	D1,$F64(A1)	; SKIP ADD MINE
 PATCH_JMP
-	IFNE	DEBUG
+	IFND	DEBUG
 	JMP	$FFFFF
 	ENDC
 PATCH_END:
@@ -252,7 +250,7 @@ DELAY:	DBF	D1,DELAY
 	BGT.W	NOFONT		; IF > 51 EXIT
 	SUB.B	#$50,D0		; IF BEETWEN 50 AND 51 SUBTRACT
 ELABSWITCH:
-	IFEQ DEBUG
+	IFD 	DEBUG
 	MOVEQ	#DEBUG_KEYPRESS,D0
 	ENDC
 	LEA	COORDS(PC),A0
