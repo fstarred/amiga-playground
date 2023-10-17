@@ -46,7 +46,7 @@ PROBLEM:
 	RTS
 
 GraphName:
-	dc.b	'graphics.library'
+	dc.b	'graphics.library',0
 GraphLibPtr:
 	dc.l	0
 ScreenPtr:
