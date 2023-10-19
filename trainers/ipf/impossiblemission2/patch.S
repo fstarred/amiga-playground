@@ -1,28 +1,24 @@
-*********************************************
+************************************************************
 *
 *	   STARRED MEDIASOFT
 *
-*		Impossible Mission II TRAINER
-*		(1988)(Epyx - U.S. Gold).adf
-*		VER 1.1 (2020)
+*	Impossible Mission II TRAINER
+*	 Original  (TOSEC 2012-04-10)
+*	Impossible Mission II  IPF
+*		VER 1.0 (2023)
 *
-*	MANY THANKS TO EAB ABIME FORUM,
-*	ESPECIALLY TO GALAHAD/FLT FOR
-*	WRITING THE MAIN CODE SNIPPET
 *
-*********************************************
+***********************************************************
 
 ;*****************
 ;*   Constants   *
 ;*****************
 
-DEBUG	 			; decomment to debug
-DEBUG_KEYPRESS=0		; simulate key pressed (debug mode) 
-				; 0=F1, 1=F2, 2=F3 etc..
+PROD	EQU 0			; FOR PRODUCTION
+MENU	EQU 1			; SHOW TRAINER MENU ONLY
+DEBUG	EQU 2			; FOR DEBUG
 
-SPARE_MEM = $C0
-
-LAST_JMP_ADDR=$125EE
+Mode=PROD	 		; 0=Prod,1=TrainerMenu only,2=Debug
 
 FONT_HEIGHT = 5
 
@@ -58,7 +54,20 @@ BLTWAIT	MACRO
 	ENDM
 
 START:
-	MOVEM.L	D0-D7/A0-A6,-(A7)	; Put registers on stack
+
+	IF MODE<>DEBUG
+	JSR	SHOWTRAINER
+	ENDC
+
+	IF MODE<>MENU
+	BSR.W	LOADGAME
+	ENDC
+
+	RTS
+
+
+SHOWTRAINER:
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; Put registers on stack
 
 
 ;***********************************
@@ -82,16 +91,15 @@ START:
 	MOVE.W	$10(A6),OLDADKCON		; Store old ADKCON
 	
 	MOVE.L  #SCREEN,D0  ; POINT TO BITPLANE
-    LEA BPLPOINTERS,A1  ; 
+    	LEA BPLPOINTERS,A1  ; 
 	
 	MOVE.W  D0,6(A1)    ; COPY LOW WORD OF PIC ADDRESS TO PLANE
-    SWAP    D0          ; SWAP THE THE TWO WORDS
+	SWAP    D0          ; SWAP THE THE TWO WORDS
    	MOVE.W  D0,2(A1)    ; COPY THE HIGH WORD OF PIC ADDRESS TO PLANE
 
-	IFND DEBUG
 	MOVE.W	#$7FFF,$9A(A6)		; Clear interrupt enable
 
-	BSR.L	Wait_Vert_Blank
+	BSR.W	Wait_Vert_Blank
 
 	MOVE.W	#$7FFF,$96(A6)		; Clear DMA channels
 	MOVE.L	#COPLIST,$80(A6)	; Copper1 start address
@@ -101,18 +109,15 @@ START:
 
 	MOVE.W	#$7FFF,$9C(A6)		; Clear request
 	MOVE.W	#$C020,$9A(A6)		; Interrupt enable
-	ENDC
 
 ;****       Your main routine      ****
 
-	BSR	PRINTTEXT
+	BSR.W	PRINTTEXT
 
 ;**** Main Loop  Test mouse button ****
-	IFND	DEBUG
 .LOOP
 	BTST	#6,$BFE001		; Test left mouse button
 	BNE.S	.LOOP
-	ENDC
 ;*****************************************
 ;*					 *
 ;*   RESTORE SYSTEM INTERRUPTS ECT ECT   *
@@ -120,8 +125,6 @@ START:
 ;*****************************************
 
 	LEA	$DFF000,A6
-
-	IFND 	DEBUG
 
 	MOVE.W	#$7FFF,$9A(A6)		; Disable interrupts
 
@@ -142,8 +145,9 @@ START:
 	MOVE.W	#$7FFF,$9C(A6)
 	MOVE.W	D0,$9A(A6)
 
-	ENDC
-	MOVEM.L	(A7)+,D0-D7/A0-A6	; Get registers from stack
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; restore registers from stack
+
+	RTS
 
 LOADGAME:
 	MOVE.L	4.W,A6			;GET EXECBASE
@@ -159,28 +163,12 @@ LOADGAME:
 	LSL.L	#2,D0			;MULTIPLY D0 * 4 TO GET CORRECT ADDRESS
 	MOVE.L	D0,A0			;MOVE ADDRESS INTO A0
 
+	JSR	PATCH_BEGIN
+	
+	MOVEQ	#1,D0
+	MOVE.L	A0,D1
 
-	MOVE.L	A0,A1			;COPY ADDRESS OF FILE LOADED
-	MOVE.L	A0,A5
-	ADDI.L	#$125F2,A5		;JMP OFFSET FROM POINTER
-	MOVE.L	A5,PATCH_JMP+2
-	ADD.L	#LAST_JMP_ADDR,A1	;MOVE TO LAST JMP
-
-	MOVE.L	A0,A5
-	ADDI.L	#$81D0,A5		;COPY PATCH ADDR
-	MOVE.L	A5,PATCH_ADDR+2
-
-	LEA	SPARE_MEM,A3		;SPARE MEMORY FOR PATCH
-	MOVE.L	A3,(A1)			;COPY NEW ADDRESS INTO FINAL JMP (WHICH IS LOCALTED AT INITIAL FILE ADDRESS + $B0)
-
-	LEA	PATCH_BEGIN(PC),A2	;POINTER TO PATCH CODE	
-	MOVE.W	#(PATCH_END-PATCH_BEGIN)-1,D0;SIZE OF PATCH TO COPY
-COPY_PATCH:
-	MOVE.B	(A2)+,(A3)+		;COPY FROM START OF PATCH ROUTINE
-					;TO SPARE MEMORY
-	DBRA	D0,COPY_PATCH		;SUBRACT FROM PATCH SIZE AND LOOP
-					;UNTIL COPIED
-	IFND 	DEBUG	
+	IF Mode=PROD
 	JMP	4(A0)			;EXECUTE FILE LOADED BY LOADSEG
 	ELSE
 	JSR	UNLOADSEG(A6)
@@ -193,36 +181,45 @@ COPY_PATCH:
 ;----------------------------------------------------
 	
 PATCH_BEGIN:
-PATCH_ADDR
-	LEA	$FFFFF,A1
-	MOVE.L	#$4E714E71,D1		
-	LEA	BUTTONS,A0		; DO NOT USE PC RELATIVE ADDR!!!
-	MOVE.B	(A0)+,D0
-	BEQ	NEXT_PATCH_1
-	MOVE.L	D1,(A1)		; NO TIMER
-	MOVE.L	D1,$18(A1)	; PLAYER DEATH
-NEXT_PATCH_1
-	MOVE.B	(A0),D0
-	BEQ	PATCH_JMP
-	MOVE.B	#80,D2		; START EACH LEVEL WITH 80 ITEMS
-	ADDI.L	#$A6BB,A1
-	MOVE.B	D2,(A1)		; ELECTRIC PLUG
-	MOVE.B	D2,$0A(A1)	; PLATFORM SYMBOL
-	MOVE.B	D2,$14(A1)	; LIFT PLATFORM SYMBOL
-	MOVE.B	D2,$1E(A1)	; TIME BOMB
-	MOVE.B	D2,$28(A1)	; MINE
-	MOVE.B	D2,$32(A1)	; LIGHT BULB
-	SUBI.L	#$F8BD,A1
-	MOVE.L	D1,(A1)		; AVOID CLEAR ITEMS VALUE
-;	MOVE.W	D1,$EB4(A1)	; SKIP SUB ITEM
-;	MOVE.W	D1,$EE4(A1)	; SKIP ADD PLATFORM SYMBOL
-;	MOVE.W	D1,$F4A(A1)	; SKIP ADD TIME BOMB
-;	MOVE.W	D1,$F64(A1)	; SKIP ADD MINE
-PATCH_JMP
-	IFND	DEBUG
-	JMP	$FFFFF
-	ENDC
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; Put registers on stack
+	
+	LEA	BUTTONS(PC),A1
+	MOVE.L	#$4E714E71,D1
+	
+	MOVE.L	A0,A2 
+	ADDA.L	#$FDEC,A2	; avoid dumb ram space check 
+	MOVE.L	D1,(A2)+
+	MOVE.W	D1,(A2)+
+	MOVE.W	#$602c,(A2)	; replace bls with bra
+	
+NO_TIMER_COUNTDOWN:
+	TST.B	(A1)+
+	BEQ.B	CHARGE_ITEMS
+	MOVE.L	A0,A2
+	ADDA.L	#$8244,A2		
+	MOVE.L	D1,(A2)		; no timer countdown
+	MOVE.L	D1,$18(A2)	; no count on player death
+CHARGE_ITEMS:
+	TST.B	(A1)+
+	BEQ.B	PATCH_END
+	MOVE.L	A0,A2
+	ADDA.L	#$3030,A2
+	MOVE.L	D1,(A2)		; avoid clearing items
+				; at start
+	ADDA.L	#$F88B,A2
+	MOVEQ	#80,D2		; set all items below to 80
+	MOVE.B	D2,(A2)		; electric plug
+	MOVE.B	D2,$0A(A2)	; platform symbol
+	MOVE.B	D2,$14(A2)	; lift platform symbol
+	MOVE.B	D2,$1E(A2)	; time bomb
+	MOVE.B	D2,$28(A2)	; mine
+	MOVE.B	D2,$32(A2)	; light bulb
+	
+				; works only at first play !
+	
 PATCH_END:
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; restore registers from stack
+	RTS
 
 
 PROBLEM:
@@ -238,7 +235,7 @@ KEYGET:
 	MOVE.B	$BFEC01,D0
 	NOT.B	D0
 	LSR.W	#1,D0
-	BCS	NOFONT
+	BCS.W	NOFONT
 GENEFEIL:
 	BSET	#6,$BFEE01
 	MOVEQ	#127,D1
@@ -250,9 +247,6 @@ DELAY:	DBF	D1,DELAY
 	BGT.W	NOFONT		; IF > 51 EXIT
 	SUB.B	#$50,D0		; IF BEETWEN 50 AND 51 SUBTRACT
 ELABSWITCH:
-	IFD 	DEBUG
-	MOVEQ	#DEBUG_KEYPRESS,D0
-	ENDC
 	LEA	COORDS(PC),A0
 	LEA	BUTTONS(PC),A1
 ONOFFVALUE:
@@ -266,7 +260,7 @@ TRAINEROFF:
 	MOVE.B	(A0)+,(A3)	; STORE COORDS X ON A3
 	MOVE.B	(A0)+,1(A3)	; STORE COORDS Y ON A3
 	MOVE.L	A3,A0		; A0 POINT TO 0,0,' OFF'
-	BSR	TEXT2
+	BSR.B	TEXT2
 	RTS
 
 TESTPOS:
@@ -279,7 +273,7 @@ TRAINERON:
 	MOVE.B	(A0)+,(A2)	; STORE COORDS X ON A2
 	MOVE.B	(A0)+,1(A2)	; STORE COORDS Y ON A2
 	MOVE.L	A2,A0		; A0 POINT TO 0,0,' ON'
-	BSR	TEXT2
+	BSR.B	TEXT2
 	RTS
 
 PRINTTEXT:
@@ -302,7 +296,7 @@ PRINTLOOP:
 	BEQ.S	LOOPER
 	CMP.B	#$FF,D0
 	BEQ.S	END
-	BSR	SETFONT
+	BSR.B	SETFONT
 	MOVE.B	(A4),(A2)
 	MOVE.B	1(A4),40(A2)	
 	MOVE.B	2(A4),80(A2)	
@@ -314,9 +308,9 @@ END:
 	RTS
 
 PLOT:
-	SUBQ.W	#1,COUNTER
+	SUBQ.B	#1,COUNTER
 	BNE.S	NOFONT
-	MOVE.W	#8,COUNTER
+	MOVE.B	#8,COUNTER
 INITTEXTPTR:
 	LEA	SCROLLINGTEXT(PC),A0
 	MOVE.W	TEXTPTR,D1
@@ -328,13 +322,13 @@ INITTEXTPTR:
 	MOVE.B	(A0),D0
 	BNE.S	NORESET
 	MOVE.W	#0,TEXTPTR
-	BRA		INITTEXTPTR
+	BRA.B		INITTEXTPTR
 NORESET:	
 	LEA FONT(PC), A3
 	LEA	SCREEN+(40*FONT_HEIGHT*37)+40,A2	; PLOTPOSITION
 	
 STARTPLOT:
-	BSR	SETFONT
+	BSR.B	SETFONT
 	MOVE.B	(A4),(A2)
 	MOVE.B	1(A4),42(A2)	
 	MOVE.B	2(A4),84(A2)	
@@ -345,10 +339,10 @@ NOFONT:
 
 SETFONT:
 	SUB.B	#$20,D0
-;	MULU	#FONT_HEIGHT,D0
-	MOVE.W	D0,D1	; THE 3 COMMANDS BELOW SUBSTITUTE THE MULU * 5
-	ASL	#2,D1	; ***
-	ADD.L	D1,D0	; ***
+	MULU	#FONT_HEIGHT,D0
+;	MOVE.W	D0,D1	; THE 3 COMMANDS BELOW SUBSTITUTE THE MULU * 5
+;	ASL	#2,D1	; ***
+;	ADD.L	D1,D0	; ***
 	LEA	(A3,D0.W),A4
 	RTS
 	
@@ -386,18 +380,18 @@ SCROLL
 ;**********************************
 
 INTER:
-	MOVEM.L	D0-D7/A0-A6,-(A7)	; Put registers on stack
+	MOVEM.L	D0-D7/A0-A6,-(SP)	; Put registers on stack
 	LEA.L	$DFF000,A6
 	MOVE.L	#SCREEN,$E0(A6)
 
 ;---  Place your interrupt routine here  ---
 
-	BSR	KEYGET
-	BSR	PLOT
-	BSR	SCROLL
+	BSR.W	KEYGET
+	BSR.W	PLOT
+	BSR.B	SCROLL
 
 	MOVE.W	#$4020,$9C(A6)		; Clear interrupt request
-	MOVEM.L	(A7)+,D0-D7/A0-A6	; Get registers from stack
+	MOVEM.L	(SP)+,D0-D7/A0-A6	; Get registers from stack
 	RTE
 
 ;-----------------------------------------------
@@ -433,7 +427,6 @@ OLDADKCON	DC.W	0
 COORDS:		; switch trainer coordinate values
 	dc.b	30,14
 	dc.b	30,18
-
 	
 ON:
 	dc.b 0,0,'ON ',$ff
@@ -444,22 +437,23 @@ MENUTEXT:
 	dc.b	0,0, '----------------------------------------',0
 	dc.b	10,2,'IMPOSSIBLE MISSION II',0
 	dc.b	0,4, '----------------------------------------',0
-	dc.b	5,8, 'TRAINER BY STARRED MEDIASOFT',0
+	dc.b	6,8, 'TRAINER BY FABRIZIO STELLATO',0
 	dc.b	0,10,'----------------------------------------',0
 	dc.b	8,14,'F1 UNLIMITED TIME     OFF',0
-	dc.b	8,18,'F2 MAX ITEMS AVAIL.   OFF',0
+	dc.b	8,18,'F2 MAXIMIZE ITEMS     OFF',0
 	dc.b	0,27,'----------------------------------------',$ff
 SCROLLINGTEXT:
-	DC.B	'IMPOSSIBLE MISSION II TRAINER BY STARRED MEDIASOFT  '
-	DC.B	'           '
-	DC.B	'THANKS TO EAB ABIME FORUM FOR THE SUPPORT'
-	DC.B	'           ',0
+	DC.B	'IMPOSSIBLE MISSION II TRAINER + RAM FIX'
+	DC.B	' - TESTED ON A500. DOES NOT WORK ON NEWER AMIGA!'
+	DC.B	' - THANKS TO EAB ABIME FORUM FOR THE SUPPORT'
+	DC.B	' *** ',0
 BUTTONS:
 	dc.b	SW1_VALUE	
 	dc.b	SW2_VALUE
 	EVEN
 COUNTER:
-	DC.W	8
+	DC.B	8
+	EVEN
 TEXTPTR
 	DC.W	0
 
@@ -515,3 +509,9 @@ BPLPOINTERS:
 	SECTION	Screen,BSS_C
 
 SCREEN	DS.B	42*256
+
+********
+
+	PRINTT "Mode:"
+	PRINTV Mode
+
