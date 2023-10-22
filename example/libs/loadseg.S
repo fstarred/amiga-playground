@@ -21,16 +21,6 @@ CloseLibrary	= -414
 LoadSeg		= -150
 UnLoadSeg	= -156
 
-DMASET=	%1000000111000000
-;	 -----a-bcdefghij
-
-;	a: Blitter Nasty
-;	b: Bitplane DMA (if this isn't set, sprites disappear!)
-;	c: Copper DMA
-;	d: Blitter DMA
-;	e: Sprite DMA
-;	f: Disk DMA
-;	g-j: Audio 3-0 DMA
 
 LOADGAME:
 	MOVE.L	4.W,A6			;GET EXECBASE

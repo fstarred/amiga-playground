@@ -1,14 +1,14 @@
-*********************************************
-*
-*	   STARRED MEDIASOFT
-*
-*		TRAINER MENU TEMPLATE
-*		Trainer menu template
-*
-*		VER 1.0 (2023)
-*
-*
-*********************************************
+*****************************************
+*					*
+*	   STARRED MEDIASOFT		*
+*					*
+*	TRAINER MENU TEMPLATE		*
+*	Trainer menu template		*
+*					*
+*	     VER 1.0 (2023)		*
+*					*
+*					*
+*****************************************
 
 ;*****************
 ;*   Constants   *
@@ -25,19 +25,56 @@ SW3_VALUE = SW3_MAXVALUES
 OldOpenLibrary	= -408
 CloseLibrary	= -414
 
-DMASET=	%1000000111000000
-;	 	 -----a-bcdefghij
+FONT_HEIGHT=5
 
-;	a: Blitter Nasty
-;	b: Bitplane DMA (if this isn't set, sprites disappear!)
-;	c: Copper DMA
-;	d: Blitter DMA
-;	e: Sprite DMA
-;	f: Disk DMA
-;	g-j: Audio 3-0 DMA
+SCROLL_V_OFFSET=(42*FONT_HEIGHT*37)
 
-	INCDIR	"DH1:AMIGA-PLAYGROUND"
-	INCLUDE "/SHARED/HARDWARE/CUSTOM.I"
+
+; A = AGNUS, D = DENISE, P = PAULA
+
+;DMACON     096      W     A D P   DMA control write (clear or set)
+;DMACONR    002      R     A   P   DMA control (and blitter status) read
+DMASET=	%1000001111000000 ($8380)
+;	 fedcba9876543210
+
+;	f: Set/Clear control bit
+;	e: Blitter busy status bit (read only)
+;	d: Blotter logic zero status bit (read only)
+;	c: X
+;	b: X
+;	a: Blitter DMA priority (blitter nasty)
+;	9: Enable all DMA below
+;	8: Bitplane DMA enable
+;	7: Copper DMA enable
+;	6: Blitter DMA enable
+;	5: Sprite DMA enable
+;	4: Disk DMA enable
+;	3: Audio channel 3 DMA enable
+;	2: Audio channel 2 DMA enable
+;	1: Audio channel 1 DMA enable
+;	0: Audio channel 0 DMA enable
+
+;INTENA     09A      W       P    Interrupt enable bits (clear or set bits)
+;INTENAR    01C      R       P    Interrupt enable bits (read)
+INTENA=	%1100000000100000 ($C020)
+;	 fedcba9876543210
+
+;	f: Set/Clear control bit 
+;	e: Master interrupt
+;	d: External interrupt
+;	c: Disk sync register ( DSKSYNC ) matches disk data
+;	b: Serial port receive buffer full
+;	a: Audio channel 3 block finished
+;	9: Audio channel 2 block finished
+;	8: Audio channel 1 block finished
+;	7: Audio channel 0 block finished
+;	6: Blitter finished
+;	5: Start of vertical blank
+;	4: Copper
+;	3: I/O ports and timers
+;	2: Reserved for software -initalited interrupt
+;	1: Disk block finished
+;	0: Serial port transmit buffere empty
 	
 BLTWAIT	MACRO
 	tst $dff002			;for compatibility
@@ -79,7 +116,7 @@ START:
 
 	MOVE.W	#$7FFF,$9A(A6)		; Clear interrupt enable
 
-	BSR.L	Wait_Vert_Blank
+	BSR.W	Wait_Vert_Blank
 
 	MOVE.W	#$7FFF,$96(A6)		; Clear DMA channels
 	MOVE.L	#COPLIST,$80(A6)	; Copper1 start address
@@ -92,8 +129,8 @@ START:
 
 ;****       Your main routine      ****
 
-	BSR	CLEARSCREEN
-	BSR	PRINTMENU
+	BSR.W	CLEARSCREEN
+	BSR.W	PRINTMENU
 
 
 ;**** Main Loop  Test mouse button ****
@@ -145,7 +182,7 @@ KEYGET:
 	MOVE.B	$BFEC01,D0
 	NOT.B	D0
 	LSR.W	#1,D0
-	BCS	NOFONT
+	BCS.W	NOFONT
 GENEFEIL:
 	BSET	#6,$BFEE01
 	MOVEQ	#127,D1
@@ -166,17 +203,17 @@ ELABSWITCH:
 	LEA	COORDS(PC),A0
 	LEA	BUTTONS(PC),A1
 	MOVE.W	D0,D1
-	BEQ	ELAB_FIXVAL
+	BEQ.B	ELAB_FIXVAL
 	SUBQ	#1,D1
-	BEQ	ELAB_NUMVAL
+	BEQ.B	ELAB_NUMVAL
 	SUBQ	#1,D1
-	BEQ	ELAB_MIXVAL
+	BEQ.B	ELAB_MIXVAL
 	
 ELAB_FIXVAL:
 	MOVEQ	#0,D1
 	MOVE.B	(A1,D0.W),D1
 	CMP.B	#SW1_MAXVALUES-1,D1
-	BNE.W	NORESETVAL
+	BNE.B	NORESETVAL
 	MOVEQ	#-1,D1
 NORESETVAL
 	ADDQ.L	#1,D1
@@ -189,14 +226,14 @@ GETLABEL
 	MOVE.B	(A0)+,(A2)
 	MOVE.B	(A0)+,1(A2)
 	MOVE.L	A2,A0
-	BSR	WRITETEXT	
+	BSR.W	WRITETEXT	
 	RTS
 	
 ELAB_NUMVAL:
 	MOVEQ	#0,D1
 	MOVE.B	(A1,D0.W),D1		; BUTTON VALUE ON A1 
 	CMP.B	#SW2_MAXVALUES,D1	; D1 = SWITCH VALUE
-	BNE	NORESETNUMVAL
+	BNE.B	NORESETNUMVAL
 	MOVEQ	#-1, D1
 NORESETNUMVAL
 	ADDQ.L	#1, D1
@@ -207,39 +244,39 @@ PRINTNUM:
 	MOVE.B	(A0)+,(A2)
 	MOVE.B	(A0)+,1(A2)
 	MOVE.L	D1,D2
-	BSR 	NUMTOHEX
+	BSR.B 	NUMTOHEX
 	MOVE.L	A2,A0
-	BSR	WRITETEXT
+	BSR.B	WRITETEXT
 	RTS
 	
 ELAB_MIXVAL:
 	MOVEQ	#0,D1
 	MOVE.B	(A1,D0.W),D1	; BUTTON VALUE ON A1 
-	BNE	NORESETMIXVAL
+	BNE.B	NORESETMIXVAL
 	MOVEQ	#SW3_MAXVALUES+1, D1
 NORESETMIXVAL
 	SUBQ.L	#1, D1
 	MOVE.B	D1,(A1,D0.W)	; BUTTON VALUE ON D0
 	BSR.S	GETCOORD
 	CMP	#SW3_MAXVALUES, D1
-	BNE 	NOTMAX
+	BNE.B 	NOTMAX
 	LEA	MIXEDVALUE(PC),A2
 	MOVE.B	(A0)+,(A2)
 	MOVE.B	(A0)+,1(A2)
 	MOVE.L	A2,A0
-	BSR	WRITETEXT	
+	BSR.B	WRITETEXT	
 	RTS
 NOTMAX:
 	CMP	#0, D1
-	BNE 	NOTMIN
+	BNE.B 	NOTMIN
 	LEA 	MIXEDVALUE+6(PC),A2
 	MOVE.B	(A0)+,(A2)
 	MOVE.B	(A0)+,1(A2)
 	MOVE.L	A2,A0
-	BSR	WRITETEXT	
+	BSR.B	WRITETEXT	
 	RTS
 NOTMIN:
-	BRA PRINTNUM
+	BRA.B PRINTNUM
 	
 	
 ; GETCOORD - Get Ptr position from CoordsPtr
@@ -295,7 +332,7 @@ LOOPER:
 	MOVEQ	#0,D1		; RESET D1
 	MOVE.B	(A0)+,D0	; MOVE COORD X TO D0
 	MOVE.B	(A0)+,D1	; MOVE COORD Y TO D1
-	MULU	#[6*40],D1	; MULTIPLY COORD Y * CHARLEN * 40 LINES
+	MULU	#[6*42],D1	; MULTIPLY COORD Y * CHARLEN * 42 LINES
 				; IN ORDER TO POINT ON SCREEN AT Y COORD
 	ADD.W	D1,D0		; ADD COORD Y TO X IN ORDER TO GET
 				; POINT ON SCREEN
@@ -307,12 +344,12 @@ PRINTLOOP:
 				; NEXT CHAR POSITION 
 	CMP.B	#$FF,D0		; IF CHAR==$FF EXIT
 	BEQ.S	END
-	BSR	SETFONT		; GET CHAR FONT ADDRESS PTR
+	BSR.B	SETFONT		; GET CHAR FONT ADDRESS PTR
 	MOVE.B	(A4),(A2)	; WRITE CHAR(A4) TO SCREEN(A2)
-	MOVE.B	1(A4),40(A2)	
-	MOVE.B	2(A4),80(A2)	
-	MOVE.B	3(A4),120(A2)	
-	MOVE.B	4(A4),160(A2)	
+	MOVE.B	1(A4),42(A2)	
+	MOVE.B	2(A4),84(A2)	
+	MOVE.B	3(A4),126(A2)	
+	MOVE.B	4(A4),168(A2)	
 	ADDQ.L	#1,A2		; POINT TO SCREEN POSITION + 1
 	BRA.S	PRINTLOOP	; TURN BACK TO CHECK NEXT CHAR
 END:
@@ -333,13 +370,13 @@ INITTEXTPTR:
 	MOVE.B	(A0),D0
 	BNE.S	NORESET
 	MOVE.W	#0,TEXTPTR
-	BRA	INITTEXTPTR
+	BRA.B	INITTEXTPTR
 NORESET:	
 	LEA FONT(PC), A3
-	LEA	SCREEN+(40*5*37)+40,A2	; PLOTPOSITION
+	LEA	SCREEN+SCROLL_V_OFFSET+40,A2	; PLOTPOSITION
 	
 STARTPLOT:
-	BSR	SETFONT
+	BSR.B	SETFONT
 	MOVE.B	(A4),(A2)
 	MOVE.B	1(A4),42(A2)	
 	MOVE.B	2(A4),84(A2)	
@@ -354,37 +391,35 @@ NOFONT:
 
 SETFONT:
 	SUB.B	#$20,D0
-;	MULU	#5,D0 ; THE 3 COMMANDS BELOW SUBSTITUTE THE MULU * 5
-	MOVE.W	D0,D1	
-	ASL	#2,D1	; ***
-	ADD.L	D1,D0	; ***
+	MULU	#5,D0 ; THE 3 COMMANDS BELOW SUBSTITUTE THE MULU * 5
+;	MOVE.W	D0,D1	; ***
+;	ASL	#2,D1	; ***
+;	ADD.L	D1,D0	; ***
 	LEA	(A3,D0.W),A4
 	RTS
 	
-SCROLL
+SCROLL:
 
-	MOVE.L	#SCREEN+(40*5*37)+(42*5)+40, D0
-
-	LEA	$DFF000,A5
+	MOVE.L	#SCREEN+SCROLL_V_OFFSET+(42*FONT_HEIGHT)+40, D0
 	
 	BLTWAIT BWT1
 
-	MOVE.W	#$19F0,BLTCON0(A5)	; BLTCON0 COPY FROM A TO D ($F) 
+	MOVE.W	#$19F0,$40(A6)		; BLTCON0 COPY FROM A TO D ($F) 
 					; 1 PIXEL SHIFT, LF = F0
-	MOVE.W	#$0002,BLTCON1(A5)	; BLTCON1 USE BLITTER DESC MODE
+	MOVE.W	#$0002,$42(A6)		; BLTCON1 USE BLITTER DESC MODE
 					
-	MOVE.L	#$FFFFFFFF,BLTAFWM(A5)	; BLTAFWM / BLTALWM
+	MOVE.L	#$FFFFFFFF,$44(A6)	; BLTAFWM / BLTALWM
 					; BLTAFWM = $FFFF - 
 					; BLTALWM = $FFFF 
 
 
-	MOVE.L	D0,BLTAPT(A5)			; BLTAPT - SOURCE
-	MOVE.L	D0,BLTDPT(A5)			; BLTDPT - DEST
+	MOVE.L	D0,$50(A6)		; BLTAPT - SOURCE
+	MOVE.L	D0,$54(A6)		; BLTDPT - DEST
 
 	; SCROLL AN IMAGE OF THE FULL SCREEN WIDTH * FONT_HEIGHT
 
-	MOVE.L	#$00000000,BLTAMOD(A5)	; BLTAMOD + BLTDMOD 
-	MOVE.W	#(6*64)+21,BLTSIZE(A5)	; BLTSIZE
+	MOVE.L	#$00000000,$64(A6)	; BLTAMOD + BLTDMOD 
+	MOVE.W	#(6*64)+21,$58(A6)	; BLTSIZE
 	
 	RTS
 	
@@ -402,9 +437,9 @@ INTER:
 
 ;---  Place your interrupt routine here  ---
 
-	BSR	KEYGET
-	BSR	PLOT
-	BSR	SCROLL
+	BSR.W	KEYGET
+	BSR.W	PLOT
+	BSR.B	SCROLL
 
 	MOVE.W	#$4020,$9C(A6)		; Clear interrupt request
 	MOVEM.L	(A7)+,D0-D7/A0-A6	; Get registers from stack
@@ -449,16 +484,15 @@ MIXEDVALUE:
 	
 	
 MENUTEXT:
-	DC.B	0,0, '----------------------------------------',0
 	DC.B	10,2,'TRAINER MENU TEMPLATE',0
-	DC.B	0,4, '----------------------------------------',0
-	DC.B	16,6,'--- ---',0
-	DC.B	8,8, 'MENU BY FABRIZIO STELLATO',0
-	DC.B	0,10,'----------------------------------------',0
+	DC.B	8,6, 'MENU BY FABRIZIO STELLATO',0
 	DC.B	8,14,'F1 FIXED VALUES       OFF',0
 	DC.B	8,18,'F2 NUMBER VALUES       00',0
-	DC.B	8,22,'F3 MIXED VALUES       MAX',0
-	DC.B	0,29,'----------------------------------------',$ff
+	DC.B	8,22,'F3 MIXED VALUES       MAX'
+	DC.B	$FF
+
+	EVEN
+
 SCROLLINGTEXT:
 	DC.B	'TRAINER MENU BY FABRIZIO STELLATO   '
 	DC.B	'           ',0
@@ -474,6 +508,7 @@ TEXTPTR
 
 
 FONT:
+	INCDIR	"DH1:/AMIGA-PLAYGROUND"
 	INCBIN	"/TRAINERS/FONT"
 	
 ;*****************************
@@ -488,7 +523,7 @@ COPLIST:
 	DC.W	$0100,$1200	; Bit-Plane control reg.
 	DC.W	$0102,$0000	; Hor-Scroll
 	DC.W	$0104,$0010	; Sprite/Gfx priority
-	DC.W	$0108,$0000	; Modolu (odd)
+	DC.W	$0108,$0002	; Modolu (odd)
 	DC.W	$010A,$0000	; Modolu (even)
 	DC.W	$008E,$2C81	; Screen Size
 	DC.W	$0090,$2CC1	; Screen Size
@@ -499,7 +534,7 @@ BPLPOINTERS:
 	DC.W	$00e2,$0000 ; BITPLANE 0
 
 	DC.W	$2707, $fffe
-	DC.W	$0108, $0000
+;	DC.W	$0108, $0000
 	DC.W	$0180, $055f
 	DC.W	$2807, $fffe
 	DC.W	$0180, $0004
@@ -510,7 +545,7 @@ BPLPOINTERS:
 	DC.W	$e207, $fffe
 	DC.W	$0180, $0000
 	DC.W	$e507, $fffe
-	DC.W	$0108, $0002
+;	DC.W	$0108, $0002
 
 	DC.L	$FFFFFFFE
 
