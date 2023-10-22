@@ -153,25 +153,36 @@ LOOP:
 
 	BSR.W	WAITVB
 
+;--- Restore old DmaCon ---
+
 	MOVE.W	#$7FFF,$96(A6)		; disable DMA
-	
+
 	MOVE.W	OldDma(PC),D0
 	OR.W	#$8000,D0		; set bits of DMACON state
 	MOVE.W	D0,$96(A6)		; restore original DMACON
 
+;--- Restore old Copper ---
+
 	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
 	CLR.W	$88(A6)			; activate original COPPERLIST
+
+;--- Restore old Intreq ---
 
 	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
 
 	MOVE.W	#$7FFF,$9C(A6)		; clear requests
 
+;--- Restore old Intena ---
+
 	MOVE.W	OldIntena(PC),D0
 	OR.W	#$C000,D0		; set bits of INTENA state
 	MOVE.W	D0,$9A(A6)		; restore original INTENA
 	
+;--- Restore Old Register Settings ---
+	
 	MOVEM.L (SP)+,D0-D7/A0-A6
 
+	RTS
 
 
 KEYGET:
@@ -457,14 +468,6 @@ INTER:
 
 ;-----------------------------------------------
 
-;*** WAIT VERTICAL BLANK ***
-
-Wait_Vert_Blank:
-	BTST	#0,$5(A6)
-	BEQ.S	Wait_Vert_Blank
-.loop	BTST	#0,$5(A6)
-	BNE.S	.loop
-	RTS
 
 ;*** DATA AREA ***
 
