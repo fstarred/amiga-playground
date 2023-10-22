@@ -14,6 +14,8 @@
 ;*   Constants   *
 ;*****************
 
+	INCDIR	"DH1:/AMIGA-PLAYGROUND"
+
 SW1_MAXVALUES = 2
 SW2_MAXVALUES = 12
 SW3_MAXVALUES = 10
@@ -34,7 +36,7 @@ SCROLL_V_OFFSET=(42*FONT_HEIGHT*37)
 
 ;DMACON     096      W     A D P   DMA control write (clear or set)
 ;DMACONR    002      R     A   P   DMA control (and blitter status) read
-DMASET=	%1000001111000000 ($8380)
+DMASET=	%1000001111000000 ($83C0)
 ;	 fedcba9876543210
 
 ;	f: Set/Clear control bit
@@ -84,48 +86,49 @@ BLTWAIT	MACRO
 	ENDM
 
 START:
-	MOVEM.L	D0-D7/A0-A6,-(A7)	; Put registers on stack
+;--- Store Old Register Settings ---
 
+	MOVEM.L	D0-D7/A0-A6,-(SP)
 
-;***********************************
-;*   CLOSE ALL SYSTEM INTERRUPTS   *
-;*                                 *
-;*      START DEMO INTERRUPTS      *
-;***********************************
-
-	MOVE.L	$4.W,A6			; Exec pointer to A6
-	LEA.L	GfxName(PC),A1		; Set library pointer
-	MOVEQ	#0,D0
-	JSR	OldOpenLibrary(A6)	; Open graphics.library
-	MOVE.L	D0,A1			; Use Base-pointer
-	MOVE.L	$26(A1),OLDCOP1		; Store copper1 start addr
-	MOVE.L	$32(A1),OLDCOP2		; Store copper1 start addr
-	JSR	CloseLibrary(A6)	; Close graphics library
+	MOVE.L	$4.W,A6
+	LEA	GFXNAME(PC),A1
+	JSR	OldOpenLibrary(A6)	; load graphics library
+	MOVE.L	D0,A1
+	MOVE.L	38(A1),OldCopper	; store old copper 1
+	JSR	CloseLibrary(A6)	; close graphics library
 
 	LEA	$DFF000,A6
-	MOVE.W	$1C(A6),OLDINTENA		; Store old INTENA
-	MOVE.W	$2(A6),OLDDMACON		; Store old DMACON
-	MOVE.W	$10(A6),OLDADKCON		; Store old ADKCON
+	MOVE.W	$1C(A6),OldIntena	; store old INTENA (INTENAR)
+	MOVE.W	$02(A6),OldDma		; store old DMACON (DMACONR)	
+
+;--- Disable Intena/Intreq/Dmacon ---
+
+	MOVE.L	#$7FFF7FFF,$9A(A6)	; disable INTENA/INTREQ
+	MOVE.W	#$7FFF, $96(A6)		; disable DMACON
+
+;--- Set Bpl pointers	---
+
+	MOVE.L  #SCREEN,D0  		; POINT TO BITPLANE
+	LEA BPLPOINTERS,A1  	 
 	
-	MOVE.L  #SCREEN,D0  ; POINT TO BITPLANE
-    LEA BPLPOINTERS,A1  ; 
-	
-	MOVE.W  D0,6(A1)    ; COPY LOW WORD OF PIC ADDRESS TO PLANE
-    SWAP    D0          ; SWAP THE THE TWO WORDS
-   	MOVE.W  D0,2(A1)    ; COPY THE HIGH WORD OF PIC ADDRESS TO PLANE
+	MOVE.W  D0,6(A1)    		; COPY LOW WORD OF PIC ADDRESS TO PLANE
+	SWAP    D0          		; SWAP THE THE TWO WORDS
+   	MOVE.W  D0,2(A1)    		; COPY THE HIGH WORD OF PIC ADDRESS TO PLANE
 
-	MOVE.W	#$7FFF,$9A(A6)		; Clear interrupt enable
 
-	BSR.W	Wait_Vert_Blank
+;--- Set Register Settings ---
 
-	MOVE.W	#$7FFF,$96(A6)		; Clear DMA channels
-	MOVE.L	#COPLIST,$80(A6)	; Copper1 start address
-	MOVE.W	#DMASET!$8200,$96(A6)	; DMA kontrol data
-	MOVE.L	$6C.W,OldInter		; Store old inter pointer
-	MOVE.L	#INTER,$6C.W		; Set interrupt pointer
+	BSR	WAITVB			; Wait for VBLANK
 
-	MOVE.W	#$7FFF,$9C(A6)		; Clear request
-	MOVE.W	#$C020,$9A(A6)		; Interrupt enable
+	MOVE.W	#DMASET,$96(A6)		; set bits of DMACON state
+	MOVE.L	#COPLIST,$80(A6)	; set custom COPPERLIST
+
+;--- Program Interrupt ---
+
+	MOVE.L	$6C.W,OldInter		; store old INTER PTR
+
+	MOVE.L	#INTER,$6C.W		: set interrupt pointer
+	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
 
 ;****       Your main routine      ****
 
@@ -145,31 +148,29 @@ LOOP:
 ;*****************************************
 
 	LEA	$DFF000,A6
-	MOVE.W	#$7FFF,$9A(A6)		; Disable interrupts
+
+	MOVE.W	#$7FFF,$9A(A6)		; disable interrupts	
+
+	BSR.W	WAITVB
+
+	MOVE.W	#$7FFF,$96(A6)		; disable DMA
 	
-	BSR.W	Wait_Vert_Blank
+	MOVE.W	OldDma(PC),D0
+	OR.W	#$8000,D0		; set bits of DMACON state
+	MOVE.W	D0,$96(A6)		; restore original DMACON
 
-	MOVE.W	#$7FFF,$96(A6)
-	MOVE.L	OldCop1(PC),$80(A6)	; Restore old copper1
-	MOVE.L	OldCop2(PC),$84(A6)	; Restore old copper1
-	MOVE.L	OldInter(PC),$6C.W	; Restore inter pointer
-	MOVE.W	OLDDMACON,D0		; Restore old DMACON
-	OR.W	#$8000,D0
-	MOVE.W	D0,$96(A6)		
-	MOVE.W	OLDADKCON,D0		; Restore old ADKCON
-	OR.W	#$8000,D0
-	MOVE.W	D0,$9E(A6)
-	MOVE.W	OLDINTENA,D0		; Restore inter data
-	OR.W	#$C000,D0
-	MOVE.W	#$7FFF,$9C(A6)
-	MOVE.W	D0,$9A(A6)
+	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
+	CLR.W	$88(A6)			; activate original COPPERLIST
 
-	MOVEM.L	(A7)+,D0-D7/A0-A6	; Get registers from stack
-	RTS
+	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
 
+	MOVE.W	#$7FFF,$9C(A6)		; clear requests
 
-
-
+	MOVE.W	OldIntena(PC),D0
+	OR.W	#$C000,D0		; set bits of INTENA state
+	MOVE.W	D0,$9A(A6)		; restore original INTENA
+	
+	MOVEM.L (SP)+,D0-D7/A0-A6
 
 
 
@@ -424,6 +425,15 @@ SCROLL:
 	RTS
 	
 
+WAITVB:
+	TST.B	$DFF005
+	BEQ.B	WAITVB
+.LOOP
+	TST.B	$DFF005
+	BNE.S	.LOOP
+	RTS
+
+
 ;**********************************
 ;*				  *
 ;*    INTERRUPT ROUTINE. LEVEL 3  *
@@ -459,14 +469,15 @@ Wait_Vert_Blank:
 ;*** DATA AREA ***
 
 GfxName		DC.B	'graphics.library',0
-		even
-DosBase		DC.L	0
-OldInter	DC.L	0
-OldCop1		DC.L	0
-OldCop2		DC.L	0
-OLDINTENA		DC.W	0
-OLDDMACON		DC.W	0
-OLDADKCON		DC.W	0
+	EVEN	
+OldCopper:
+	DC.L	0
+OldIntena:
+	DC.W	0
+OldDma:
+	DC.W	0
+OldInter:
+	DC.L	0
 
 COORDS:		; switch trainer coordinate values
 	DC.B	30,14
@@ -508,7 +519,6 @@ TEXTPTR
 
 
 FONT:
-	INCDIR	"DH1:/AMIGA-PLAYGROUND"
 	INCBIN	"/TRAINERS/FONT"
 	
 ;*****************************
@@ -534,7 +544,6 @@ BPLPOINTERS:
 	DC.W	$00e2,$0000 ; BITPLANE 0
 
 	DC.W	$2707, $fffe
-;	DC.W	$0108, $0000
 	DC.W	$0180, $055f
 	DC.W	$2807, $fffe
 	DC.W	$0180, $0004
@@ -545,7 +554,6 @@ BPLPOINTERS:
 	DC.W	$e207, $fffe
 	DC.W	$0180, $0000
 	DC.W	$e507, $fffe
-;	DC.W	$0108, $0002
 
 	DC.L	$FFFFFFFE
 
@@ -558,3 +566,4 @@ BPLPOINTERS:
 	SECTION	Screen,BSS_C
 
 SCREEN	DS.B	42*256
+
