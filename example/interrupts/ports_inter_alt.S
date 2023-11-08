@@ -1,8 +1,31 @@
 *************************************************
 *						*
 *	System OFF with PORTS Interrupt		*
+*		bset/bclr method		*
 *						*
 *************************************************
+
+; CIAA Address Map
+; ---------------------------------------------------------------------------
+;  Byte    Register                  Data bits
+; Address    Name     7     6     5     4     3     2     1    0
+; ---------------------------------------------------------------------------
+; BFE001    pra     /FIR1 /FIR0  /RDY /TK0  /WPRO /CHNG /LED  OVL
+; BFE101    prb     Parallel port
+; BFE201    ddra    Direction for port A (BFE001);1=output (set to 0x03)
+; BFE301    ddrb    Direction for port B (BFE101);1=output (can be in or out)
+; BFE401    talo    CIAA timer A low byte (.715909 Mhz NTSC; .709379 Mhz PAL)
+; BFE501    tahi    CIAA timer A high byte
+; BFE601    tblo    CIAA timer B low byte (.715909 Mhz NTSC; .709379 Mhz PAL)
+; BFE701    tbhi    CIAA timer B high byte
+; BFE801    todlo   50/60 Hz event counter bits 7-0 (VSync or line tick)
+; BFE901    todmid  50/60 Hz event counter bits 15-8
+; BFEA01    todhi   50/60 Hz event counter bits 23-16
+; BFEB01            not used
+; BFEC01    sdr     CIAA serial data register (connected to keyboard)
+; BFED01    icr     CIAA interrupt control register
+; BFEE01    cra     CIAA control register A
+; BFEF01    crb     CIAA control register B
 
 ; This example show how to check for keyboard button pressed
 ; Press F10 to switch power led on / off
@@ -139,15 +162,20 @@ INTER:
 	LEA	$DFF000,A6		; base custom register in A6
 	LEA	$BFE001,A5		; base CIAA register in A5
 	
-	MOVEQ 	#$08,D0			
-	
-	MOVE.W	$1E(A6),D1		; check if is it level 2 interrupt
-	AND.W	D0,D1
+	MOVE.B	$0D00(A5),D0		; Ciaa icr - reset the intreq
+
+	BTST.L	#7,D0			; bit IR, check if inter is allowed
+	BEQ.B	END_INTER	
+	BTST.L	#3,D0			; bit SP, check if inter is allowed
 	BEQ.B	END_INTER
+
+	MOVE.W	$1C(A6),D0		; INTENAR
+	BTST.L	#14,D0			; Check if INTENA Bit Master enabled 
+	BEQ.B	END_INTER		
 	
-	MOVE.B	$0D00(A5),D1		; check if SP cause interrupt
-	AND.B	D0,D1			; read from CIAA icr
-	BEQ.B	END_INTER
+	AND.W	$1E(A6),D0		; INTREQR - Interrupt request bits					
+	BTST.L	#3,D0			; INTREQR - PORTS?
+	BEQ.B	END_INTER		; 
 	
 	MOVE.B	$0C00(A5),D0  		; read a byte from CIAA sdr register
 	NOT.B	D0          		; negate a byte in D0
@@ -158,7 +186,9 @@ INTER:
 	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
 
 NOTF10:
-	OR.B	#$40,$0E00(A5)		; CIAA cra - SPMODE output
+	BSET.B	#6,$0E00(A5)		; CIAA cra - SPMODE output
+
+	ST.B	$0C00(A5)		; confirm data received
 
 	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
 .WAITLINES				; for the handshake
@@ -168,7 +198,7 @@ NOTF10:
 	BEQ.B	.CHECKLINE
 	DBF	D1,.WAITLINES
 
-	AND.B	#$BF,$0E00(A5)		; CIAA cra - SPMODE input
+	BCLR.B	#6,$0E00(A5)		; CIAA cra - SPMODE input
 
 END_INTER	
 	MOVE.W	#$4008,$9C(A6)		; clear interrupt request

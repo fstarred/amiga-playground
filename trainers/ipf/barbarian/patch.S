@@ -128,6 +128,13 @@ LOAD_GAME:
 	MOVE.L	#$2E7A0BE6,(A0)			; restore original opcodes
 	MOVEM.L (SP)+,D0-D7/A0-A6
 	MOVE.L	STACK_ADDR_BACK(PC),(SP)	; back to original address
+	
+	MOVE.L	InterKbdPtr,$68.W
+	
+	REPT	20
+	NOP
+	ENDR
+	
 	RTS
 STACK_ADDR_BACK:
 	DC.L	0
@@ -485,7 +492,7 @@ INTER:
 	RTE
 
 LOADGAME:
-	MOVE.L	4.W,A6			;get execbase
+	MOVE.L	$4.W,A6			;get execbase
 	LEA	DOSLIB(PC),A1		;pointer to 'dos.library'
 	JSR	OldOpenLibrary(A6)	;open dos.library
 	TST.L	D0			;if d0 = 0 then libray open failed
@@ -512,12 +519,41 @@ LOADGAME:
 	MOVE.L	D0,A3
 	MOVE.L	D0,HUNK_ADDRESS
 	
-	LEA SPARE_MEM,A1
-	LEA HACK_INIT_SCENARIO(PC),A2
-	MOVE.W	#(END_HACK_INIT_SCENARIO-HACK_INIT_SCENARIO)-1,D0
+	LEA 	SPARE_MEM,A1
+	LEA 	HACK_INIT_SCENARIO(PC),A2
+	MOVEQ	#(END_HACK_INIT_SCENARIO-HACK_INIT_SCENARIO)-1,D0
 .COPY_PATCH:
 	MOVE.B	(A2)+,(A1)+
-	DBRA	D0,.COPY_PATCH
+	DBF	D0,.COPY_PATCH
+	
+	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; move 100 into d0
+	
+	MOVEQ	#1,D1            	; move 1 into d1
+	SWAP	D1               	; swap words in d1, value is now $10000 
+	
+	MOVE.L	A0,-(SP)
+	
+	MOVE.L	$4.W,A6
+	JSR	-198(A6)         	; Jump to subroutine AllocMem in exec.library, d0 = AllocMem(d0, d1), allocate 100 bytes with type of memory MEMF_CLEAR.
+	
+	MOVE.L	(SP)+,A0
+	
+	MOVE.L	D0,A2            	; put address of allocated memory stored in d0 into a1
+	MOVE.L	D0,D1            	; put address of allocated memory stored in d0 into d7
+
+	MOVE.L	$68.W,JMP_OLD_INTER+2
+	MOVE.L	D0,InterKbdPtr
+
+	LEA.L	INTERKBD(PC),A1     	; move address of interrupt into a0
+	MOVE.W	#(END_INTERKBD-INTERKBD),D0        ; set d0 to 24. Use d0 as a copyloop counter
+	
+.COPYINTER:
+	MOVE.B	(A1)+,(A2)+      	; copy value pointed to by a0 into address pointed to by a1. Increment both with 4 bytes (1 long word)
+	DBF	D0,.COPYINTER      	; if d0 > -1 goto copyloop
+	
+;	MOVE.W	#$4000,$DFF09A   	; INTENA Interupt enable bits - disable all interrupts
+;	MOVE.L	D7,$68.W           	; move value in d7 that points to our allocated memory into $68 (interupt 2)
+;	MOVE.W	#$C000,$DFF09A   	; INTENA Interupt enable bits - enable all interrupts
 	
 ;	ID
 ;	BEG>	A0+$04
@@ -559,7 +595,15 @@ LB_2328
 	ADD.L	#$4F8,A3		; hack read
 	MOVE.W	#$4EB9,(A3)+		; jsr to hack_read
 	MOVE.L	#HACK_READ,(A3)
-
+	
+	MOVE.W	#$4000,$DFF09A
+	MOVE.L	#INTERKBD,$68.W
+	MOVE.W	#$C000,$DFF09A
+	
+	REPT	10
+	NOP
+	ENDR
+	
 	IF Mode=PROD
 
 	MOVEM.L	D0-D7/A0-A6,-(SP)
@@ -643,6 +687,72 @@ OR_OPCODES_P2:
 	DC.L	$2E7A0BE6	; movea.l (pc,$0be6),a7
 END_OR_OPCODES_P2
 
+INTERKBD:
+	MOVEM.L	D0-D7/A0-A6,-(SP)
+	LEA	$DFF000,A6		; base custom register in A6
+	LEA	$BFE001,A5		; base CIAA register in A5
+		
+	REPT	14
+	NOP
+	ENDR
+		
+	MOVE.B	$0C00(A5),D1  		; read a byte from CIAA sdr register
+	NOT.B	D1          		; negate a byte in D0
+	ROR.B	#1,D1       		; rotate right 1 bit
+
+	CMP.B	#$56,D1     		; compare F10 key value with d0
+	BNE.S	NOTF6    		; if not F10 pressed - goto exit
+	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
+
+	REPT	14
+	NOP
+	ENDR
+
+NOTF6:
+	BSET.B	#6,$0E00(A5)
+
+	REPT	14
+	NOP
+	ENDR
+
+	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
+.WAITLINES				; for the handshake
+	MOVE.B	$06(A6),D0		; some Amiga keyboards (i.e. A1200)
+.CHECKLINE				; requires more time than others
+	CMP.B	$06(A6),D0
+	BEQ.B	.CHECKLINE
+	DBF	D1,.WAITLINES
+
+	BCLR.B	#6,$0E00(A5)		; CIAA cra - SPMODE input
+
+	REPT	14
+	NOP
+	ENDR
+
+	MOVEM.L (A7)+,D0-D7/A0-A6
+JMP_OLD_INTER:
+	JMP	$0
+;	BSET.B	#6,$0E00(A5)		; CIAA cra - SPMODE output
+;
+;	ST.B	$0C00(A5)		; confirm data received
+;
+;	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
+;.WAITLINES				; for the handshake
+;	MOVE.B	$06(A6),D0		; some Amiga keyboards (i.e. A1200)
+;.CHECKLINE				; requires more time than others
+;	CMP.B	$06(A6),D0
+;	BEQ.B	.CHECKLINE
+;	DBF	D1,.WAITLINES
+;
+;	BCLR.B	#6,$0E00(A5)		; CIAA cra - SPMODE input
+;
+;END_INTER	
+;	MOVE.W	#$4008,$9C(A6)		; clear interrupt request
+;	MOVEM.L	(SP)+,D0-D7/A0-A6
+;	
+;	RTE
+END_INTERKBD
+
 ;*** DATA AREA ***
 
 HUNK_ADDRESS:
@@ -664,7 +774,8 @@ OldDma:
 	DC.W	0
 OldInter:
 	DC.L	0
-
+InterKbdPtr:
+	DC.L	0
 COORDS:		; switch trainer coordinate values
 	DC.B	30,14
 	DC.B	30,18
