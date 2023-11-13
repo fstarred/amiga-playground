@@ -24,12 +24,10 @@ Mode=PROD	 		; 0=Prod,1=TrainerMenu only,2=Debug
 SPARE_MEM = $C0
 
 SW1_MAXVALUE = 12
-SW2_MAXVALUES = 10
-SW3_MAXVALUES = 10
+SW2_MAXVALUES = 2
 
 SW1_VALUE = SW1_MAXVALUE
-SW2_VALUE = SW1_MAXVALUE
-SW3_VALUE = SW3_MAXVALUES
+SW2_VALUE = 0
 
 SW1_MINVALUE = 1
 
@@ -37,6 +35,7 @@ OldOpenLibrary	= -408
 CloseLibrary	= -414
 LoadSeg		= -150
 UnLoadSeg	= -156
+AllocMem	= -198
 
 FONT_HEIGHT=5
 
@@ -126,14 +125,21 @@ LOAD_GAME:
    	MOVE.L	STACK_ADDR_BACK(PC),A0
 	MOVE.W	#$4E75,(A0)+			; restore original opcodes
 	MOVE.L	#$2E7A0BE6,(A0)			; restore original opcodes
-	MOVEM.L (SP)+,D0-D7/A0-A6
-	MOVE.L	STACK_ADDR_BACK(PC),(SP)	; back to original address
-	
+	MOVE.B	SPARE_MEM+(BUTTONS-HACK_INIT_SCENARIO)+2,D1
+	BEQ.B	.EXIT_PATCH
 	MOVE.L	InterKbdPtr,$68.W
-	
+	MOVE.L	HUNK_ADDRESS,A0
+	ADDA.L	#$6A34,A0
+	MOVE.W	#$4EB9,(A0)+
+	MOVE.L	#SPARE_MEM+(INIT_LEVEL-HACK_INIT_SCENARIO),(A0)+
+	MOVE.W	D0,(A0)
+
 	REPT	20
 	NOP
 	ENDR
+.EXIT_PATCH
+	MOVEM.L (SP)+,D0-D7/A0-A6
+	MOVE.L	STACK_ADDR_BACK(PC),(SP)	; back to original address
 	
 	RTS
 STACK_ADDR_BACK:
@@ -160,11 +166,21 @@ HACK_INIT_SCENARIO:
 	MOVE.L	D0,$24(A0)
 	MOVE.L	(SP)+,A1
 	RTS
+; 2940 28b0		move.l d0,(a4,$28b0)
+; 2940 0184		move.l d0,(a4,$0184)
+INIT_LEVEL:
+	MOVE.L	SCENARIO_START(PC),$28B0(A4)
+	MOVE.L	OPPONENT_START(PC),$0184(A4)
+	RTS
 BUTTONS:
 	DC.B	SW1_VALUE
+	DC.B	SW1_VALUE
 	DC.B	SW2_VALUE
-	DC.B	SW3_VALUE
 	EVEN
+OPPONENT_START:
+	DC.L	0
+SCENARIO_START:
+	DC.L	0
 END_HACK_INIT_SCENARIO
 
 SHOWTRAINER:
@@ -280,8 +296,8 @@ DELAY:	DBF	D1,DELAY
 	BCLR	#6,$BFEE01
 	CMP.B	#$50,D0
 	BLT.W	NOFONT		; IF < 50 EXIT
-	CMP.B	#$51,D0
-	BGT.W	NOFONT		; IF > 51 EXIT
+	CMP.B	#$52,D0
+	BGT.W	NOFONT		; IF > 52 EXIT
 	SUB.B	#$50,D0		; F1 = 0, F2 = 1, F3 = 2..
 	
 	
@@ -292,17 +308,27 @@ DELAY:	DBF	D1,DELAY
 ELABSWITCH:
 	LEA	COORDS(PC),A0
 	LEA	BUTTONS(PC),A1
-	CMP 	#2,D0
-	BRA.B	ELAB_PHEALTH
-	
-PRINTNUM:
-	LEA NUMVALUE(PC),A2
+	CMP.B 	#2,D0
+	BCS	ELAB_PHEALTH
+
+ELAB_FIXVAL:
+	MOVEQ	#0,D1
+	MOVE.B	(A1,D0.W),D1
+	CMP.B	#SW2_MAXVALUES-1,D1
+	BNE.B	NORESETVAL
+	MOVEQ	#-1,D1
+NORESETVAL
+	ADDQ.L	#1,D1
+	MOVE.B	D1,(A1,D0.W)		; STORE VALUE ON BUTTONS
+	BSR.W	GETCOORD
+	LEA 	SWITCHVALUE-6(PC), A2
+.GETLABEL
+	ADD.W 	#6,A2			; GET NEXT LABEL
+	DBF 	D1, .GETLABEL	
 	MOVE.B	(A0)+,(A2)
 	MOVE.B	(A0)+,1(A2)
-	MOVE.L	D1,D2
-	BSR.B 	NUMTOHEX
 	MOVE.L	A2,A0
-	BSR.B	WRITETEXT
+	BSR.W	WRITETEXT	
 	RTS
 	
 ELAB_PHEALTH:
@@ -316,15 +342,22 @@ NORESETHEALTHVAL
 	MOVE.B	D1,(A1,D0.W)	; BUTTON VALUE ON D0
 	BSR.S	GETCOORD
 	CMP	#SW1_MAXVALUE, D1
-	BNE.B 	NOTMAX
+	BNE.B 	PRINTNUM
 	LEA	DEFVALUE(PC),A2
 	MOVE.B	(A0)+,(A2)
 	MOVE.B	(A0)+,1(A2)
 	MOVE.L	A2,A0
 	BSR.B	WRITETEXT	
 	RTS
-NOTMAX:
-	BRA.B PRINTNUM
+PRINTNUM:
+	LEA NUMVALUE(PC),A2
+	MOVE.B	(A0)+,(A2)
+	MOVE.B	(A0)+,1(A2)
+	MOVE.L	D1,D2
+	BSR.B 	NUMTOHEX
+	MOVE.L	A2,A0
+	BSR.B	WRITETEXT
+	RTS
 	
 	
 ; GETCOORD - Get Ptr position from CoordsPtr
@@ -526,34 +559,28 @@ LOADGAME:
 	MOVE.B	(A2)+,(A1)+
 	DBF	D0,.COPY_PATCH
 	
-	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; move 100 into d0
+	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; byte size to allocate
 	
-	MOVEQ	#1,D1            	; move 1 into d1
-	SWAP	D1               	; swap words in d1, value is now $10000 
+	MOVEQ	#0,D1            	; allocate the best available memory
 	
-	MOVE.L	A0,-(SP)
+	MOVE.L	A0,-(SP)		; preserve A0 after allocMem call
 	
 	MOVE.L	$4.W,A6
-	JSR	-198(A6)         	; Jump to subroutine AllocMem in exec.library, d0 = AllocMem(d0, d1), allocate 100 bytes with type of memory MEMF_CLEAR.
+	JSR	AllocMem(A6)         	; Jump to subroutine AllocMem in exec.library
 	
-	MOVE.L	(SP)+,A0
+	MOVE.L	(SP)+,A0		; restore previous A0 value
 	
-	MOVE.L	D0,A2            	; put address of allocated memory stored in d0 into a1
-	MOVE.L	D0,D1            	; put address of allocated memory stored in d0 into d7
+	MOVE.L	D0,A2            	; put address of allocated memory stored in d0 into a2
+	
+	MOVE.L	$68.W,JMP_OLD_INTER+2	; store original level 2 interrupt
+	MOVE.L	D0,InterKbdPtr		; store allocated memory pointer
 
-	MOVE.L	$68.W,JMP_OLD_INTER+2
-	MOVE.L	D0,InterKbdPtr
-
-	LEA.L	INTERKBD(PC),A1     	; move address of interrupt into a0
-	MOVE.W	#(END_INTERKBD-INTERKBD),D0        ; set d0 to 24. Use d0 as a copyloop counter
+	LEA.L	INTERKBD(PC),A1     	
+	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; Use d0 as a copyloop counter
 	
 .COPYINTER:
-	MOVE.B	(A1)+,(A2)+      	; copy value pointed to by a0 into address pointed to by a1. Increment both with 4 bytes (1 long word)
+	MOVE.B	(A1)+,(A2)+      	; copy interrupt level 2 into allocated mem
 	DBF	D0,.COPYINTER      	; if d0 > -1 goto copyloop
-	
-;	MOVE.W	#$4000,$DFF09A   	; INTENA Interupt enable bits - disable all interrupts
-;	MOVE.L	D7,$68.W           	; move value in d7 that points to our allocated memory into $68 (interupt 2)
-;	MOVE.W	#$C000,$DFF09A   	; INTENA Interupt enable bits - enable all interrupts
 	
 ;	ID
 ;	BEG>	A0+$04
@@ -595,10 +622,6 @@ LB_2328
 	ADD.L	#$4F8,A3		; hack read
 	MOVE.W	#$4EB9,(A3)+		; jsr to hack_read
 	MOVE.L	#HACK_READ,(A3)
-	
-	MOVE.W	#$4000,$DFF09A
-	MOVE.L	#INTERKBD,$68.W
-	MOVE.W	#$C000,$DFF09A
 	
 	REPT	10
 	NOP
@@ -688,7 +711,7 @@ OR_OPCODES_P2:
 END_OR_OPCODES_P2
 
 INTERKBD:
-	MOVEM.L	D0-D7/A0-A6,-(SP)
+	MOVEM.L	D0-D1/A0/A5-A6,-(SP)
 	LEA	$DFF000,A6		; base custom register in A6
 	LEA	$BFE001,A5		; base CIAA register in A5
 		
@@ -696,25 +719,31 @@ INTERKBD:
 	NOP
 	ENDR
 		
-	MOVE.B	$0C00(A5),D1  		; read a byte from CIAA sdr register
-	NOT.B	D1          		; negate a byte in D0
-	ROR.B	#1,D1       		; rotate right 1 bit
+	MOVE.B	$0C00(A5),D0  		; read a byte from CIAA sdr register
+	NOT.B	D0          		; negate a byte in D0
+	ROR.B	#1,D0       		; rotate right 1 bit
 
-	CMP.B	#$56,D1     		; compare F10 key value with d0
-	BNE.S	NOTF6    		; if not F10 pressed - goto exit
-	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
-
-	REPT	14
-	NOP
-	ENDR
-
-NOTF6:
-	BSET.B	#6,$0E00(A5)
-
-	REPT	14
-	NOP
-	ENDR
-
+	MOVEQ	#0,D1
+	MOVE.B	D0,D1			; copy key value to d1
+	SUB.B	#$56,D1     		; 
+	CMP.B	#2,D1
+	BNE.B	.NOTF8    		; if not F10 pressed - goto exit
+;	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
+	BRA.B	HANDSHAKE
+.NOTF8
+	BHI.B	HANDSHAKE
+	LSL.B	#2,D1
+	LEA	SPARE_MEM+(OPPONENT_START-HACK_INIT_SCENARIO),A0
+	MOVE.L	(A0,D1.W),D0
+	CMP.B	#7,D0
+	BNE.B	.NOTMAX
+	SUBQ.B	#8,D0
+.NOTMAX
+	ADDQ.B	#1,D0
+	MOVE.L	D0,(A0,D1.W)	
+HANDSHAKE:
+	BSET.B	#6,$0E00(A5)		; CIAA cra - SPMODE output
+	
 	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
 .WAITLINES				; for the handshake
 	MOVE.B	$06(A6),D0		; some Amiga keyboards (i.e. A1200)
@@ -729,28 +758,9 @@ NOTF6:
 	NOP
 	ENDR
 
-	MOVEM.L (A7)+,D0-D7/A0-A6
+	MOVEM.L (A7)+,D0-D1/A0/A5-A6
 JMP_OLD_INTER:
 	JMP	$0
-;	BSET.B	#6,$0E00(A5)		; CIAA cra - SPMODE output
-;
-;	ST.B	$0C00(A5)		; confirm data received
-;
-;	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
-;.WAITLINES				; for the handshake
-;	MOVE.B	$06(A6),D0		; some Amiga keyboards (i.e. A1200)
-;.CHECKLINE				; requires more time than others
-;	CMP.B	$06(A6),D0
-;	BEQ.B	.CHECKLINE
-;	DBF	D1,.WAITLINES
-;
-;	BCLR.B	#6,$0E00(A5)		; CIAA cra - SPMODE input
-;
-;END_INTER	
-;	MOVE.W	#$4008,$9C(A6)		; clear interrupt request
-;	MOVEM.L	(SP)+,D0-D7/A0-A6
-;	
-;	RTE
 END_INTERKBD
 
 ;*** DATA AREA ***
@@ -785,6 +795,10 @@ NUMVALUE:
 	DC.B 0,0,'  0',$ff
 DEFVALUE:
 	DC.B 0,0,'DEF',$ff
+SWITCHVALUE:
+	DC.B 0,0,'OFF',$ff
+	DC.B 0,0,' ON',$ff
+
 	
 	
 MENUTEXT:
@@ -792,7 +806,7 @@ MENUTEXT:
 	DC.B	8,6, 'MENU BY FABRIZIO STELLATO',0
 	DC.B	8,14,'F1 P1 HEALTH          DEF',0
 	DC.B	8,18,'F2 P2 HEALTH          DEF',0
-	DC.B	8,22,'F3 MIXED VALUES       MAX'
+	DC.B	8,22,'F3 MAGIC KEY (F7/F8)  OFF'
 	DC.B	$FF
 
 	EVEN

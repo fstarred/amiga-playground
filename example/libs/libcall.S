@@ -36,6 +36,7 @@ START:
 	MOVE.L	#SCR_HEIGHT,D1
 	JSR	FreeRaster(A6)
 
+CLOSELIB:
 	MOVE.L	GraphLibPtr(PC),A1
 	MOVE.L	$4.W,A6
 	JSR	CloseLibrary(A6)
@@ -47,6 +48,7 @@ PROBLEM:
 
 GraphName:
 	dc.b	'graphics.library',0
+	EVEN
 GraphLibPtr:
 	dc.l	0
 ScreenPtr:
