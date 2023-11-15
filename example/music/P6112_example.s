@@ -209,9 +209,9 @@ suppF01	=P61pl	;if 1, split4=1 may cause sound errors. but try it anyway. :)
 	endc
 	
 ;*****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
+	incdir	"dh1:amiga-playground/startup/borchen/"
 	include	"startup.s"	; 
-	incdir  "dh1:own/demo/repository/replay/"
+	incdir  "dh1:amiga-playground/replay/"
 	include	"P6112-Play.i"
 	
 	
@@ -311,7 +311,7 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 
 M_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
+	incdir  "dh1:amiga-playground/resources/mod/"
 	incbin	"p61.venezia"
 
 	

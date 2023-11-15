@@ -44,9 +44,9 @@ wbl = 303
 
 	
 ;*****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
+	incdir	"dh1:amiga-playground/startup/borchen/"
 	include	"startup.s"	; 
-	incdir  "dh1:own/demo/repository/replay/"
+	incdir  "dh1:amiga-playground/replay/"
 	include	"PT3.0b_replay_cia.s"
 	
 	
@@ -137,7 +137,7 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 
 PT_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
+	incdir  "dh1:amiga-playground/resources/mod/"
 	incbin	"mod.broken"
 
 	

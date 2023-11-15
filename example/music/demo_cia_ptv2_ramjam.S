@@ -4,7 +4,7 @@
 	
 	SECTION	Code,CODE
 
-	incdir 	"dh1:own/demo/repository/startup/ramjam/"
+	incdir 	"dh1:amiga-playground/startup/ramjam/"
 	include "Startup2.s"
 
 Waitdisk	EQU	10
@@ -80,7 +80,7 @@ theend
 	rts
 	
 
-	incdir  "dh1:own/demo/repository/replay/"
+	incdir  "dh1:amiga-playground/replay/"
 	include	"PT2.3a_replay_cia.s"
 
 ;DOSname	dc.b "dos.library",0
@@ -122,7 +122,7 @@ BPLPOINTERS:
 	SECTION	Data, DATA_C
 
 MT_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
+	incdir  "dh1:amiga-playground/resources/mod/"
 	incbin	"mod.broken"
 
 

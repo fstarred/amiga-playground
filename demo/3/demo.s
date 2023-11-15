@@ -178,11 +178,11 @@ suppF01	=1	;0 is incompatible with CIA mode. It moves ~100 cycles of
 
 	
 *****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
+	incdir	"dh1:amiga-playground/startup/borchen/"
 	include	"startup.s"	
-	incdir	"dh1:own/demo/repository/shared/"	
+	incdir	"dh1:amiga-playground/shared/"	
 	include "hardware/custom.i"
-	incdir  "dh1:own/demo/repository/replay/"
+	incdir  "dh1:amiga-playground/replay/"
 	include "P6112-Play.i"
 *****************************************************************************
 
@@ -276,7 +276,9 @@ POINTBP_H:
 	move.w  #INTENASET,$dff09a     ; INTENA
     
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
-	move.w  #0,$dff088      ; COPJMP1 activate copperlist
+	moveq	#0,d0
+	move.w  d0,$dff088      ; COPJMP1 activate copperlist
+	move.w	d0,$dff1fc	; FMODE	- BLP32
 
 	movem.l d0-a6,-(sp)	; P61_Init
 
@@ -1606,7 +1608,7 @@ tab_y_pointer
 
 TABX:
 
-	incdir	"dh1:own/demo/repository/demo/3/"
+	incdir	"dh1:amiga-playground/demo/3/"
 	incbin	"coord_X"	
 
 
@@ -1622,7 +1624,7 @@ ENDTABX
     
 TABY:
 
-	incdir	"dh1:own/demo/repository/demo/3/"
+	incdir	"dh1:amiga-playground/demo/3/"
 	incbin	"coord_Y"
 
 ENDTABY
@@ -1818,7 +1820,7 @@ BARCOPPER:
 *                                       *
 *****************************************
 
-	incdir	"dh1:own/demo/repository/demo/3/"
+	incdir	"dh1:amiga-playground/demo/3/"
     
 frame1:
 	incbin	"ball_frame1"
@@ -1855,18 +1857,18 @@ OFFSET_TAB:	; contains the effective address pointer for each line
 		; for interleaved lores bitplane is 0=0, 1=40*bpls, 2=80*bpls, etc
 
 FONT_HEADER:
-	incdir	"dh1:own/demo/repository/resources/fonts/"
+	incdir	"dh1:amiga-playground/resources/fonts/"
 	incbin	"32x32-FI.raw"
 
 FONT:
-	incdir	"dh1:own/demo/repository/resources/fonts/"
+	incdir	"dh1:amiga-playground/resources/fonts/"
 	incbin  "16X16-F2_944_16_1.raw"
 
 *****************************************************************************
 
 	SECTION Music,DATA_C
 M_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
+	incdir  "dh1:amiga-playground/resources/mod/"
 	incbin  "p61.venezia"
 	
 *****************************************************************************

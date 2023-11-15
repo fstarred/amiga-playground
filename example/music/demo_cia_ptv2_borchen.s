@@ -43,7 +43,7 @@ bpls = 1
 
 	
 ;*****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
+	incdir	"dh1:amiga-playground/startup/borchen/"
 	include	"startup.s"	; 
 ;*****************************************************************************
 
@@ -78,7 +78,7 @@ Main:
 	
 	rts
 
-	incdir  "dh1:own/demo/repository/replay/"
+	incdir  "dh1:amiga-playground/replay/"
 	include	"pt2.3a_replay_cia.s"	
 	
 	
@@ -118,7 +118,7 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 
 MT_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
+	incdir  "dh1:amiga-playground/resources/mod/"
 	incbin	"mod.broken"
 
 	

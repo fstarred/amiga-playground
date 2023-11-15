@@ -67,13 +67,6 @@ WAITVB2 MACRO
 	beq.s   \1
 	ENDM
 
-BLTWAIT	MACRO
-	tst DMACONR(a5)			;for compatibility
-\1
-	btst #6,DMACONR(a5)
-	bne.s \1
-	ENDM
-
 LMOUSE	MACRO
 	btst	#6,$bfe001	; check L MOUSE btn
 	bne.s	\1
@@ -85,26 +78,21 @@ RMOUSE	MACRO
 	ENDM
 
 START:
+
     	move.l  #SCREEN-2,d0  ; point to bitplane
     	lea BPLPOINTERS,a1  ; 
-   	moveq   #bpls-1,d1  ; 2 BITPLANE
-POINTBP:
+
     	move.w  d0,6(a1)    ; copy low word of pic address to plane
     	swap    d0          ; swap the the two words
    	move.w  d0,2(a1)    ; copy the high word of pic address to plane
-    	swap    d0          ; swap the the two words
 
-	add.l   #ScrBpl*h,d0      
-			
-	addq.w  #8,a1
-                	
-	dbra    d1,POINTBP
-	
 	move.w  #DMASET,$dff096     ; enable necessary bits in DMACON
 	move.w  #INTENASET,$dff09a     ; INTENA
     
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
-   	move.w  #0,$dff088      ; COPJMP1 activate copperlist
+   	move.w  d0,$dff088      ; COPJMP1 activate copperlist
+   	move.w	#0,$dff1fc	; FMODE - BLP32
+   	move.w	#$c00,$dff106	; BPLCON3 - default
 	
 	lea	TEXT(PC),a0	; let a0 point to text to print
 	lea	SCREEN,a3	; let a3 point to BITPLANE
@@ -124,6 +112,14 @@ WaitRm:
 	RMOUSE WaitRm
 	
 	LMOUSE Main
+
+	move.l	OldCop(PC),$dff080
+	move.w	d0,$dff088
+
+	move.l	4.w,a6
+	jsr	-$7e(a6)
+	move.l	gfxbase(PC),a1
+	jsr	-$19e(a6)
 
 	rts		; exit
 
@@ -256,7 +252,6 @@ print_char:
 	dbra	d3,print_row	; cycle x LINE_COUNT
 
 	rts
-
 	
 TEXT:		
 	;tens	 0        1         2         3         4
@@ -294,8 +289,7 @@ TEXT:
 		
 	EVEN	
 
-	
-*****************************************************************************
+**********************************************************************	
 
 	SECTION	GRAPHIC,DATA_C
 
@@ -321,18 +315,14 @@ OWNBPLCON1:
 	dc.w	$100,bpls*$1000+$200	; bplcon0 - bitplane hires
 
 
-
 BPLPOINTERS:
-	dc.w	$e0,$0000,$e2,$0000	; BPL0PT
+	dc.w	$e0,$0	;	BPL0PT
+	dc.w	$e2,$0	;	BPL0PT
 
 	dc.w	$180,$103	; color background
 	dc.w	$182,$4ff	; color text
 
 	dc.w	$FFFF,$FFFE	; End of copperlist
-
-*****************************************************************************
-
-	SECTION	Data,DATA_C
 
 
 FONT:

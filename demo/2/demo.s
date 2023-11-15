@@ -46,11 +46,11 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
+	incdir	"dh1:amiga-playground/startup/borchen/"
 	include	"startup.s"	; 
-	incdir	"dh1:own/demo/repository/shared/"	
+	incdir	"dh1:amiga-playground/shared/"
 	include "hardware/custom.i"
-	incdir  "dh1:own/demo/repository/replay/"
+	incdir  "dh1:amiga-playground/replay/"
 	include "pt3.0b_replay_cia.s"   	
 *****************************************************************************
 
@@ -132,7 +132,9 @@ POINTBP:
 	move.w  #INTENASET,$dff09a     ; INTENA
     
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
-   	move.w  #0,$dff088      ; COPJMP1 activate copperlist
+	moveq	#0,d0
+   	move.w  d0,$dff088      ; COPJMP1 activate copperlist
+   	move.w	d0,$dff1fc	; FMODE - BLP32
 	
 	bsr.w	pt_init
 
@@ -787,10 +789,10 @@ TEXT_COLOR:
 
 	SECTION	Data,DATA_C
 LOGO:
-	incdir	"dh1:own/demo/repository/resources/images/"
+	incdir	"dh1:amiga-playground/resources/images/"
 	incbin	"logo_SM_128_80_4.raw"
 FONT:
-	incdir  "dh1:own/demo/repository/resources/fonts/"
+	incdir  "dh1:amiga-playground/resources/fonts/"
 	;incbin  "32x32-FL.raw"
 	incbin  "32x32-FH.raw"
 
@@ -799,7 +801,7 @@ BAR:
 	dc.w	%1010101000000000, %1010101000000000, %1010101000000000, %1010101000000000
 
 PT_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
+	incdir  "dh1:amiga-playground/resources/mod/"
 	incbin  "mod.broken_ext"
     
 	SECTION	Screen,BSS_C	

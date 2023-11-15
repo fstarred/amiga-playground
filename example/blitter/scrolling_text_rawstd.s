@@ -1,14 +1,3 @@
-*****************************************************************************
-*									    *
-*    									    *
-*									    *
-*    				 					    *
-*    									    *
-*    									    *
-*    									    *
-*    									    *
-*									    *
-*****************************************************************************
 
 	SECTION Code,CODE
 
@@ -135,7 +124,9 @@ POINTBP:
 	move.w  #INTENASET,$dff09a     ; INTENA
     
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
-   	move.w  #0,$dff088      ; COPJMP1 activate copperlist
+	moveq	#0,d0
+   	move.w  d0,$dff088      ; COPJMP1 activate copperlist
+   	move.w	d0,$dff1fc	; FMODE - BLP32
 
 	lea	$dff000,a5
 	lea	TEXT(PC), a0

@@ -9,7 +9,7 @@
 ; attached with bblocktrd code
 ; note: all addresses must be relative referenced (i.e. with PC)
 
-;Standalone	; left mouse change bar color, right mouse exit
+Standalone	; left mouse change bar color, right mouse exit
 
 OldOpenLibrary = -408
 CloseLibrary = -414
@@ -146,7 +146,10 @@ START:
 
 	LEA	COPPERLIST(PC),A0	
 	MOVE.L	A0,$80(A6)		; write our copperlist to COP1 loc reg
-	MOVE.W	$88(A6),D0		; Launch COPJMP1
+	MOVEQ	#0,D0
+	MOVE.W	D0,$88(A6)		; Launch COPJMP1
+	MOVE.W	D0,$1FC(A6)		; FMODE - BLP32
+	MOVE.W	#$C00,$106(A6)
 
 ;--- Set Dma ---
 
@@ -176,7 +179,7 @@ START:
 	MOVE.W	D0,$96(A6)		; restore original DMACON
 
 	MOVE.L	OldCopper(PC),$80(A6)	; restore original COPPERLIST
-	CLR.W	$88(A6)			; activate original COPPERLIST
+	MOVE.W	D0,$88(A6)		; activate original COPPERLIST
 
 	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
 

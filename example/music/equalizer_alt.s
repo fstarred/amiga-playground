@@ -2,11 +2,11 @@
 	SECTION Code,CODE
 
 *****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
+	incdir	"dh1:amiga-playground/startup/borchen/"
 	include	"startup.s"
-	incdir	"dh1:own/demo/repository/shared/"	
+	incdir	"dh1:amiga-playground/shared/"	
 	include "hardware/custom.i"
-	incdir  "dh1:own/demo/repository/replay/"
+	incdir  "dh1:amiga-playground/replay/"
 	include	"PT3.0b_replay_cia.s"
 *****************************************************************************
 
@@ -117,7 +117,9 @@ POINTBP:
 	move.w  #INTENASET,$dff09a     ; INTENA
     
 	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
-   	move.w  #0,$dff088      ; COPJMP1 activate copperlist
+	moveq	#0,d0
+   	move.w  d0,$dff088      ; COPJMP1 activate copperlist
+   	move.w	d0,$dff1fc	; FMODE - BLP32
 	
 	bsr.w   pt_init
 	
@@ -299,7 +301,7 @@ BAR:
 	SECTION Music,DATA_C
 
 PT_DATA:
-	incdir  "dh1:own/demo/repository/resources/mod/"
+	incdir  "dh1:amiga-playground/resources/mod/"
 	incbin  "mod.broken"
 
 	

@@ -14,10 +14,9 @@
 
 
 *****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
-	include	"startup.s"	; 
-	incdir	"dh1:own/demo/repository/shared/"	
-	include "hardware/custom.i"
+	incdir	"dh1:amiga-playground"
+	include	"/startup/borchen/startup.s"	; 
+	include "/shared/hardware/custom.i"
 *****************************************************************************
 
 		;5432109876543210

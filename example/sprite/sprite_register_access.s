@@ -58,7 +58,7 @@ wbl = 303
 
 	
 ;*****************************************************************************
-	incdir	"dh1:own/demo/repository/startup/borchen/"
+	incdir	"dh1:amiga-playground/startup/borchen/"
 	include	"startup.s"	; 
 ;*****************************************************************************
 
@@ -113,7 +113,9 @@ POINTBP:
 	move.w  #INTENA,$dff09a		; INTENA
 	
 	move.l	#COPPERLIST,$dff080	; COP1LCH set custom copperlist
-	move.w	#0,$dff088		; COPJMP1 activate copperlist
+	moveq	#0,d0
+	move.w	d0,$dff088		; COPJMP1 activate copperlist
+	move.w	d0,$dff1fc		; FMODE - BLP32
 	
 Main:
 	WAITVB	Main

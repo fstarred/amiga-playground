@@ -122,6 +122,9 @@ START:
 
 	MOVE.W	#DMASET,$96(A6)		; set bits of DMACON state
 	MOVE.L	#COPLIST,$80(A6)	; set custom COPPERLIST
+	MOVEQ	#0,D0
+	MOVE.W	D0,$88(A6)		; activate COPLIST
+	MOVE.W	D0,$1FC(A6)		; FMODE - BPL3
 
 ;--- Program Interrupt ---
 
@@ -164,7 +167,7 @@ LOOP:
 ;--- Restore old Copper ---
 
 	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
-	CLR.W	$88(A6)			; activate original COPPERLIST
+	MOVE.W	D0,$88(A6)		; activate original COPPERLIST
 
 ;--- Restore old Intreq ---
 

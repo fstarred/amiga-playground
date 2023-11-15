@@ -78,9 +78,9 @@ RMOUSE  MACRO
 
     
 *****************************************************************************
-    incdir  "dh1:own/demo/repository/startup/borchen/"
+    incdir  "dh1:amiga-playground/startup/borchen/"
     include "startup.s" ; 
-    incdir  "dh1:own/demo/repository/replay/"
+    incdir  "dh1:amiga-playground/replay/"
     include "pt2.3a_replay_cia.s"   
 *****************************************************************************
 
@@ -126,7 +126,9 @@ POINTBP:
     move.w  #INTENA,$dff09a     ; INTENA
     
     move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
-    move.w  #0,$dff088      ; COPJMP1 activate copperlist
+    moveq   #0,d0
+    move.w  d0,$dff088		; COPJMP1 activate copperlist
+    move.w  d0,$dff1fc		; FMODE - BPL32
 
     bsr.w   SetCIAInt
     bsr mt_init
@@ -1905,7 +1907,7 @@ frame8c:
 
     
 FONT:
-    incdir  "dh1:own/demo/repository/resources/fonts/"
+    incdir  "dh1:amiga-playground/resources/fonts/"
     incbin  "16X16-F2_944_16_2.blt.raw"
     
 *****************************************************************************
@@ -1913,7 +1915,7 @@ FONT:
 	SECTION Music,DATA_C
 	
 MT_DATA:
-    incdir  "dh1:own/demo/repository/resources/mod/"
+    incdir  "dh1:amiga-playground/resources/mod/"
     incbin  "mod.towards"
 
 
