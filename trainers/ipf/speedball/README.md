@@ -1,9 +1,10 @@
 # Speedball trainer
 ## INFO
 Format: **NDOS**
+
 Trainer menu is written on sector 4, size 3 (max 1536 KB)
 
-Had some difficult on searching for the right place because I was not able to write on further sectors (maybe due to disk format used?)
+I have faced some difficulties while trying to write the trainer on further sectors (maybe due to disk format used?)
 
 The _JMP DoIo_ instruction was replaced with _JSR DoIo_ in order to load game code to a specific address and modify easily. 
 ```
