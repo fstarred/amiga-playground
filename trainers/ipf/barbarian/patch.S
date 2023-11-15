@@ -21,8 +21,6 @@ DEBUG	EQU 2			; FOR DEBUG
 
 Mode=PROD	 		; 0=Prod,1=TrainerMenu only,2=Debug
 
-SPARE_MEM = $C0
-
 SW1_MAXVALUE = 12
 SW2_MAXVALUES = 2
 
@@ -93,6 +91,7 @@ BLTWAIT	MACRO
 	bne.s \1
 	ENDM
 
+	SECTION	MAIN,CODE_P
 
 START:
 
@@ -106,16 +105,20 @@ START:
 	
 	RTS
 
-
 PATCH_BEGIN:
 	MOVE.L	(SP),STACK_ADDR_BACK		; store jsr address
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 	LEA	STACK_ADDR_BACK(PC),A0
 	SUBQ.L	#6,(A0)				; fix jsr address
-	MOVE.L	HUNK_ADDRESS,A0
+	MOVE.L	InterKbdPtr,A3
+	MOVE.L	(HACK_ADDRESS-INTERKBD)(A3),A0
+	MOVE.L	A0,A2
+	MOVE.L	(HUNK_ADDRESS-HACK_INIT_SCENARIO)(A0),A0
+	MOVE.L	A0,A1
+	MOVE.W	#$4EB9,D1			; jsr opcode
 	ADD.L	#$4DD0,A0
-	MOVE.W	#$4EB9,(A0)+			; jsr opcode
-	MOVE.L	#SPARE_MEM,(A0)+		; hook to init scenario
+	MOVE.W	D1,(A0)+			
+	MOVE.L	A2,(A0)+			; hook to init scenario
 
 	MOVE.L	#$4E714E71,D0
 	MOVE.L	D0,(A0)+
@@ -125,18 +128,17 @@ LOAD_GAME:
    	MOVE.L	STACK_ADDR_BACK(PC),A0
 	MOVE.W	#$4E75,(A0)+			; restore original opcodes
 	MOVE.L	#$2E7A0BE6,(A0)			; restore original opcodes
-	MOVE.B	SPARE_MEM+(BUTTONS-HACK_INIT_SCENARIO)+2,D1
+	
+	TST.B	(BUTTONS-HACK_INIT_SCENARIO+2)(A2)
 	BEQ.B	.EXIT_PATCH
-	MOVE.L	InterKbdPtr,$68.W
-	MOVE.L	HUNK_ADDRESS,A0
-	ADDA.L	#$6A34,A0
-	MOVE.W	#$4EB9,(A0)+
-	MOVE.L	#SPARE_MEM+(INIT_LEVEL-HACK_INIT_SCENARIO),(A0)+
-	MOVE.W	D0,(A0)
+	MOVE.L	A3,$68.W
+	ADDA.L	#$6A34,A1
+	MOVE.W	D1,(A1)+
+	MOVE.L	A2,A0
+	ADDA.L	#INIT_LEVEL-HACK_INIT_SCENARIO,A0
+	MOVE.L	A0,(A1)+
+	MOVE.W	D0,(A1)
 
-	REPT	20
-	NOP
-	ENDR
 .EXIT_PATCH
 	MOVEM.L (SP)+,D0-D7/A0-A6
 	MOVE.L	STACK_ADDR_BACK(PC),(SP)	; back to original address
@@ -180,6 +182,8 @@ BUTTONS:
 OPPONENT_START:
 	DC.L	0
 SCENARIO_START:
+	DC.L	0
+HUNK_ADDRESS:
 	DC.L	0
 END_HACK_INIT_SCENARIO
 
@@ -551,21 +555,27 @@ LOADGAME:
 
 	MOVE.L	D0,A3
 	MOVE.L	D0,HUNK_ADDRESS
-	
-	LEA 	SPARE_MEM,A1
-	LEA 	HACK_INIT_SCENARIO(PC),A2
-	MOVEQ	#(END_HACK_INIT_SCENARIO-HACK_INIT_SCENARIO)-1,D0
-.COPY_PATCH:
-	MOVE.B	(A2)+,(A1)+
-	DBF	D0,.COPY_PATCH
-	
-	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; byte size to allocate
+
+	MOVE.L	#(END_HACK_INIT_SCENARIO-HACK_INIT_SCENARIO),D0	; byte size to allocate
 	
 	MOVEQ	#0,D1            	; allocate the best available memory
 	
 	MOVE.L	A0,-(SP)		; preserve A0 after allocMem call
 	
 	MOVE.L	$4.W,A6
+	JSR	AllocMem(A6)         	; Jump to subroutine AllocMem in exec.library
+	
+	LEA 	HACK_INIT_SCENARIO(PC),A1
+	MOVE.L	D0,A2            	; put address of allocated memory stored in d0 into a2
+	MOVE.L	D0,HACK_ADDRESS
+	
+	MOVEQ	#(END_HACK_INIT_SCENARIO-HACK_INIT_SCENARIO)-1,D0
+.COPY_PATCH:
+	MOVE.B	(A1)+,(A2)+
+	DBF	D0,.COPY_PATCH
+	
+	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; byte size to allocate
+	
 	JSR	AllocMem(A6)         	; Jump to subroutine AllocMem in exec.library
 	
 	MOVE.L	(SP)+,A0		; restore previous A0 value
@@ -727,20 +737,20 @@ INTERKBD:
 	MOVE.B	D0,D1			; copy key value to d1
 	SUB.B	#$56,D1     		; 
 	CMP.B	#2,D1
-	BNE.B	.NOTF8    		; if not F10 pressed - goto exit
+	BNE.B	.NOTF9    		; if not F10 pressed - goto exit
 ;	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
 	BRA.B	HANDSHAKE
-.NOTF8
+.NOTF9
 	BHI.B	HANDSHAKE
 	LSL.B	#2,D1
-	LEA	SPARE_MEM+(OPPONENT_START-HACK_INIT_SCENARIO),A0
-	MOVE.L	(A0,D1.W),D0
+	MOVE.L	HACK_ADDRESS(PC),A0
+	MOVE.L	(OPPONENT_START-HACK_INIT_SCENARIO)(A0,D1.W),D0
 	CMP.B	#7,D0
 	BNE.B	.NOTMAX
 	SUBQ.B	#8,D0
 .NOTMAX
 	ADDQ.B	#1,D0
-	MOVE.L	D0,(A0,D1.W)	
+	MOVE.L	D0,(OPPONENT_START-HACK_INIT_SCENARIO)(A0,D1.W)	
 HANDSHAKE:
 	BSET.B	#6,$0E00(A5)		; CIAA cra - SPMODE output
 	
@@ -761,12 +771,11 @@ HANDSHAKE:
 	MOVEM.L (A7)+,D0-D1/A0/A5-A6
 JMP_OLD_INTER:
 	JMP	$0
+HACK_ADDRESS:
+	DC.L	0
 END_INTERKBD
 
 ;*** DATA AREA ***
-
-HUNK_ADDRESS:
-	DC.L	0
 
 filename:
 	dc.b	'df0:main',0
@@ -822,13 +831,8 @@ TEXTPTR
 
 FONT:
 	INCBIN	"/TRAINERS/FONT"
-	
-;*****************************
-;*			     *
-;*      COPPER1 PROGRAM      *
-;*			     *
-;*****************************
 
+	
 	SECTION	Copper,DATA_C
 
 COPLIST:
@@ -858,12 +862,6 @@ BPLPOINTERS:
 	DC.W	$e507, $fffe
 
 	DC.L	$FFFFFFFE
-
-;*****************************
-;*			     *
-;*      SCREEN DATA AREA     *
-;*			     *
-;*****************************
 
 	SECTION	Screen,BSS_C
 
