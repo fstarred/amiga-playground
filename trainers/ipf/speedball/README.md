@@ -35,3 +35,13 @@ I had to deal with STACK in order to make it jump to trainer address and then to
 	MOVE.L	A5,-(SP)			; store alloc.mem to sp
 
 ```
+
+Here we can call trainer + patch code
+
+```
+DO_TRAINER:
+	NOP
+	JSR	TRAINER_ADDRESS		; jmp to trainer menu
+	JSR	TRAINER_ADDRESS+2	; jmp to patch code
+	RTS				; rts to allocated mem
+```
