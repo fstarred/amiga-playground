@@ -1,7 +1,7 @@
 ***************************************
 *
 *
-*	 Speedball Trainer
+*	 Deflektor Trainer
 *	    trainer part
 *	Original IPF, Tosec 2012-04-10
 *
@@ -13,7 +13,7 @@
 SECTORS=3
 DEST_SECTOR=$800
 
-;WriteFlag
+WriteFlag
 
 	IFD WriteFlag
 	AUTO	WS\START\DEST_SECTOR/$200\SECTORS\
@@ -475,7 +475,8 @@ MENUTEXT:
 	DC.B	$FF
 SCROLLINGTEXT:
 	DC.B	'*** DEFLEKTOR (ORIGINAL) TRAINER '  
-	DC.B	'-  ',0
+	DC.B	' - TESTED ON A500 512KB/1MB '
+	DC.B	' - WON''T WORK ON A1200 ',0
 COORDS:		; switch trainer coordinate values
 	DC.B	30,13
 	DC.B	30,17
