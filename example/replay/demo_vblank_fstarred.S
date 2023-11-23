@@ -1,8 +1,6 @@
 *************************************************
 *						*
-*						*
 *	System OFF with VBLANK Interrupt	*
-*						*
 *						*
 *************************************************
 
@@ -68,6 +66,8 @@ INTENA=	%1100000000100000 ($C020)
 ;	1: Disk block finished
 ;	0: Serial port transmit buffere empty
 
+	INCDIR	"dh1:amiga-playground"
+
 START:
 
 ;--- Store Old Register Settings ---
@@ -93,10 +93,13 @@ START:
 
 ;--- Set Register Settings ---
 
-	BSR	WAITVB			; Wait for VBLANK
+	BSR.W	WAITVB			; Wait for VBLANK
 
 	MOVE.W	#DMASET,$96(A6)		; set bits of DMACON state
 	MOVE.L	#COPPERLIST, $80(A6)	; set custom COPPERLIST
+	MOVEQ	#0,D0
+	MOVE.W	D0,$88(A6)		; activate COPPERLIST
+	MOVE.W	D0,$1FC(A6)		; FMODE - BPL32
 
 ;--- Program Interrupt ---
 
@@ -105,12 +108,15 @@ START:
 	MOVE.L	#INTER,$6C.W		; set interrupt pointer
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
 	
+	BSR.W	MT_INIT
 
 LEFTMOUSE
 	BTST	#6,$BFE001
 	BNE.S	LEFTMOUSE
 
 **** EXIT - RESTORE OLD REG SETTINGS ****
+
+	BSR.W	MT_END
 
 	LEA	$DFF000,A6
 
@@ -125,7 +131,7 @@ LEFTMOUSE
 	MOVE.W	D0,$96(A6)		; restore original DMACON
 
 	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
-	CLR.W	$88(A6)			; activate original COPPERLIST
+	MOVE.W	D0,$88(A6)		; activate original COPPERLIST
 
 	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
 
@@ -151,9 +157,18 @@ INTER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 	LEA	$DFF000,A6	
 
+	BTST.B	#5,$1F(A6)
+	BEQ.B	EXIT_INTER
+
+	MOVE.W	#0,$180(A6)
+	BSR.W	MT_MUSIC
+
+EXIT_INTER:
 	MOVE.W	#$4020,$9C(A6)		; clear interrupt request
 	MOVEM.L	(SP)+,D0-D7/A0-A6
 	RTE
+
+	INCLUDE	"/replay/protracker_v2.3a.s"
 	
 
 GFXNAME:
@@ -168,8 +183,10 @@ OldDma:
 OldInter:
 	DC.L	0
 
+	SECTION DataCopper,DATA_C
 
-	SECTION Copper,DATA_C
+MT_DATA:
+	INCBIN	"/resources/mod/mod.towards"
 
 COPPERLIST:
 	DC.L	$01800000

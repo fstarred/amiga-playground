@@ -124,7 +124,7 @@ START:
 	MOVE.L	#COPLIST,$80(A6)	; set custom COPPERLIST
 	MOVEQ	#0,D0
 	MOVE.W	D0,$88(A6)		; activate COPLIST
-	MOVE.W	D0,$1FC(A6)		; FMODE - BPL3
+	MOVE.W	D0,$1FC(A6)		; FMODE - BPL32
 
 ;--- Program Interrupt ---
 
