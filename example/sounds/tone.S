@@ -52,7 +52,7 @@ STOP:
 	MOVE	#1,$96(A1)			; turn off tone
 	RTS
 
-TABLE:  				; 16 bit sample - TRIANGLE
+TABLE:  				; 16 byte sample - TRIANGLE
 	DC.B	0, 32, 64, 96, 128, 96, 64, 32
 	DC.B	0,-32,-64,-96,-127,-96,-64,-32
 TABLE_END

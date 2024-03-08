@@ -201,12 +201,12 @@ END_INTER
 	RTE
 
 
-SINE:  				; 16 bit sample - SINE
+SINE:  				; 16 byte sample - SINE
 	DC.B	0, 39, 75, 103, 127, 103, 75, 39
 	DC.B	0,-39,-75,-103,-127,-103,-75,-39
 SINE_END
 
-TRIANGLE:  			; 16 bit sample - TRIANGLE
+TRIANGLE:  			; 16 byte sample - TRIANGLE
 	DC.B	0, 32, 64, 96, 128, 96, 64, 32
 	DC.B	0,-32,-64,-96,-127,-96,-64,-32
 TRIANGLE_END
