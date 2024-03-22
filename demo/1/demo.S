@@ -9,6 +9,12 @@
 *
 *********************************************
 
+Yes	equ	001
+No	equ	000
+
+Music	equ	Yes
+
+
     SECTION Code,CODE   ; This command will run the below code
                 ; on FAST RAM (if enough) or CHIP RAM
 
@@ -80,8 +86,12 @@ RMOUSE  MACRO
 *****************************************************************************
     incdir  "dh1:amiga-playground/startup/borchen/"
     include "startup.s" ; 
+
+	IFNE	Music
     incdir  "dh1:amiga-playground/replay/"
     include "pt2.3a_replay_cia.s"   
+
+	ENDIF
 *****************************************************************************
 
 WAITVB  MACRO
@@ -99,7 +109,7 @@ WAITVB2 MACRO
     ENDM
 
     
-Start:  
+START:  
 ;   bra.s   main
     move.l  #SCREEN,d0  ; point to bitplane
     lea BPLPOINTERS,a1  ; 
@@ -130,9 +140,14 @@ POINTBP:
     move.w  d0,$dff088		; COPJMP1 activate copperlist
     move.w  d0,$dff1fc		; FMODE - BPL32
 
-    bsr.w   SetCIAInt
-    bsr mt_init
-    st  mt_Enable
+	IFNE	Music
+
+	bsr.w   SetCIAInt
+	bsr mt_init
+	st  mt_Enable
+
+	ENDIF
+	
 Main:
     WAITVB  Main
 
@@ -154,10 +169,14 @@ WaitRm:
     RMOUSE WaitRm
 
     LMOUSE Main
-    
+
+	IFNE Music    
+	
     BSR mt_end
     BSR ResetCIAInt
     
+    	ENDIF
+    	
     rts
 
     
@@ -1912,12 +1931,15 @@ FONT:
     
 *****************************************************************************
 
+	IFNE	Music
+	
 	SECTION Music,DATA_C
 	
 MT_DATA:
     incdir  "dh1:amiga-playground/resources/mod/"
     incbin  "mod.towards"
 
+	ENDIF
 
 
     SECTION Screen,BSS_C    
@@ -1925,4 +1947,8 @@ MT_DATA:
 SCREEN:
     ds.b    40*256*bpls ; 
 
-    end
+    END
+
+	PRINTT	"PROG SIZE.."
+	PRINTV	END-START	
+
