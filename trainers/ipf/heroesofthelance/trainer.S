@@ -485,21 +485,22 @@ STAR_M_COL = $0999
 STAR_F_COL = $0eee
 
 move_stars:
+
     addq.b  #1,star_move_progress
     cmpi.b  #STAR_MOVE_DELAY,star_move_progress
     bne exit_move_stars 
     
-    lea SPRITEPOINTERS,a1   ; SPRITE pointer
+    lea SPRITEPOINTERS(PC),a1   ; SPRITE pointer
     
-    move.l  #STARFIELD_SPRITE,d0        
-    addi.w   #8*(5-1),a1         
+    lea  STARFIELD_SPRITE(PC),a0
+    move.l  a0,d0
+    addi.w  #8*(5-1),a1         
     move.w  d0,6(a1)    
     swap    d0              
     move.w  d0,2(a1)       
 
-    lea STARFIELD_SPRITE,a0     ; let a0 point to SPRITE
+    lea	    STARFIELD_SPRITE_END(PC),a1
 
-    
 ; this routine process 3 stars each loop
 ; 1 - medium speed
 ; 2 - slow speed
@@ -536,7 +537,7 @@ move_star_fs:
     addq.b  #2,1(A0)    ; move fast sprite
     addq.w  #8,A0       ; point to next sprite
 
-    cmp.l   #STARFIELD_SPRITE_END,A0    ; check if SPRITE_END reached
+    cmp.l   a1,a0    ; check if SPRITE_END reached
     bcs.s   move_loop   ; if lower repeat loop
     clr.b   star_move_progress
 exit_move_stars:
