@@ -13,10 +13,10 @@ LB_000C	LEA	$00000400,A7
 	MOVE.W	#$7FFF,$009A(A6)
 	LEA	LB_004A(PC),A0
 	LEA	$00000800,A1
-	MOVE.W	#$00FF,D0		; copy into $800 content
-LB_003E	MOVE.L	(A0)+,(A1)+             ; of LB_004A until the end
-	DBF	D0,LB_003E		; $BFC
-	JMP	$00000800		; jump into $800
+	MOVE.W	#$00FF,D0		; copy all the bootblock
+LB_003E	MOVE.L	(A0)+,(A1)+             ; content to address
+	DBF	D0,LB_003E		; $800 and then jump
+	JMP	$00000800		; on that location
 LB_004A	MOVE.W	#$0000,$0180(A6)	
 	MOVE.W	#$8210,$0096(A6)
 	JSR	LB_00BC(PC)
