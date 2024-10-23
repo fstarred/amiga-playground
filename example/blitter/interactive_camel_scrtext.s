@@ -94,9 +94,9 @@ WAITVB2 MACRO
 
 BLTWAIT	MACRO
 	tst DMACONR(a5)			;for compatibility
-\1
+.WAIT
 	btst #6,DMACONR(a5)
-	bne.s \1
+	bne.s .WAIT
 	ENDM
 
 LMOUSE	MACRO
@@ -325,7 +325,7 @@ noreset
 
 	move.l  a0, text_offset_pointer
 	
-	BLTWAIT BWT1
+	BLTWAIT
 
 	move.l	#$09f00000,BLTCON0(a5)	; BLTCON0: A-D
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM + BLTALWM 
@@ -359,7 +359,7 @@ scroll_text:
 
 	move.l	#BUFFER+(FONT_HEIGHT*42*bpls)-2,d0 ; source and dest address
 
-	BLTWAIT BWT2
+	BLTWAIT
 
 	move.l	#$29f00002,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
 					; 1 pixel shift, LF = F0
@@ -406,7 +406,7 @@ copy_text_buffer_to_screen:
 ;	move.w	d0, d1
 ;	add.w	d1, d1	; w_x0 in bytes
 ;	
-;	BLTWAIT BWT8
+;	BLTWAIT
 ;	
 ;	move.l	#$09f00000, BLTCON0(a5)	; BLTCON0+BLTCON1 (A-D) 
 ;	move.l	#$ffffffff, BLTAFWM(a5)	; BLTAFWM / BLTALWM	
@@ -440,7 +440,7 @@ copy_text_buffer_to_screen:
 ;	moveq	#ScrBpl+2, d2
 ;	sub.w	d0, d2
 ;
-;	BLTWAIT BWT9
+;	BLTWAIT
 ;	
 ;	move.w	d2, BLTAMOD(a5)
 ;	subq	#2, d2
@@ -465,7 +465,7 @@ copy_text_buffer_to_screen:
 	
 copy_whole_text:
 
-	BLTWAIT BWT3
+	BLTWAIT
 
 	move.l	#$09f00000,BLTCON0(a5)	; BLTCON0+BLTCON1 (A-D) 
 	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
@@ -669,7 +669,7 @@ clear_area:
 	tst.w	d3
 	beq	clear_text_sine_involved
 	
-	BLTWAIT BWT4	
+	BLTWAIT
 	; clear below text area
 		
 	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
@@ -697,7 +697,7 @@ clear_text_sine_involved:
 	add.w	d0, d0			; in bytes
 	lea	(a0,d0.w), a0	
 	
-	BLTWAIT BWT5	
+	BLTWAIT
 	; clear text where sine is involved	
 	
 	move.l	#$01000000,BLTCON0(a5)	; BLTCON0 / BLTCON1 delete (only D)
@@ -756,7 +756,7 @@ make_camel:
 	move.w	s_x2(pc), d4	; move s_x2 to d4		
 	move.w	#$C000, d5
 	
-	BLTWAIT BWT7
+	BLTWAIT
 
 	move.w	#$ffff, BLTAFWM(a5)	; BLTAFWM
 
@@ -785,7 +785,7 @@ start_slice:
 	move.l	a2, a3
 	add.w	d0, a3
 	
-	BLTWAIT BWT6
+	BLTWAIT
 	move.w	d5, BLTALWM(a5)		; BLTALWM 
 	move.l	a1, BLTAPT(a5)		; BLTAPT  
 	move.l	a3, BLTCPT(a5)		; BLTCPT

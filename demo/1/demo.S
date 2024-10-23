@@ -64,20 +64,20 @@ wbl = 303
 
 BLTWAIT MACRO
     tst $dff002 ;for compatibility
-\1
+.WAIT
     btst #6,$dff002 ; DMACONR
-    bne.s \1
+    bne.s .WAIT
     ENDM
 
 LMOUSE  MACRO
-;\1
+
     btst    #6,$bfe001  ; check L MOUSE btn
     bne.s   \1
     ENDM
 
 
 RMOUSE  MACRO
-;\1
+
     btst    #2,$dff016  ; check L MOUSE btn
     beq.s   \1
     ENDM
@@ -690,7 +690,7 @@ print_char:
 
     add.l   #FONT,a2    ; retrieve the char we need
 
-    BLTWAIT BWT1
+    BLTWAIT
     
     move.l  #$09f00000,$dff040  ;A->D copy, no shifts, ascending mode
     move.l  #$ffffffff,$dff044  ;no masking of first/last word
@@ -1002,7 +1002,7 @@ exit_fade_out_quick:
     rts
 
 clear_text:
-    BLTWAIT BWT2
+    BLTWAIT
         
     move.w  #$0100,$dff040   ; BLTCON0: enable destination D (only write)
     move.w  #$0000,$dff042   ; BLTCON1: disabled
@@ -1033,7 +1033,7 @@ clear_text:
 ;   
 ;end_fade_out:
 ;   ; clear text routine
-;   BLTWAIT BWT3
+;   BLTWAIT
 ;       
 ;   move.w  #$0100,$dff040   ; BLTCON0: enable destination D (only write)
 ;   move.w  #$0000,$dff042   ; BLTCON1: disabled
