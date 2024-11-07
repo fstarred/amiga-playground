@@ -738,8 +738,6 @@ OldDma:
 	DC.W	0
 OldInter:
 	DC.L	0
-InterKbdPtr:
-	DC.L	0
 COORDS:		; switch trainer coordinate values
 	DC.B	30,14
 	DC.B	30,18
