@@ -3,7 +3,7 @@
 *	      STARRED MEDIASOFT			*
 *						*
 *	      Barbarian TRAINER			*
-*		VER 1.0 (2023)			*
+*		VER 1.1 (2024)			*
 *	 Original  (TOSEC 2012-04-10)		*
 *		Barbarian  IPF			*
 *						*
@@ -19,7 +19,7 @@ PROD	EQU 0			; FOR PRODUCTION
 MENU	EQU 1			; SHOW TRAINER MENU ONLY
 DEBUG	EQU 2			; FOR DEBUG
 
-Mode=1	 		; 0=Prod,1=TrainerMenu only,2=Debug
+Mode=0	 		; 0=Prod,1=TrainerMenu only,2=Debug
 
 SW1_MAXVALUE = 12
 SW2_MAXVALUES = 2
@@ -105,90 +105,125 @@ START:
 	
 	RTS
 
+; PLAYERS INIT ENERGY ORIGINAL CODE
+
+; 700c                     moveq #$0c,d0
+; 206c 29f0                movea.l (a4,$29f0),a0
+; 2140 0024                move.l d0,(a0,$0024)
+; 206c 29f4                movea.l (a4,$29f4),a0
+; 2140 0024                move.l d0,(a0,$0024)
+; 4e5d                     unlk.l a5
+
+; SCENARIO INIT ORIGINAL CODE
+
+; 7000                     moveq #$00,d0
+; 2940 28b0                move.l d0,(a4,$28b0)
+; 2940 0184                move.l d0,(a4,$0184)
+; 396c 0900 2962           move.w (a4,$0900),(a4,$2962)
+; 396c 0902 2964           move.w (a4,$0902),(a4,$2964)
+; 2940 2a80                move.l d0,(a4,$2a80)
+; 2940 2a92                move.l d0,(a4,$2a92)
+; 6028                     bra.b #$28
+
 PATCH_BEGIN:
 	MOVE.L	(SP),STACK_ADDR_BACK		; store jsr address
-	MOVEM.L	D0-D1/A0-A3,-(SP)
-	LEA	STACK_ADDR_BACK(PC),A0
-	SUBQ.L	#6,(A0)				; fix jsr address
-	MOVE.L	InterKbdPtr,A3
-	MOVE.L	(HACK_ADDRESS-INTERKBD)(A3),A0
-	MOVE.L	A0,A2
-	MOVE.L	(HUNK_ADDRESS-HACK_INIT_SCENARIO)(A0),A0
-	MOVE.L	A0,A1
-	MOVE.W	#$4EB9,D1			; jsr opcode
-	ADD.L	#$4DD0,A0
-	MOVE.W	D1,(A0)+			
-	MOVE.L	A2,(A0)+			; hook to init scenario
+	MOVEM.L	D0-D1/A2-A3,-(SP)
 
-	MOVE.L	#$4E714E71,D0
-	MOVE.L	D0,(A0)+
-	MOVE.L	D0,(A0)+	
-	MOVE.L	D0,(A0)
-LOAD_GAME:
-   	MOVE.L	STACK_ADDR_BACK(PC),A0
-	MOVE.W	#$4E75,(A0)+			; restore original opcodes
-	MOVE.L	#$2E7A0BE6,(A0)			; restore original opcodes
-	
-	TST.B	(BUTTONS-HACK_INIT_SCENARIO+2)(A2)
-	BEQ.B	.EXIT_PATCH
-	MOVE.L	A3,$68.W
-	ADDA.L	#$6A34,A1
-	MOVE.W	D1,(A1)+
-	MOVE.L	A2,A0
-	ADDA.L	#INIT_LEVEL-HACK_INIT_SCENARIO,A0
-	MOVE.L	A0,(A1)+
-	MOVE.W	D0,(A1)
+	MOVE.B	BUTTONS(PC),P1_ENERGY+1
+	MOVE.B	BUTTONS+1(PC),P2_ENERGY+1
 
+	LEA	FIXED_PATCH(PC),A2
+	MOVE.L	A1,A3
+	ADD.L	#$9C48,A3
+	MOVEQ	#(END_FIXED_PATCH-FIXED_PATCH)-1,D0
+.COPY_FIXED_PATCH
+	MOVE.B	(A2)+,(A3)+
+	DBF	D0,.COPY_FIXED_PATCH
+
+	MOVE.L	#$4E714E71,D1
+
+	MOVE.W	BUTTONS(PC),D0	
+	CMP.W	#$0C0C,D0
+	BEQ.W	.SCENARIO_TRAINER	
+
+; == ENERGY TRAINER ==
+
+	MOVE.L	A1,A3
+	ADD.L	#$4D8C,A3
+	MOVE.L	#$61004EC8,(A3)+		; BSR +$4EC8
+	MOVE.L	#$700C600A,(A3)+		; MOVEQ #$0C,D0
+						; BRA +$0A
+	MOVE.L	D1,(A3)+			; NOP x4
+	MOVE.W	D1,(A3)				; NOP
+		
+.SCENARIO_TRAINER:
+	MOVE.B	BUTTONS+2(PC),D0
+	BEQ	.LOAD_GAME
+
+	MOVE.L	A1,A3
+	ADD.L	#$69EE,A3
+	MOVE.W	#$7000,(A3)+			; MOVEQ #0,D0
+	MOVE.L	#$61003256,(A3)+		; BSR +$3256
+	MOVE.L	D1,(A3)				; NOP x2
+
+; -- HACK F7/F8 KEYS --
+
+	MOVE.W	#$32EA,$6982(A1)		; BRA +$32EA
+	MOVE.W	#$32E6,$6986(A1)		; BRA +$32E6
+
+.LOAD_GAME:
+   	MOVE.L	STACK_ADDR_BACK(PC),A2
+	MOVE.W	#$4E75,(A2)+			; restore original opcodes
+	MOVE.L	#$2E7A0BE6,(A2)			; restore original opcodes	
 .EXIT_PATCH
-	MOVEM.L (SP)+,D0-D1/A0-A3
+	MOVEM.L (SP)+,D0-D1/A2-A3
 	MOVE.L	STACK_ADDR_BACK(PC),(SP)	; back to original address
 	
 	RTS
 STACK_ADDR_BACK:
 	DC.L	0
-
-; WARN: do not use PC relative instructions
-; for addresses outside this area
-HACK_INIT_SCENARIO:
-; 700c     	moveq #$0c,d0
-; 206c 29f0	movea.l (a4,$29f0),a0
-; 2140 0024	move.l d0,(a0,$0024)		* p1 health
-; 206c 29f4	movea.l (a4,$29f4),a0
-; 2140 0024	move.l d0,(a0,$0024)		* p2 health
-.P1_HEALTH:
-	MOVE.L	A1,-(SP)
-	LEA	BUTTONS(PC),A1
-	MOVEQ	#0,D0
-	MOVE.B	(A1)+,D0			; p1 health
-	MOVEA.L	$29F0(A4),A0
-	MOVE.L	D0,$24(A0)			; p2 health
-	MOVEA.L	$29F4(A4),A0
-.P2_HEALTH:
-	MOVE.B	(A1),D0
-	MOVE.L	D0,$24(A0)
-	MOVE.L	(SP)+,A1
-	RTS
-; 2940 28b0		move.l d0,(a4,$28b0)
-; 2940 0184		move.l d0,(a4,$0184)
-INIT_LEVEL:
-	MOVE.L	SCENARIO_START(PC),$28B0(A4)
-	MOVE.L	OPPONENT_START(PC),$0184(A4)
-	RTS
 BUTTONS:
 	DC.B	SW1_VALUE
 	DC.B	SW1_VALUE
 	DC.B	SW2_VALUE
 	EVEN
-OPPONENT_START:
+FIXED_PATCH:
+; == SCENARIO INIT ==
+	MOVE.L	SCENARIO_VALUE(PC),$28B0(A4)
+	MOVE.L	ENEMY_VALUE(PC),$184(A4)
+	RTS
+; == ENERGY INIT ==
+P1_ENERGY:
+	MOVEQ	#$0C,D0
+	MOVEA.L	$29F0(A4),A0
+	MOVE.L	D0,$24(A0)
+P2_ENERGY:
+	MOVEQ	#$0C,D0
+	MOVEA.L	$29F4(A4),A0
+	MOVE.L	D0,$24(A0)
+	RTS
+; == SPECIAL KEYS ==
+	MOVEM.L	D0/D1/A0,-(SP)
+	SUB.W	#$56,D0
+	ASL.W	#2,D0
+	LEA.L	SCENARIO_VALUE(PC),A0
+	MOVE.L	0(A0,D0.W),D1
+	CMP.L	#7,D0
+	BNE.W	.ADD_1
+	SUBQ.W	#8,D1
+.ADD_1
+	ADDQ.W	#1,D1
+	MOVE.L	D1,0(A0,D0.W)
+	MOVEM.L	(SP)+,D0/D1/A0
+	DC.L	$6000CD4C		; BRA +$CD4C
+SCENARIO_VALUE:
 	DC.L	0
-SCENARIO_START:
+ENEMY_VALUE:
 	DC.L	0
-HUNK_ADDRESS:
-	DC.L	0
-END_HACK_INIT_SCENARIO
+END_FIXED_PATCH	
 
 SHOWTRAINER:
-;--- Start ---
+;	--- Start ---
 
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 
@@ -554,43 +589,6 @@ LOADGAME:
 	MOVE.L	D0,A0			;move address into a0
 
 	MOVE.L	D0,A3
-	MOVE.L	D0,HUNK_ADDRESS
-
-	MOVE.L	#(END_HACK_INIT_SCENARIO-HACK_INIT_SCENARIO),D0	; byte size to allocate
-	
-	MOVEQ	#0,D1            	; allocate the best available memory
-	
-	MOVE.L	A0,-(SP)		; preserve A0 after allocMem call
-	
-	MOVE.L	$4.W,A6
-	JSR	AllocMem(A6)         	; Jump to subroutine AllocMem in exec.library
-	
-	LEA 	HACK_INIT_SCENARIO(PC),A1
-	MOVE.L	D0,A2            	; put address of allocated memory stored in d0 into a2
-	MOVE.L	D0,HACK_ADDRESS
-	
-	MOVEQ	#(END_HACK_INIT_SCENARIO-HACK_INIT_SCENARIO)-1,D0
-.COPY_PATCH:
-	MOVE.B	(A1)+,(A2)+
-	DBF	D0,.COPY_PATCH
-	
-	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; byte size to allocate
-	
-	JSR	AllocMem(A6)         	; Jump to subroutine AllocMem in exec.library
-	
-	MOVE.L	(SP)+,A0		; restore previous A0 value
-	
-	MOVE.L	D0,A2            	; put address of allocated memory stored in d0 into a2
-	
-	MOVE.L	$68.W,JMP_OLD_INTER+2	; store original level 2 interrupt
-	MOVE.L	D0,InterKbdPtr		; store allocated memory pointer
-
-	LEA.L	INTERKBD(PC),A1     	
-	MOVE.W	#(END_INTERKBD-INTERKBD),D0	; Use d0 as a copyloop counter
-	
-.COPYINTER:
-	MOVE.B	(A1)+,(A2)+      	; copy interrupt level 2 into allocated mem
-	DBF	D0,.COPYINTER      	; if d0 > -1 goto copyloop
 	
 ;	ID
 ;	BEG>	A0+$04
@@ -716,55 +714,6 @@ OR_OPCODES_P2:
 	DC.L	$2E7A0BE6	; movea.l (pc,$0be6),a7
 END_OR_OPCODES_P2
 
-INTERKBD:
-	MOVEM.L	D0-D1/A0/A5-A6,-(SP)
-	LEA	$DFF000,A6		; base custom register in A6
-	LEA	$BFE001,A5		; base CIAA register in A5
-		
-	REPT	14
-	NOP
-	ENDR
-		
-	MOVE.B	$0C00(A5),D0  		; read a byte from CIAA sdr register
-	NOT.B	D0          		; negate a byte in D0
-	ROR.B	#1,D0       		; rotate right 1 bit
-
-	MOVEQ	#0,D1
-	MOVE.B	D0,D1			; copy key value to d1
-	SUB.B	#$56,D1     		; 
-	CMP.B	#2,D1
-	BNE.B	.NOTF9    		; if not F10 pressed - goto exit
-;	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
-	BRA.B	HANDSHAKE
-.NOTF9
-	BHI.B	HANDSHAKE
-	LSL.B	#2,D1
-	MOVE.L	HACK_ADDRESS(PC),A0
-	MOVE.L	(OPPONENT_START-HACK_INIT_SCENARIO)(A0,D1.W),D0
-	CMP.B	#7,D0
-	BNE.B	.NOTMAX
-	SUBQ.B	#8,D0
-.NOTMAX
-	ADDQ.B	#1,D0
-	MOVE.L	D0,(OPPONENT_START-HACK_INIT_SCENARIO)(A0,D1.W)	
-HANDSHAKE:
-	BSET.B	#6,$0E00(A5)		; CIAA cra - SPMODE output
-	
-	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
-.WAITLINES				; for the handshake
-	MOVE.B	$06(A6),D0		; some Amiga keyboards (i.e. A1200)
-.CHECKLINE				; requires more time than others
-	CMP.B	$06(A6),D0
-	BEQ.B	.CHECKLINE
-	DBF	D1,.WAITLINES
-
-	BCLR.B	#6,$0E00(A5)		; CIAA cra - SPMODE input
-
-	REPT	14
-	NOP
-	ENDR
-
-	MOVEM.L (A7)+,D0-D1/A0/A5-A6
 JMP_OLD_INTER:
 	JMP	$0
 HACK_ADDRESS:
