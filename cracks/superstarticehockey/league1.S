@@ -6,6 +6,13 @@
 *
 ***************************************
 
+; Novella Protection
+
+; just skip the part of the protection with 2 NOP
+
+; That's it !
+
+
 ; DISABLE ReqLibrary BEFORE RUN !!!
 
 	AUTO	RB	\df0:league1\$60000\$80000\
