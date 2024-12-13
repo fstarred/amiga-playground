@@ -1,0 +1,48 @@
+*********************************************
+*
+*
+*	TRACE BIT ENABLED EXAMPLE
+*
+*
+*********************************************
+
+; trace mode enabled mode
+;
+; WARN: don't run with ASM-One !!!
+;
+; try to debug with emulator and place a breakpoint at $30000
+
+START
+	MOVEM.L	D0-D7/A0-A6,-(SP)
+	JMP	PROGRAM
+PROGRAM	ORG	$30000
+	PEA	SUPERUSER(PC)
+	MOVE.L	(A7)+,$10.W
+	ILLEGAL			; THROW ILLEGAL EXCEPTION
+SUPERUSER 			; UNDER SUPERUSER MODE
+	PEA	EXITTRACEMODE(PC)
+	MOVE.L	(A7)+,$10.W	; ILLEGAL INSTRUCTION VECTOR
+	PEA	TVD(PC)
+	MOVE.L	(A7)+,$24.W	; TRACE VECTOR
+	EORI.W	#$8000,SR	; SET TRACE BIT
+.UNDERTRACEMODE
+	ANDI.W	#$DFFF,SR	; CLEAR S BIT AND RETURN TO USER MODE
+	MOVEQ	#0,D0
+	MOVEQ	#1,D1
+	MOVEQ	#2,D2
+	ILLEGAL
+EXITTRACEMODE
+	ANDI.W	#$1FFF,SR	; CLEAR T AND S BIT
+	NOP
+	NOP
+EXIT
+	MOVEM.L	(SP)+, D0-D7/A0-A6
+	RTS
+	
+TVD
+	MOVE.L	A0,-(SP)
+	MOVE.L	(SP)+,A0
+	RTE
+END
+
+
