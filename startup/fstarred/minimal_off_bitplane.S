@@ -26,7 +26,7 @@ CloseLibrary = -414
 
 ;DMACON     096      W     A D P   DMA control write (clear or set)
 ;DMACONR    002      R     A   P   DMA control (and blitter status) read
-DMASET=	%1000001110000000 ($8380)
+DMASET=	%1000001110000000
 ;	 fedcba9876543210
 
 ;	f: Set/Clear control bit
@@ -67,9 +67,8 @@ INTENA=	%1100000000100000 ($C020)
 ;	2: Reserved for software -initalited interrupt
 ;	1: Disk block finished
 ;	0: Serial port transmit buffere empty
-	
+
 	SECTION	PROGRAMCODE,CODE
-	
 START:
 
 ;--- Store Old Register Settings ---
@@ -107,6 +106,12 @@ START:
 	MOVE.L	#INTER,$6C.W		; set interrupt pointer
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
 	
+INIT
+	MOVE.L	#BITPLANE,D0		; point to bitplane data
+	LEA	BPLPOINTERS,A1		; point to BPL1PT register
+	MOVE.W	D0,6(A1)		; BPL1PTL
+	SWAP	D0
+	MOVE.W	D0,2(A1)		; BPL1PTH
 
 LEFTMOUSE
 	BTST	#6,$BFE001
@@ -174,9 +179,29 @@ OldInter:
 	SECTION COPPER,DATA_C
 
 COPPERLIST:
+
+	DC.W	$8E,$2C81	; DiwStrt
+	DC.W	$90,$2CC1	; DiwStop
+	DC.W	$92,$38		; DdfStart
+	DC.W	$94,$D0		; DdfStop
+	DC.W	$102,0		; BplCon1
+	DC.W	$104,0		; BplCon2
+	DC.W	$108,0		; Bpl1Mod
+	DC.W	$10A,0		; Bpl2Mod
+
+BPLPOINTERS:
+	DC.W	$E0,0,$E2,0	; BPL1PT
+	
+	DC.W	$100,$1200	; BPLCON0
+
 	DC.W	$0180,$000	; COLOR0
 	DC.W	$0182,$FFF	; COLOR1
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
+	
+	SECTION	BITPLANES,BSS_C
+	
+BITPLANE:
+	DS.B	40*256		; blank bitplane
 	
 END
 
