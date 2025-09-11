@@ -5,11 +5,12 @@ Amiga assembly code playground, it includes examples, simple demos, trainers, et
 ## Native tools
 
 * Asm-One (v1.02 / v1.20)
-* IFF Converter (KEFCON)
+* IFF-Converter (many versions were produced, they are more or less all good)
 
 ## External tools
 
-* XnConvert - an image converter
+* [XnConvert](https://www.xnview.com/en/xnconvert) - an image converter to multiple formats
+* [Amigeconv](https://github.com/tditlu/amigeconv) - a graphics converter for different Amiga bitplanes, chunky & palette formats
 
 ## How to run 
 
@@ -25,4 +26,3 @@ Amiga assembly code playground, it includes examples, simple demos, trainers, et
 * http://www.pjhutchison.org/emulation/AmigaAsmTutorial.txt
 * http://coppershade.org/
 * https://flashtro.com/category/source/ctsource/amigasources/
-* https://www.xnview.com/en/xnconvert/
