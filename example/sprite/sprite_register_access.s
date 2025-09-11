@@ -14,7 +14,7 @@
 	SECTION	Code,CODE	; This command will run the below code
 				; on FAST RAM (if enough) or CHIP RAM
 
-DMASET	= %1000001110100000
+DMASET	= %1000001110000000
 ;	  %-----axbcdefghij
 ;	a: Blitter Nasty
 ;	x: Enable DMA
