@@ -238,7 +238,39 @@ VSTOP
 SPRCTL
 	DC.B	$00
 
-	include "1a.S"	
+	dc.w $0000,$0000
+	dc.w $0000,$0000
+	dc.w $0007,$0018
+	dc.w $000F,$0071
+	dc.w $00EE,$0111
+	dc.w $01C3,$023C
+	dc.w $03C3,$047C
+	dc.w $0707,$08F8
+	dc.w $0887,$0778
+	dc.w $11F3,$0E0C
+	dc.w $11F8,$0E0F
+	dc.w $23F0,$1C1F
+	dc.w $03F0,$3C1F
+	dc.w $1DE0,$221F
+	dc.w $1C20,$23FF
+	dc.w $1C3C,$27C3
+	dc.w $1C3F,$27C0
+	dc.w $183F,$27C0
+	dc.w $243F,$1FC1
+	dc.w $267F,$1981
+	dc.w $279E,$1861
+	dc.w $07C2,$187F
+	dc.w $1783,$187C
+	dc.w $0FC3,$007C
+	dc.w $04C3,$0B7C
+	dc.w $0467,$0398
+	dc.w $0279,$0186
+	dc.w $0038,$01C7
+	dc.w $0058,$0027
+	dc.w $000E,$0011
+	dc.w $0000,$0000
+	dc.w $0000,$0000
+	
 
 SPR1
 VSTART1
@@ -250,9 +282,40 @@ VSTOP1
 SPRCTL1
 	DC.B	$00	
 
-	include "1b.S"
-	
-	
+	dc.w $0000,$0000
+	dc.w $0000,$0000
+	dc.w $7000,$8800
+	dc.w $1A00,$E400
+	dc.w $1E00,$E380
+	dc.w $9E40,$6180
+	dc.w $E620,$19C0
+	dc.w $E120,$3ED0
+	dc.w $E1F0,$3E00
+	dc.w $C1E8,$3E18
+	dc.w $41E0,$FE18
+	dc.w $79E4,$8618
+	dc.w $7E64,$8198
+	dc.w $7E04,$83F8
+	dc.w $FC18,$03E4
+	dc.w $FE1C,$03E4
+	dc.w $3C1C,$C3E4
+	dc.w $843C,$FFC4
+	dc.w $07B8,$F844
+	dc.w $07C0,$F83C
+	dc.w $07C4,$F838
+	dc.w $0FC8,$F070
+	dc.w $CF88,$3070
+	dc.w $E190,$1EE0
+	dc.w $F0E0,$1F10
+	dc.w $E1C0,$1E20
+	dc.w $C380,$3C40
+	dc.w $7700,$8880
+	dc.w $7800,$8E00
+	dc.w $E000,$1800
+	dc.w $0000,$0000
+	dc.w $0000,$0000
+
+		
 	SECTION	BITPLANES,BSS_C
 	
 BITPLANE:
