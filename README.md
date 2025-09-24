@@ -26,3 +26,40 @@ Amiga assembly code playground, it includes examples, simple demos, trainers, et
 * http://www.pjhutchison.org/emulation/AmigaAsmTutorial.txt
 * http://coppershade.org/
 * https://flashtro.com/category/source/ctsource/amigasources/
+
+## Asm-One
+
+### 1.02 
+
+**WB Installation**
+
+Insert Asm-One v1.02 disk, then copy all contents from df0: to <dest-dir>, for instance:
+
+```
+copy df0: to dh1:Asm-One1.02 ALL
+```
+
+If you want to use _req.library_:
+```
+copy df0:libs/req.library to dh0:Libs/
+```
+
+### 1.20
+
+**WB Installation**
+
+Extract Asm-One v1.20 lha on <dest-dir>, for instance:
+
+```
+lha -x asmonev120.lha dh1:asm-one120
+```
+
+if you want to assign volume SOURCES: from WB1.3, you want to edit _s:startup-sequence_:
+```
+ASSIGN SOURCES: <source_dir>
+```
+
+If you want to use _reqtools.library_, search for reqtools13.library, then:
+```
+copy reqtools13.library to dh0:Libs/reqtools.library
+```
