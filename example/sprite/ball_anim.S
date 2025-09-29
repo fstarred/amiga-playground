@@ -1,0 +1,312 @@
+*************************************************
+*						*
+*						*
+*	System OFF with VBLANK Interrupt	*
+*						*
+*						*
+*************************************************
+
+; If you want to debug with Assembler (i.e. ASM-One),
+; comment the following lines:
+;
+; MOVE.L #$7FFF7FFF,$9A(A6)	; disable INTENA/INTREQ ; at least disable
+;				INTREQ
+; MOVE.W #$7FFF, $96(A6)	; disable DMACON
+; MOVE.L #COPPERLIST, $80(A6)	; this trigger our custom copperlist
+;
+; MOVE.L #INTER,$6C.W		: set interrupt pointer
+; MOVE.W #INTENA,$9A(A6)	; set bit of INTENA
+
+
+
+OldOpenLibrary = -408
+CloseLibrary = -414
+
+; A = AGNUS, D = DENISE, P = PAULA
+
+;DMACON     096      W     A D P   DMA control write (clear or set)
+;DMACONR    002      R     A   P   DMA control (and blitter status) read
+DMASET=	%1000001110100000
+;	 fedcba9876543210
+
+;	f: Set/Clear control bit
+;	e: Blitter busy status bit (read only)
+;	d: Blotter logic zero status bit (read only)
+;	c: X
+;	b: X
+;	a: Blitter DMA priority (blitter nasty)
+;	9: Enable all DMA below
+;	8: Bitplane DMA enable
+;	7: Copper DMA enable
+;	6: Blitter DMA enable
+;	5: Sprite DMA enable
+;	4: Disk DMA enable
+;	3: Audio channel 3 DMA enable
+;	2: Audio channel 2 DMA enable
+;	1: Audio channel 1 DMA enable
+;	0: Audio channel 0 DMA enable
+
+;INTENA     09A      W       P    Interrupt enable bits (clear or set bits)
+;INTENAR    01C      R       P    Interrupt enable bits (read)
+INTENA=	%1100000000100000
+;	 fedcba9876543210
+
+;	f: Set/Clear control bit 
+;	e: Master interrupt
+;	d: External interrupt
+;	c: Disk sync register ( DSKSYNC ) matches disk data
+;	b: Serial port receive buffer full
+;	a: Audio channel 3 block finished
+;	9: Audio channel 2 block finished
+;	8: Audio channel 1 block finished
+;	7: Audio channel 0 block finished
+;	6: Blitter finished
+;	5: Start of vertical blank
+;	4: Copper
+;	3: I/O ports and timers
+;	2: Reserved for software -initalited interrupt
+;	1: Disk block finished
+;	0: Serial port transmit buffere empty
+
+
+BALL_VPOS=$2C
+BALL_HPOS=$80
+BALL_HEIGHT=32
+BALL_FRAMEWIDTH=16
+BALL_FRAME_OFFSET=$88
+
+SPIN_FRAME_RATE=30
+SPIN_FRAME_COUNT=8
+
+	SECTION	PROGRAMCODE,CODE
+
+START:
+
+;--- Store Old Register Settings ---
+
+	MOVEM.L	D0-D7/A0-A6,-(SP)
+
+	MOVE.L	$4.W,A6
+	LEA	GFXNAME(PC),A1
+	JSR	OldOpenLibrary(A6)	; load graphics library
+	MOVE.L	D0,A1
+	MOVE.L	38(A1),OldCopper	; store old copper 1
+	JSR	CloseLibrary(A6)	; close graphics library
+
+	LEA	$DFF000,A6
+	MOVE.W	$1C(A6),OldIntena	; store old INTENA (INTENAR)
+	MOVE.W	$02(A6),OldDma		; store old DMACON (DMACONR)	
+
+;--- Disable Intena/Intreq/Dmacon ---
+
+	MOVE.L	#$7FFF7FFF,$9A(A6)	; disable INTENA/INTREQ
+	MOVE.W	#$7FFF, $96(A6)		; disable DMACON
+
+
+;--- Set Register Settings ---
+
+	BSR	WAITVB			; Wait for VBLANK
+
+	MOVE.W	#DMASET,$96(A6)		; set bits of DMACON state
+	MOVE.L	#COPPERLIST, $80(A6)	; set custom COPPERLIST
+
+;--- Program Interrupt ---
+
+	MOVE.L	$6C.W,OldInter		; store old INTER PTR
+
+	MOVE.L	#INTER,$6C.W		; set interrupt pointer
+	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
+	
+INIT
+	MOVE.L	#BITPLANE,D0		; point to bitplane data
+	LEA	BPLPOINTERS,A1		; point to BPL1PT register
+	MOVE.W	D0,6(A1)		; BPL1PTL
+	SWAP	D0
+	MOVE.W	D0,2(A1)		; BPL1PTH
+
+LEFTMOUSE
+	BTST	#6,$BFE001
+	BNE.S	LEFTMOUSE
+
+**** EXIT - RESTORE OLD REG SETTINGS ****
+
+	LEA	$DFF000,A6
+
+	MOVE.W	#$7FFF,$9A(A6)		; disable interrupts	
+
+	BSR.S	WAITVB
+
+	MOVE.W	#$7FFF,$96(A6)		; disable DMA
+	
+	MOVE.W	OldDma(PC),D0
+	OR.W	#$8000,D0		; set bits of DMACON state
+	MOVE.W	D0,$96(A6)		; restore original DMACON
+
+	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
+	CLR.W	$88(A6)			; activate original COPPERLIST
+
+	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
+
+	MOVE.W	#$7FFF,$9C(A6)		; clear requests
+
+	MOVE.W	OldIntena(PC),D0
+	OR.W	#$C000,D0		; set bits of INTENA state
+	MOVE.W	D0,$9A(A6)		; restore original INTENA
+	
+	MOVEM.L (SP)+,D0-D7/A0-A6
+
+	RTS
+
+WAITVB:
+	TST.B	$DFF005
+	BEQ.B	WAITVB
+.LOOP
+
+	TST.B	$DFF005
+	BNE.S	.LOOP
+	RTS
+
+INTER:
+	MOVEM.L	D0-D7/A0-A6,-(SP)
+	LEA	$DFF000,A6	
+
+	SUB.B	#1,CURRENT_SPIN_FRAME_RATE
+	BNE.W	EXIT
+
+	MOVE.B	#SPIN_FRAME_RATE, CURRENT_SPIN_FRAME_RATE
+
+LSPRITE	
+	LEA	SPRITEPOINTERS,A1
+	MOVE.L	CURRENT_SPIN_FRAME_OFFSET(PC),D0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
+	SWAP	D0	
+
+LMOVE
+	MOVE.L	D0,A2
+	MOVE.B	#BALL_VPOS,(A2)
+	MOVE.B	#BALL_HPOS,1(A2)
+	MOVE.B	#(BALL_VPOS+BALL_HEIGHT),2(A2)
+	CLR.B	3(A2)
+
+RSPRITE
+	ADDQ.L	#8,A1
+	ADD.L	#BALL_FRAME_OFFSET,D0
+	MOVE.W	D0,6(A1)
+	SWAP	D0
+	MOVE.W	D0,2(A1)
+	SWAP	D0
+
+RMOVE
+	MOVE.L	D0,A2
+	MOVE.B	#BALL_VPOS,(A2)
+	MOVE.B	#BALL_HPOS+BALL_FRAMEWIDTH/2,1(A2)
+	MOVE.B	#BALL_VPOS+BALL_HEIGHT,2(A2)
+	CLR.B	3(A2)
+	
+NEXTFRAME
+	SUB.B	#1,SPIN_FRAME_COUNTER
+	BNE.B	.NEXTFRAME
+	MOVE.B	#SPIN_FRAME_COUNT, SPIN_FRAME_COUNTER
+	MOVE.L	#FRAME1,CURRENT_SPIN_FRAME_OFFSET
+	BRA.B	EXIT
+.NEXTFRAME	
+	ADD.L	#BALL_FRAME_OFFSET,D0
+	MOVE.L	D0,CURRENT_SPIN_FRAME_OFFSET
+
+EXIT
+	MOVE.W	#$4020,$9C(A6)		; clear interrupt request
+	MOVEM.L	(SP)+,D0-D7/A0-A6
+	RTE
+	
+
+GFXNAME:
+	DC.B	'graphics.library',0
+	EVEN
+OldCopper:
+	DC.L	0
+OldIntena:
+	DC.W	0
+OldDma:
+	DC.W	0
+OldInter:
+	DC.L	0
+
+CURRENT_SPIN_FRAME_RATE
+	DC.B	1
+SPIN_FRAME_COUNTER	
+	DC.B	SPIN_FRAME_COUNT
+CURRENT_SPIN_FRAME_OFFSET
+	DC.L	FRAME1
+
+	SECTION COPPER,DATA_C
+
+COPPERLIST:
+
+	DC.W	$8E,$2C81	; DiwStrt
+	DC.W	$90,$2CC1	; DiwStop
+	DC.W	$92,$38		; DdfStart
+	DC.W	$94,$D0		; DdfStop
+	DC.W	$102,0		; BplCon1
+	DC.W	$104,0		; BplCon2
+	DC.W	$108,0		; Bpl1Mod
+	DC.W	$10A,0		; Bpl2Mod
+
+SPRITEPOINTERS:
+	DC.W    $120,0,$122,0,$124,0,$126,0 ; SPR0/1PT
+	DC.W	$128,0,$12A,0,$12C,0,$12E,0 ; SPR2/3PT
+	DC.W	$130,0,$132,0,$134,0,$136,0 ; SPR4/5PT
+	DC.W	$138,0,$13A,0,$13C,0,$13E,0 ; SPR6/7PT
+
+BPLPOINTERS:
+	DC.W	$E0,0,$E2,0	; BPL1PT
+	
+	DC.W	$100,$1200	; BPLCON0
+
+	DC.W	$0180,$000	; COLOR0
+	DC.W	$0182,$FFF	; COLOR1
+
+
+	DC.W	$01A0,$0000
+	DC.W	$01A2,$0E00
+	DC.W	$01A4,$0FFF
+	DC.W	$01A6,$0FFF
+
+	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
+
+	incdir	"ball/"
+
+FRAME1:
+	include "ball001a.S"
+	include "ball001b.S"
+FRAME2:
+	include "ball002a.S"
+	include "ball002b.S"	
+FRAME3:
+	include "ball003a.S"
+	include "ball003b.S"
+FRAME4:
+	include "ball004a.S"
+	include "ball004b.S"	
+FRAME5:
+	include "ball005a.S"
+	include "ball005b.S"
+FRAME6:
+	include "ball006a.S"
+	include "ball006b.S"	
+FRAME7:
+	include "ball007a.S"
+	include "ball007b.S"
+FRAME8:
+	include "ball008a.S"
+	include "ball008b.S"	
+
+	
+	SECTION	BITPLANES,DATA_C
+	
+BITPLANE:
+	DCB.B	40*256		; blank bitplane
+	
+END
+
