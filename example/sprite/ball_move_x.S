@@ -78,6 +78,8 @@ BALL_FRAME_OFFSET=$88
 SPIN_FRAME_RATE=4
 SPIN_FRAME_COUNT=8
 
+
+
 	SECTION	PROGRAMCODE,CODE
 
 START:
@@ -186,9 +188,31 @@ LSPRITE
 LMOVE
 	MOVE.L	D0,A2
 	MOVE.B	#BALL_VPOS,(A2)
-	MOVE.B	#BALL_HPOS,1(A2)
 	MOVE.B	#(BALL_VPOS+BALL_HEIGHT),2(A2)
 	CLR.B	3(A2)
+
+.MOVEX
+	MOVEQ	#0,D1
+	LEA	CurrTabX(PC),A3
+	MOVE.B	(A3),D1
+	CMPI.B	#COORDX_COUNT-2,D1
+	BNE.B	.NEXT_TABX
+	MOVEQ	#-2,D1
+.NEXT_TABX
+	ADDQ.W	#2,D1
+	MOVE.B	D1,(A3)
+	LEA	COORDX,A3
+	MOVE.W	(A3,D1.W),D1
+
+	LSR	#1,D1
+	BCS.B	.SETLBX
+	BCLR.B	#0,3(A2)
+	BRA.B	.SETPOSX
+.SETLBX
+	BSET.B	#0,3(A2)	
+.SETPOSX
+	MOVE.B	D1,1(A2)	
+.EMOVEX
 
 RSPRITE
 	ADDQ.L	#8,A1
@@ -201,11 +225,13 @@ RSPRITE
 RMOVE
 	MOVE.L	D0,A2
 	MOVE.B	#BALL_VPOS,(A2)
-	MOVE.B	#BALL_HPOS+BALL_FRAMEWIDTH/2,1(A2)
+	MOVE.B	-BALL_FRAME_OFFSET+1(A2),D1
+	ADDQ.B	#BALL_FRAMEWIDTH/2,D1
+	MOVE.B	D1,1(A2)
 	MOVE.B	#BALL_VPOS+BALL_HEIGHT,2(A2)
-	CLR.B	3(A2)
+	MOVE.B	-BALL_FRAME_OFFSET+3(A2),3(A2)
 	
-NEXTFRAME
+CHECKFRAME
 	SUB.B	#1,SpinFrameCounter
 	BNE.B	.NEXTFRAME
 	MOVE.B	#SPIN_FRAME_COUNT, SpinFrameCounter
@@ -235,11 +261,21 @@ OldInter:
 
 CurrentSpinFrameRate
 	DC.B	1
-SpinFrameCounter	
+SpinFrameCounter
 	DC.B	SPIN_FRAME_COUNT
 CurrentSpinFrameOffset
 	DC.L	FRAME1
 
+CurrTabX
+	DC.B	COORDX_COUNT-2
+	EVEN
+
+COORDX:
+	DC.W	$80,$81,$82,$83,$84,$85,$86,$85,$84,$83,$82,$81
+ECOORDX
+
+COORDX_COUNT=ECOORDX-COORDX
+	
 	SECTION COPPER,DATA_C
 
 COPPERLIST:
@@ -302,7 +338,6 @@ FRAME8:
 	include "ball008a.S"
 	include "ball008b.S"	
 
-	
 	SECTION	BITPLANES,DATA_C
 	
 BITPLANE:
@@ -310,3 +345,35 @@ BITPLANE:
 	
 END
 
+*                           Agnus/
+*                   Read/   Denise/
+* Register Address  Write   Paula         Function
+* -------- -------  -----   -------       --------
+* SPRxCTL    142      W     A D( E ) Sprite x vert stop position and
+*                                        control data
+* SPRxPOS    140      W      A D     Sprite x vert-horiz start position data
+* 
+*                  These two registers work together as position, size and
+*                  feature sprite-control registers.  They are usually loaded
+*                  by the sprite DMA channel during horizontal blank;
+*                  however, they may be loaded by either processor at any
+*                  time.  SPRxPOS register:
+* 
+*                  BIT#   SYM      FUNCTION
+*                  ----   ----     -----------------------------
+*                  15-08  SV7-SV0  Start vertical value. High bit(SV8) is
+*                                  in SPRxCTL register below.
+*                  07-00  SH8-SH1  Start horizontal value. Low bit(SH0) is
+*                                  in SPRxCTL register below.
+* 
+*                  SPRxCTL register (writing this address disables sprite
+*                                    horizontal comparator circuit):
+* 
+*                  BIT#    SYM       FUNCTION
+*                  ----    --------  -----------------------------
+*                  15-08   EV7-EV0   End (stop) vertical value low 8 bits
+*                  07      ATT       Sprite attach control bit (odd sprites)
+*                  06-04    X        Not used
+*                  02      SV8       Start vertical value high bit
+*                  01      EV8       End (stop) vertical value high bit
+*                  00      SH0       Start horizontal value low bit
