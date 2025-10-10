@@ -1,10 +1,20 @@
 *************************************************
 *						*
 *						*
-*	System OFF with VBLANK Interrupt	*
+*	disable/enable interrupt with master	*
 *						*
 *						*
 *************************************************
+
+; this example show how to disable an interrupt using master bit
+;
+; use $4000 (bit 14) to disable interrupt
+;
+; use $C000 (bit 14+15) to restart interrupt
+;
+; press LEFT mouse for disabling the interrupt
+; press RIGHT mouse for renabling the interrupt
+; press LEFT mouse again to exit the example
 
 ; If you want to debug with Assembler (i.e. ASM-One),
 ; comment the following lines:
@@ -26,7 +36,7 @@ CloseLibrary = -414
 
 ;DMACON     096      W     A D P   DMA control write (clear or set)
 ;DMACONR    002      R     A   P   DMA control (and blitter status) read
-DMASET=	%1000001110100000
+DMASET=	%1000001010000000
 ;	 fedcba9876543210
 
 ;	f: Set/Clear control bit
@@ -67,13 +77,9 @@ INTENA=	%1100000000100000
 ;	2: Reserved for software -initalited interrupt
 ;	1: Disk block finished
 ;	0: Serial port transmit buffere empty
-
-
-SPRITE_VPOS=$2C
-SPRITE_HPOS=$40
-SPRITE_FRAME_OFFSET=$80
-
+	
 	SECTION	PROGRAMCODE,CODE
+	
 START:
 
 ;--- Store Old Register Settings ---
@@ -110,34 +116,24 @@ START:
 
 	MOVE.L	#INTER,$6C.W		; set interrupt pointer
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
-
-	MOVEQ	#0,D0
-	MOVE.W	D0,$88(A6)
-	MOVE.W	D0,$1FC(A6)		; forces ECS compatibility
 	
-INIT
-	MOVE.L	#BITPLANE,D0		; point to bitplane data
-	LEA	BPLPOINTERS,A1		; point to BPL1PT register
-	MOVE.W	D0,6(A1)		; BPL1PTL
-	SWAP	D0
-	MOVE.W	D0,2(A1)		; BPL1PTH
 
-	MOVE.L	#SPR0,D0
-	LEA	SPRITEPOINTERS,A1
-	MOVE.W	D0,6(A1)
-	SWAP	D0
-	MOVE.W	D0,2(A1)
-	SWAP	D0
-
-	ADD.L	#SPRITE_FRAME_OFFSET+4,D0
-	ADDQ.L	#8,A1
-	MOVE.W	D0,6(A1)
-	SWAP	D0
-	MOVE.W	D0,2(A1)
-
-LEFTMOUSE
+LEFTMOUSE_1
 	BTST	#6,$BFE001
-	BNE.S	LEFTMOUSE
+	BNE.S	LEFTMOUSE_1
+
+	MOVE.W	#$4020,$DFF09A		; disable VBLANK with master interrupt
+
+RIGHTMOUSE
+	BTST	#2,$DFF016
+	BNE.S	RIGHTMOUSE
+
+	MOVE.W	#$C020,$DFF09A		; enable VBLANK with master interrupt
+
+LEFTMOUSE_2
+	BTST	#6,$BFE001
+	BNE.S	LEFTMOUSE_2
+	
 
 **** EXIT - RESTORE OLD REG SETTINGS ****
 
@@ -154,7 +150,7 @@ LEFTMOUSE
 	MOVE.W	D0,$96(A6)		; restore original DMACON
 
 	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
-	CLR.W	$88(A6)			; activate original COPPERLIST
+	MOVE.W	D0,$88(A6)		; activate original COPPERLIST
 
 	MOVE.L	OldInter(PC),$6C.W	; restore inter pointer
 
@@ -180,6 +176,11 @@ INTER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 	LEA	$DFF000,A6	
 
+	LEA	LINE,A0
+	ADD.B	#1,(A0)
+	ADDQ	#8,A0
+	ADD.B	#1,(A0)
+
 	MOVE.W	#$0020,$9C(A6)		; clear interrupt request
 	MOVEM.L	(SP)+,D0-D7/A0-A6
 	RTE
@@ -201,129 +202,16 @@ OldInter:
 	SECTION COPPER,DATA_C
 
 COPPERLIST:
-
-	DC.W	$8E,$2C81	; DiwStrt
-	DC.W	$90,$2CC1	; DiwStop
-	DC.W	$92,$38		; DdfStart
-	DC.W	$94,$D0		; DdfStop
-	DC.W	$102,0		; BplCon1
-	DC.W	$104,0		; BplCon2
-	DC.W	$108,0		; Bpl1Mod
-	DC.W	$10A,0		; Bpl2Mod
-
-SPRITEPOINTERS:
-	DC.W    $120,0,$122,0,$124,0,$126,0 ; SPR0/1PT
-	DC.W	$128,0,$12A,0,$12C,0,$12E,0 ; SPR2/3PT
-	DC.W	$130,0,$132,0,$134,0,$136,0 ; SPR4/5PT
-	DC.W	$138,0,$13A,0,$13C,0,$13E,0 ; SPR6/7PT
-
-BPLPOINTERS:
-	DC.W	$E0,0,$E2,0	; BPL1PT
-	
-	DC.W	$100,$1200	; BPLCON0
-
 	DC.W	$0180,$000	; COLOR0
-	DC.W	$0182,$FFF	; COLOR1
-
-	dc.l $01A20FFF
-	dc.l $01A40F00,$01A60F0F
 	
+LINE:
+	DC.W	$5107,$FFFE
+	DC.W	$0180,$FFF
+	DC.W	$5207,$FFFE
 
-
+	DC.W	$0180,$000
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
 
-SPR0
-VSTART
-	DC.B	SPRITE_VPOS
-HSTART
-	DC.B	SPRITE_HPOS
-VSTOP	
-	DC.B	SPRITE_VPOS+$20
-SPRCTL
-	DC.B	$00
-
-	dc.w $0000,$0000
-	dc.w $0000,$0000
-	dc.w $0007,$0018
-	dc.w $000F,$0071
-	dc.w $00EE,$0111
-	dc.w $01C3,$023C
-	dc.w $03C3,$047C
-	dc.w $0707,$08F8
-	dc.w $0887,$0778
-	dc.w $11F3,$0E0C
-	dc.w $11F8,$0E0F
-	dc.w $23F0,$1C1F
-	dc.w $03F0,$3C1F
-	dc.w $1DE0,$221F
-	dc.w $1C20,$23FF
-	dc.w $1C3C,$27C3
-	dc.w $1C3F,$27C0
-	dc.w $183F,$27C0
-	dc.w $243F,$1FC1
-	dc.w $267F,$1981
-	dc.w $279E,$1861
-	dc.w $07C2,$187F
-	dc.w $1783,$187C
-	dc.w $0FC3,$007C
-	dc.w $04C3,$0B7C
-	dc.w $0467,$0398
-	dc.w $0279,$0186
-	dc.w $0038,$01C7
-	dc.w $0058,$0027
-	dc.w $000E,$0011
-	dc.w $0000,$0000
-	dc.w $0000,$0000
-	
-
-SPR1
-VSTART1
-	DC.B	SPRITE_VPOS
-HSTART1
-	DC.B	SPRITE_HPOS+8
-VSTOP1
-	DC.B	SPRITE_VPOS+$20
-SPRCTL1
-	DC.B	$00	
-
-	dc.w $0000,$0000
-	dc.w $0000,$0000
-	dc.w $7000,$8800
-	dc.w $1A00,$E400
-	dc.w $1E00,$E380
-	dc.w $9E40,$6180
-	dc.w $E620,$19C0
-	dc.w $E120,$3ED0
-	dc.w $E1F0,$3E00
-	dc.w $C1E8,$3E18
-	dc.w $41E0,$FE18
-	dc.w $79E4,$8618
-	dc.w $7E64,$8198
-	dc.w $7E04,$83F8
-	dc.w $FC18,$03E4
-	dc.w $FE1C,$03E4
-	dc.w $3C1C,$C3E4
-	dc.w $843C,$FFC4
-	dc.w $07B8,$F844
-	dc.w $07C0,$F83C
-	dc.w $07C4,$F838
-	dc.w $0FC8,$F070
-	dc.w $CF88,$3070
-	dc.w $E190,$1EE0
-	dc.w $F0E0,$1F10
-	dc.w $E1C0,$1E20
-	dc.w $C380,$3C40
-	dc.w $7700,$8880
-	dc.w $7800,$8E00
-	dc.w $E000,$1800
-	dc.w $0000,$0000
-	dc.w $0000,$0000
-
-		
-	SECTION	BITPLANES,BSS_C
-	
-BITPLANE:
-	DS.B	40*256		; blank bitplane
 	
 END
 
