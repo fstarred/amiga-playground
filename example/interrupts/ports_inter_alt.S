@@ -30,14 +30,11 @@
 ; This example show how to check for keyboard button pressed
 ; Press F10 to switch power led on / off
 
-OldOpenLibrary = -408
-CloseLibrary = -414
-
 ; A = AGNUS, D = DENISE, P = PAULA
 
 ;DMACON     096      W     A D P   DMA control write (clear or set)
 ;DMACONR    002      R     A   P   DMA control (and blitter status) read
-DMASET=	%1000001110000000 ($8380)
+DMASET=	%1000000000000000
 ;	 fedcba9876543210
 
 ;	f: Set/Clear control bit
@@ -59,7 +56,7 @@ DMASET=	%1000001110000000 ($8380)
 
 ;INTENA     09A      W       P    Interrupt enable bits (clear or set bits)
 ;INTENAR    01C      R       P    Interrupt enable bits (read)
-INTENA=	%1100000000001000 ($C008)
+INTENA=	%1100000000001000
 ;	 fedcba9876543210
 
 ;	f: Set/Clear control bit 
@@ -85,13 +82,6 @@ START:
 
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 
-	MOVE.L	$4.W,A6
-	LEA	GFXNAME(PC),A1
-	JSR	OldOpenLibrary(A6)	; load graphics library
-	MOVE.L	D0,A1
-	MOVE.L	38(A1),OldCopper	; store old copper 1
-	JSR	CloseLibrary(A6)	; close graphics library
-
 	LEA	$DFF000,A6
 	MOVE.W	$1C(A6),OldIntena	; store old INTENA (INTENAR)
 	MOVE.W	$02(A6),OldDma		; store old DMACON (DMACONR)	
@@ -107,13 +97,12 @@ START:
 	BSR	WAITVB			; Wait for VBLANK
 
 	MOVE.W	#DMASET,$96(A6)		; set bits of DMACON state
-	MOVE.L	#COPPERLIST, $80(A6)	; set custom COPPERLIST
 
 ;--- Program Interrupt ---
 
 	MOVE.L	$68.W,OldInter		; store old INTER PTR
 
-	MOVE.L	#INTER,$68.W		: set interrupt pointer
+	MOVE.L	#INTER,$68.W		; set interrupt pointer
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA	
 
 LEFTMOUSE
@@ -133,9 +122,6 @@ LEFTMOUSE
 	MOVE.W	OldDma(PC),D0
 	OR.W	#$8000,D0		; set bits of DMACON state
 	MOVE.W	D0,$96(A6)		; restore original DMACON
-
-	MOVE.L	OldCopper,$80(A6)	; restore original COPPERLIST
-	CLR.W	$88(A6)			; activate original COPPERLIST
 
 	MOVE.L	OldInter(PC),$68.W	; restore inter pointer
 
@@ -207,9 +193,6 @@ END_INTER
 	RTE
 	
 
-GFXNAME:
-	DC.B	'graphics.library',0
-	EVEN
 OldCopper:
 	DC.L	0
 OldIntena:
@@ -219,12 +202,5 @@ OldDma:
 OldInter:
 	DC.L	0
 
-
-	SECTION Copper,DATA_C
-
-COPPERLIST:
-	DC.L	$01800000
-	DC.L	$01820FFF
-	DC.L	$FFFFFFFE
 END
 
