@@ -12,7 +12,7 @@
 
 
 
-DMASET  = %1000001111010000
+DMASET  = %1000001111000000
 ;     	  %-----axbcdefghij
 ;   a: Blitter Nasty
 ;   x: Enable DMA

@@ -1,14 +1,8 @@
-*****************************************************************************
-*									    *
-*    	This is interactive sine scrolling text example			    *
-*									    *
-*    									    *
-*    									    *
-*    									    *
-*    									    *
-*    									    *
-*									    *
-*****************************************************************************
+***********************************************************
+*							  *
+*    	Interactive sine scrolling text example		  *
+*							  *
+***********************************************************
 
 	SECTION Code,CODE
 
@@ -47,9 +41,9 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:amiga-playground/startup/borchen/"
+	incdir	"dh2:amiga-playground/startup/borchen/"
 	include	"startup.s"	; 
-	incdir	"dh1:amiga-playground/shared/"	
+	incdir	"dh2:amiga-playground/shared/"	
 	include "hardware/custom.i"
 *****************************************************************************
 
@@ -145,17 +139,16 @@ fill_offset_tab:
 	add.w	#ScrBpl*bpls, d0		; ScrBpl+ScrBpl...
 	dbra	d7, fill_offset_tab
     
-
-	move.w  #DMASET,$dff096     ; enable necessary bits in DMACON
-	move.w  #INTENASET,$dff09a     ; INTENA
-    
-	move.l  #COPPERLIST,$dff080 ; COP1LCH set custom copperlist
-	moveq	#0,d0
-   	move.w  d0,$dff088      ; COPJMP1 activate copperlist
-   	move.w	d0,$dff1fc	; FMODE - BLP32
-	
 	lea	$dff000,a5
 
+	move.w  #DMASET,$96(a5)		; enable necessary bits in DMACON
+	move.w  #INTENASET,$9a(a5)	; INTENA
+    
+	move.l  #COPPERLIST,$80(a5) 	; COP1LCH set custom copperlist
+	moveq	#0,d0
+   	move.w  d0,$88(a5)	      	; COPJMP1 activate copperlist
+   	move.w	d0,$1fc(a5)		; FMODE - BLP32
+	
 	move.b	JOY0DAT(a5),	mouse_y
 	move.b	JOY0DAT+1(a5),	mouse_x
 	
@@ -548,52 +541,52 @@ compute_offset:
 	addi.w	#MOUSEX_SPRITE_POINTER, x1
 	move.w	sprite_y(pc), d0
 	addi.w	#MOUSEY_SPRITE_POINTER, d0
-	subi.w	#TEXT_V_OFFSET, d0
+	subi.w	#TEXT_V_OFFSET, d0		; text vpos - arrow ptr
 	tst	d0
-	bge.s	compute_all_offset
-	moveq	#0, d0
+	bge.s	.compute_all_offset
+	moveq	#0, d0				; arrow is above text
 
-compute_all_offset:
+.compute_all_offset:
 	move.w	d0, y1
 	
-get_w_x1:
-	move.w	y1(pc), d2
+.get_w_x1:
+	move.w	d0, d2
 	add.w	d2, d2		; y1 * 2 (sine projection)
 	
 	move.w	x1(pc), d0
 	sub.w	d2, d0		
 	
-	move.w	d0, x0		; x0
+	move.w	d0, x0		; store x0
 	tst.w	d0
-	bge.s	save_w_x0
+	bge.s	.save_w_x0
 	moveq	#0, d0
-save_w_x0:
+.save_w_x0:
 	lsr	#4, d0
-	move.w	d0, w_x0	; w_x0
+	move.w	d0, w_x0	; store w_x0
 	
 	move.w	x1(pc), d0
 	add.w	d2, d0
-	move.w	d0, x2		; x2
+	move.w	d0, x2		; store x2
 	move.w	d0, d1
 	lsr	#4, d0
-	and.w	#%1111, d1	; check if mod 16 > 0
+	andi.w	#%1111, d1	; check if mod 16 > 0
 	tst	d1
-	beq.s	check_w_x0_pos
+	beq.b	.check_w_x0_pos
 	addq	#1, d0
-check_w_x0_pos:
+.check_w_x0_pos:
 	
 	move.w	w_x0(pc), d3	; w_x0 to d3
 	
 	sub.w	d3, d0
-w_x0_not_negative:
+.w_x0_not_negative:
 	move.w	d0, d1			; w_x2 - w_x0
 	move.w	d1, d2
 	add.w	d3, d1
-	cmpi.w	#20, d1			; check if w_x0 + sine_length 
-	ble.s	set_word_loop_cnt	; goes beyond screen right margin
+	cmpi.w	#20, d1			; check if w_x0 + sine_length ends
+	ble.s	.set_word_loop_cnt	; beyond the right margin of the screen
 	move.w	#20, d2
-	sub.w	d3, d2		; force sine_length to 20 - w_x0
-set_word_loop_cnt:
+	sub.w	d3, d2			; force sine_length to 20 - w_x0
+.set_word_loop_cnt:
 	move.w	d2, d0
 	move.w	d0, w_sine_length	; w_sine_length
 		
@@ -956,7 +949,7 @@ sprite:
 	dc.w	0,0	
 	
 FONT:
-	incdir  "dh1:amiga-playground/resources/fonts/"	
+	incdir  "dh2:amiga-playground/resources/fonts/"	
 	;incbin  "16X16-F2_944_16_1.raw"		; BPLS=1
 	incbin  "16X16-F2_944_16_2.blt.raw"	; BPLS=2
 	
