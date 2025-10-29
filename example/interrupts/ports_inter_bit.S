@@ -1,7 +1,7 @@
 *************************************************
 *						*
 *	System OFF with PORTS Interrupt		*
-*		and/or method			*
+*		bset/bclr method		*
 *						*
 *************************************************
 
@@ -29,7 +29,6 @@
 
 ; This example show how to check for keyboard button pressed
 ; Press F10 to switch power led on / off
-
 
 ; A = AGNUS, D = DENISE, P = PAULA
 
@@ -103,7 +102,7 @@ START:
 
 	MOVE.L	$68.W,OldInter		; store old INTER PTR
 
-	MOVE.L	#INTER, $68.W		; set interrupt pointer
+	MOVE.L	#INTER,$68.W		; set interrupt pointer
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA	
 
 LEFTMOUSE
@@ -149,26 +148,31 @@ INTER:
 	LEA	$DFF000,A6		; base custom register in A6
 	LEA	$BFE001,A5		; base CIAA register in A5
 	
-	MOVEQ 	#$08,D0			
-	
-	MOVE.W	$1E(A6),D1		; check if is it level 2 interrupt
-	AND.W	D0,D1
+	MOVE.B	$0D00(A5),D0		; Ciaa icr - reset the intreq
+
+	BTST.L	#7,D0			; bit IR, check if inter is allowed
+	BEQ.B	END_INTER	
+	BTST.L	#3,D0			; bit SP, check if inter is allowed
 	BEQ.B	END_INTER
+
+	MOVE.W	$1C(A6),D0		; INTENAR
+	BTST.L	#14,D0			; Check if INTENA Bit Master enabled 
+	BEQ.B	END_INTER		
 	
-	MOVE.B	$0D00(A5),D1		; check if SP cause interrupt
-	AND.B	D0,D1			; read from CIAA icr
-	BEQ.B	END_INTER
+	BTST.L	#3,D0			; INTREQR - PORTS?
+	BEQ.B	END_INTER		; 
 	
 	MOVE.B	$0C00(A5),D0  		; read a byte from CIAA sdr register
 	NOT.B	D0          		; negate a byte in D0
 	ROR.B	#1,D0       		; rotate right 1 bit
 
-	CMP.B	#$59,D0     		; compare F10 key value with d0
-	BNE.S	NOTF10    		; if not F10 pressed - goto exit
-	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
+	CMPI.B	#$80,D0
+	BCC.B	.OUTMODE
 
-NOTF10:
-	OR.B	#$40,$0E00(A5)		; CIAA cra - SPMODE output
+	MOVE.B	D0,KeyPressed
+
+.OUTMODE
+	BSET.B	#6,$0E00(A5)		; CIAA cra - SPMODE output
 
 	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
 .WAITLINES				; for the handshake
@@ -178,7 +182,7 @@ NOTF10:
 	BEQ.B	.CHECKLINE
 	DBF	D1,.WAITLINES
 
-	AND.B	#$BF,$0E00(A5)		; CIAA cra - SPMODE input
+	BCLR.B	#6,$0E00(A5)		; CIAA cra - SPMODE input
 
 END_INTER	
 	MOVE.W	#$4008,$9C(A6)		; clear interrupt request
@@ -187,13 +191,16 @@ END_INTER
 	RTE
 	
 
+OldCopper:
+	DC.L	0
 OldIntena:
 	DC.W	0
 OldDma:
 	DC.W	0
 OldInter:
 	DC.L	0
-
-
+KeyPressed:
+	DC.B	0
+	EVEN
 END
 

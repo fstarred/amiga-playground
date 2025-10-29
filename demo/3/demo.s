@@ -204,15 +204,15 @@ bpls_L = 1
 wbl = $ff
 
 WAITVB MACRO
-   	move.l  VPOSR(a5),d0      ; wait
+   	move.l  VPOSR(a5),d0    ; wait
  	and.l   #$0001ff00,d0   ; for
    	cmp.l   #wbl<<8,d0      ; rasterline 303
 	bne.s   \1
 	ENDM
 
 WAITVB2 MACRO
-	move.l  VPOSR(a5),d0      ; wait
- 	and.l   #$0001ff00,d0    for
+	move.l  VPOSR(a5),d0    ; wait
+ 	and.l   #$0001ff00,d0   ; for
 	cmp.l   #wbl<<8,d0      ; rasterline 303
 	beq.s   \1
 	ENDM
