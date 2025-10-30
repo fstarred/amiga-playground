@@ -1,7 +1,8 @@
 *************************************************
 *						*
 *	System OFF with PORTS Interrupt		*
-*		and/or method			*
+*	AND/OR logic method and Timer B 	*
+*	wait for keyboard handshake		*
 *						*
 *************************************************
 
@@ -113,9 +114,13 @@ LEFTMOUSE
 **** EXIT - RESTORE OLD REG SETTINGS ****
 
 	LEA	$DFF000,A6
-
+	LEA	$BFE001,A5		; base CIAA register in A5
+	
 	MOVE.W	#$7FFF,$9A(A6)		; disable interrupts	
 
+;	MOVE.B	Burp,$F00(A5)
+;	MOVE.B	$0D00(A5),D0
+	
 	BSR.S	WAITVB
 
 	MOVE.W	#$7FFF,$96(A6)		; disable DMA
@@ -148,6 +153,7 @@ INTER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 	LEA	$DFF000,A6		; base custom register in A6
 	LEA	$BFE001,A5		; base CIAA register in A5
+	LEA	$BFD000,A4		; base CIAB register in A4
 	
 	MOVEQ 	#%1000,D0		; bit 3 check
 	
@@ -164,24 +170,27 @@ INTER:
 	ROR.B	#1,D0       		; rotate right 1 bit
 
 	CMP.B	#$59,D0     		; compare F10 key value with d0
-	BNE.S	NOTF10    		; if not F10 pressed - goto exit
-	BCHG	#1,(A5)			; Test bit and change. 					; Bit 1 is power LED
-
-NOTF10:
+	BNE.S	.NOTF10    		; if not F10 pressed - goto exit
+	BCHG	#1,(A5)			; Test bit and change. 		
+	
+.NOTF10
 	OR.B	#$40,$0E00(A5)		; CIAA cra - SPMODE output
 
-	MOVEQ	#4-1,D1			; wait 4 raster lines (at least 90us)
-.WAITLINES				; for the handshake
-	MOVE.B	$06(A6),D0		; some Amiga keyboards (i.e. A1200)
-.CHECKLINE				; requires more time than others
-	CMP.B	$06(A6),D0
-	BEQ.B	.CHECKLINE
-	DBF	D1,.WAITLINES
+	MOVE.B	#%00001000,$E00(A4)	; set CIAB cra - one shot mode
+	MOVE.B	#%01111110,$D00(A4)	; disable all but TA interrupts (icr)
+	MOVE.B	#142,$400(A4)		; talo CIAB timer A low byte ~200us
+	MOVE.B	#0,$500(A4)		; tahi CIAB timer A high byte   
+					; 142 ticks * 1.41us
+					; by setting the tahi on one shot mode
+					; timer automatically start
+.WAIT_TIMER_A_POLL
+	BTST.B	#0,$D00(A4)	; check Timer A is finished
+	BEQ.B	.WAIT_TIMER_A_POLL
 
-	AND.B	#$BF,$0E00(A5)		; CIAA cra - SPMODE input
+	ANDI.B	#$BF,$0E00(A5)		; CIAA cra - SPMODE input
 
 END_INTER	
-	MOVE.W	#$4008,$9C(A6)		; clear interrupt request
+	MOVE.W	#$0008,$9C(A6)		; clear interrupt request
 	MOVEM.L	(SP)+,D0-D7/A0-A6
 
 	RTE
@@ -193,7 +202,6 @@ OldDma:
 	DC.W	0
 OldInter:
 	DC.L	0
-
 
 END
 

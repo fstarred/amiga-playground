@@ -121,8 +121,8 @@ CIAB:
 
 	MOVE.B	#%10000001,$D00(A1)	; icr; set TA (bit 0)
 
-	MOVE.B	#(TIME&$FF),$400(A1)
-	MOVE.B	#(TIME>>8),$500(A1)
+	MOVE.B	#(TIME&$FF),$400(A1)	; talo
+	MOVE.B	#(TIME>>8),$500(A1)	; tahi
 START_TA:
 	BSET.B	#0,$E00(A1)		; start TA
 	RTS

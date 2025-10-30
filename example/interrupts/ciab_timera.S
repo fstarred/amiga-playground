@@ -30,7 +30,6 @@ START:
 	MOVE.B	#%01111110,$D00(A4)	; disable all but TA interrupts (icr)
 	MOVE.B	#(TIME&$FF),$400(A4)	; TIME lower byte value
 	MOVE.B	#(TIME>>8),$500(A4)	; TIME upper byte value
-	BSET.B	#0,$E00(A4)		; Start Timer A (* not sure if needed)
 .WAIT
 	BTST.B	#0,$D00(A4)	; check Timer A is finished
 	BEQ.B	.WAIT

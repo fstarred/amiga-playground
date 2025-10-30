@@ -1,7 +1,8 @@
 *************************************************
 *						*
 *	System OFF with PORTS Interrupt		*
-*		bset/bclr method		*
+*	bset/bclr method and raster wait	*
+*	for keyboard handshake			*
 *						*
 *************************************************
 
