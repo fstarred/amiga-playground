@@ -1,13 +1,10 @@
 *************************************************
 *						*
-*	JOIN WAVEFORM 	EXAMPLE			*
+*	     AUDIO SAMPLE EXAMPLE		*
+*						*
+*	Playback once using flag method		*	
 *						*
 *************************************************
-
-; this example show how to join 2 waveforms.
-; each time sound data is finished to read, an interrupt occurs
-; every interrupt the waveform switch between sine and triange
-; see http://amigadev.elowar.com/read/ADCD_2.1/Hardware_Manual_guide/node00E5.html
 
 
 ; CIAA Address Map
@@ -31,12 +28,6 @@
 ; BFED01    icr     CIAA interrupt control register
 ; BFEE01    cra     CIAA control register A
 ; BFEF01    crb     CIAA control register B
-
-; This example show how to check for keyboard button pressed
-; Press F10 to switch power led on / off
-
-OldOpenLibrary = -408
-CloseLibrary = -414
 
 ; A = AGNUS, D = DENISE, P = PAULA
 
@@ -115,12 +106,12 @@ START:
 	MOVE.L	$70.W,OldInter		; store old INTER PTR
 
 	MOVE.L	#INTER,$70.W		; set interrupt pointer
-	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA	
-	
+	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
+
 MAIN:
-	MOVE.L  #SQUARE,$A0(A6)			; table beginning
-	MOVE.W  #SAMPLE_LEN,$A4(A6)	; table length in word
-	MOVE.W  #403,$A6(A6)			; period (C)
+	MOVE.L  #SAMPLE,$A0(A6)			; table beginning
+	MOVE.W  #SAMPLE_LEN,$A4(A6)		; table length in word
+	MOVE.W  #424,$A6(A6)			; period (C)
 	MOVE.W  #64,$A8(A6)			; loudness level (volume)
 	MOVE.W  #DMASET,$96(A6)   		; start DMA (Sound)
 
@@ -132,7 +123,7 @@ LEFTMOUSE
 
 	LEA	$DFF000,A6
 
-	MOVE.W	#$01,$96(A6)
+	MOVE.W	#$0001,$96(A6)
 
 	MOVE.W	#$7FFF,$9A(A6)		; disable interrupts	
 
@@ -163,86 +154,46 @@ INTER:
 	LEA	$DFF000,A6		; base custom register in A6
 
 	BTST.B	#7,$1F(A6)		; check if is level 4 interrupt
-	BEQ.B	END_INTER
-	
-	NOT.B	WaveShape
-	BNE.B	.TRIANGLE
+	BEQ.W	.END_INTER
 
-	MOVE.L  #SQUARE,$A0(A6)
-	BRA.W	END_INTER
-.TRIANGLE:
-	MOVE.L  #TRIANGLE,$A0(A6)
-	
-END_INTER	
-	MOVE.W	#$0780,$9C(A6)		; clear interrupt request	
+	NOT.B	Audio
+	BNE.B	.CANCEL_INTER
+
+	MOVE.W	#$0001,$96(A6)		; disable audio 0 DMA
+	MOVE.W	#$0080,$9A(A6)		; disable interrupt
+.CANCEL_INTER
+	MOVE.W	#$0080,$9C(A6)		; clear interrupt request	
+.END_INTER	
 	MOVEM.L	(SP)+,D0-D7/A0-A6
 
 	RTE
+
+CRITICAL_STOP
+	LEA	$DFF000,A6
+	MOVE.W	#$0001,$96(A6)
+	RTS
 
 OldIntena:
 	DC.W	0
 OldInter:
 	DC.L	0
-WaveShape:
-	DC.B	0	; 0 = SQUARE $FF = TRIANGLE
-
-
+Audio
+	DC.B	0
+	
 	SECTION	MUSIC, DATA_C
 
 	CNOP	0,2		; align data on a word boundary
 
-SQUARE:  				; 20 byte sample - SQUARE
-	DC.B	100, 100, 100, 100, 100, 100, 100, 100, 100, 100
-	DC.B	-100,-100,-100,-100,-100,-100,-100,-100,-100,-100
-SQUARE_END
 
-TRIANGLE:  			; 20 byte sample - TRIANGLE
-	DC.B	0,  20,  40,  60,  80, 100,  80,  60,  40,  20
-	DC.B	0, -20, -40, -60, -80,-100, -80, -60, -40, -20
-TRIANGLE_END
+	INCDIR	"dh2:amiga-playground/resources/sounds/"
+SAMPLE:
+	INCBIN	"Alien"
+SAMPLE_LEN=(*-SAMPLE)/2
 
-SAMPLE_LEN=10
 
-	END
+	IF (SAMPLE_LEN*2)<>7800
+	FAIL "SAMPLE NOT VALID"
+	ENDC
 
- This example details the system audio DMA action in a step-by-step
- fashion.
- 
- Suppose you wanted to join together a sine and a triangle waveform,
- end-to-end, for a special audio effect, alternating between them. The
- following sequence shows the action of your program as well as its
- interaction with the audio DMA system. The example assumes that the
-  period ,  volume , and  length  of the data set remains the same for the
- sine wave and the triangle wave.
- 
- 
-                          Interrupt Program
-                          -----------------
- If (wave = triangle)
-                write  AUD0LCL  with address of sine wave data.
- 
- Else if (wave = sine)
-                write  AUD0LCL  with address of triangle wave data.
- 
- 
-                           Main Program
-                           ------------
- 
- 1. Set up  volume ,  period , and  length .
- 2. Write  AUD0LCL  with address of sine wave data.
- 3. Start DMA.
- 4. Continue with something else.
- 
- 
-                          System Response
-                          ---------------
- 
- As soon as DMA starts,
- 
-    a. Copy to "back-up" length register from  AUD0LEN .
-    b. Copy to "back-up" location register from  AUD0LCL  (will be used
-       as a pointer showing current data word to fetch).
-    c. Create an  interrupt  for the 680x0 saying that it has completed
-       retrieving working copies of  length  and  location registers .
-    d. Start retrieving audio data each allocated DMA time slot.
+
 
