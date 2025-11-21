@@ -11,30 +11,27 @@ DEBUG		;decomment to unload seg instead of jmp
 
 ; look at http://amigadev.elowar.com/ Includes_and_Autodocs_2
 
-;*****************
-;*   Constants   *
-;*****************
 
-
-OldOpenLibrary	= -408
-CloseLibrary	= -414
-LoadSeg		= -150
-UnLoadSeg	= -156
+	INCDIR	"INCLUDE:"
+	INCLUDE	"exec/exec.i"
+	INCLUDE	"exec/exec_lib.i"
+	INCLUDE	"libraries/dos.i"
+	INCLUDE	"libraries/dos_lib.i"
 
 
 LOADGAME:
 	MOVE.L	4.W,A6			;GET EXECBASE
-	LEA	DOSLIB(PC),A1		;POINTER TO 'DOS.LIBRARY'
-	JSR	OldOpenLibrary(A6)	;OPEN DOS.LIBRARY
+	LEA	DosLibName(PC),A1	;POINTER TO 'DOS.LIBRARY'
+	CALLEXEC	OldOpenLibrary
 	TST.L	D0			;IF D0 = 0 THEN LIBRAY OPEN FAILED
 	BEQ.B	PROBLEM
 
 	MOVE.L	D0,DosLibPtr		;STORE DOS LIBRARY TO VAR
 	MOVE.L	D0,A6			;PUT DOS.LIBRARY BASE ADDRESS IN A6
 	
-	LEA	FILENAME(PC),A0		;GET FILENAME PC RELATIVE
+	LEA	Filename(PC),A0		;GET FILENAME PC RELATIVE
 	MOVE.L	A0,D1			;MOVE FILENAME INTO D1
-	JSR	LOADSEG(A6)		;CALL LOADSEG
+	CALLEXEC	LoadSeg
 	TST.L	D0
 	BEQ.B	PROBLEM
 	LSL.L	#2,D0			;MULTIPLY D0 * 4 TO GET CORRECT ADDRESS
@@ -45,7 +42,7 @@ LOADGAME:
 	MOVE.L	A0,D1
 	JMP	4(A0)			;EXECUTE FILE LOADED BY LOADSEG
 	ELSE
-	JSR	UNLOADSEG(A6)
+	CALLEXEC	UnLoadSeg
 	ENDC
 
 	BRA.B	CLOSELIB
@@ -57,20 +54,18 @@ PROBLEM:
 CLOSELIB:
 	MOVE.L	DosLibPtr,A1
 	MOVE.L	4.W,A6			;GET EXECBASE
-	JSR	CloseLibrary(A6)
+	CALLEXEC	CloseLibrary
 	RTS
 
 ;-----------------------------------------------
-doslib:
-	dc.b	'dos.library',0
+DosLibName:
+	DOSNAME
 
-
-filename:
+Filename:
 	dc.b	'df0:<hunk>',0
 	EVEN
 
 ;*** WAIT VERTICAL BLANK ***
 
-DosBase		DC.L	0
 DosLibPtr	DC.L	0
 
