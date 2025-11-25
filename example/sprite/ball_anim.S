@@ -281,7 +281,7 @@ BPLPOINTERS:
 
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
 
-	incdir	"ball/"
+	incdir	"RESOURCES:graphics/ball/"
 
 FRAME1:
 	include "ball001a.S"

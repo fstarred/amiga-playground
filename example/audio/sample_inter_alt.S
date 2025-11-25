@@ -110,7 +110,7 @@ START:
 
 MAIN:
 	MOVE.L  #SAMPLE,$A0(A6)			; table beginning
-	MOVE.W  #SAMPLE_LEN,$A4(A6)		; table length in word
+	MOVE.W  #SAMPLE_LEN/2,$A4(A6)		; table length in word
 	MOVE.W  #424,$A6(A6)			; period (C)
 	MOVE.W  #64,$A8(A6)			; loudness level (volume)
 	MOVE.W  #DMASET,$96(A6)   		; start DMA (Sound)
@@ -185,13 +185,13 @@ Audio
 	CNOP	0,2		; align data on a word boundary
 
 
-	INCDIR	"dh2:amiga-playground/resources/sounds/"
+	INCDIR	"RESOURCES:sounds/"
 SAMPLE:
 	INCBIN	"Alien"
-SAMPLE_LEN=(*-SAMPLE)/2
+SAMPLE_LEN=*-SAMPLE
 
 
-	IF (SAMPLE_LEN*2)<>7800
+	IF SAMPLE_LEN<>7800
 	FAIL "SAMPLE NOT VALID"
 	ENDC
 

@@ -101,7 +101,7 @@ qu:
 	lea     diskio,a1
 	move    #9,28(a1)		;command:MOTOR (0=off,1=on)
 	move.l  #0,36(a1)		;motor off
-	jsr     sendio(a6)
+	jsr     sendIo(a6)
 
 	move.l  conhandle,d1		;window close
 	move.l  dosbase,a6
@@ -154,7 +154,7 @@ accdisk:
 	move.l  #block_len*512,36(a1)		;length: n sectors
 	move.l  #block_offset*512,44(a1)	;offset: n sectors
 	move.l  execbase,a6
-	jsr     sendio(a6)
+	jsr     sendIo(a6)
 	rts
 
 dosname:       dc.b 'dos.library',0,0

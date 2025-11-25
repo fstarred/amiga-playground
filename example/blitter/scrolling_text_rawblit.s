@@ -13,8 +13,8 @@
 	SECTION Code,CODE
 
 
-DMASET  = %1000001111110000
-;     %-----axbcdefghij
+DMASET  = %1000001111000000
+;         %-----axbcdefghij
 ;   a: Blitter Nasty
 ;   x: Enable DMA
 ;   b: Bitplane DMA (if this isn't set, sprites disappear!)
@@ -47,9 +47,10 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:amiga-playground"
+	incdir	"dh2:amiga-playground"
 	include	"/startup/borchen/startup.s"	; 
-	include "/shared/hardware/custom.i"
+	INCDIR	"INCLUDE:"
+	include "hardware/custom.i"
 *****************************************************************************
 
 
@@ -90,9 +91,9 @@ WAITVB2 MACRO
 	ENDM
 
 BLTWAIT	MACRO
-	tst DMACONR(a6)			;for compatibility
+	tst dmaconr(a6)			;for compatibility
 \1
-	btst #6,DMACONR(a6)
+	btst #6,dmaconr(a6)
 	bne.s \1
 	ENDM
 
@@ -107,7 +108,7 @@ RMOUSE	MACRO
 	bne.s	\1
 	ENDM
 
-START:
+Start:
     	move.l  #SCREEN,d0  ; point to bitplane
     	lea BPLPOINTERS,a1  ; 
    	MOVEQ   #bpls-1,d1  ; 2 BITPLANE
@@ -187,16 +188,16 @@ noreset
 
 	BLTWAIT BWT1
 
-	move.l	#$09f00000,BLTCON0(a5)	; BLTCON0: A-D
-	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM + BLTALWM 
+	move.l	#$09f00000,bltcon0(a5)	; bltcon0: A-D
+	move.l	#$ffffffff,bltafwm(a5)	; bltafwm + BLTALWM 
 
-	move.l	a2,BLTAPT(a5)	; BLTAPT: font address
+	move.l	a2,bltapt(a5)	; bltapt: font address
 
-	move.l	#SCREEN+SCREEN_VOFFSET+40,BLTDPT(a5) 
+	move.l	#SCREEN+SCREEN_VOFFSET+40,bltdpt(a5) 
 			; print to not visible screen area
-	move.w	#(FONTSET_WIDTH-FONT_WIDTH)/8,BLTAMOD(a5) ; BLTAMOD: modulo font
-	move.w	#ScrBpl-FONT_WIDTH/8,BLTDMOD(a5)	  ; BLTDMOD: modulo bit planes
-	move.w	#(bpls*FONTSET_HEIGHT*64)+FONT_WIDTH/16,BLTSIZE(a5) 	; BLTSIZE	
+	move.w	#(FONTSET_WIDTH-FONT_WIDTH)/8,bltamod(a5) ; bltamod: modulo font
+	move.w	#ScrBpl-FONT_WIDTH/8,bltdmod(a5)	  ; bltdmod: modulo bit planes
+	move.w	#(bpls*FONTSET_HEIGHT*64)+FONT_WIDTH/16,bltsize(a5) 	; bltsize	
 no_print:
 	rts
 
@@ -221,24 +222,24 @@ scroll_text:
 
 	BLTWAIT BWT2
 
-	move.w	#$19f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
+	move.w	#$19f0,bltcon0(a5)	; bltcon0 copy from A to D ($F) 
 					; 1 pixel shift, LF = F0
-	move.w	#$0002,BLTCON1(a5)	; BLTCON1 use blitter DESC mode
+	move.w	#$0002,bltcon1(a5)	; bltcon1 use blitter DESC mode
 					
 
-	move.l	#$ffff7fff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
-					; BLTAFWM = $ffff - 
+	move.l	#$ffff7fff,bltafwm(a5)	; bltafwm / BLTALWM
+					; bltafwm = $ffff - 
 					; BLTALWM = $7fff = %0111111111111111
 					; mask the left bit
 
 
-	move.l	d0,BLTAPT(a5)			; BLTAPT - source
-	move.l	d0,BLTDPT(a5)			; BLTDPT - dest
+	move.l	d0,bltapt(a5)			; bltapt - source
+	move.l	d0,bltdpt(a5)			; bltdpt - dest
 
 	; scroll an image of the full screen width * FONT_HEIGHT
 
-	move.l	#$00000000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
-	move.w	#(FONT_HEIGHT*bpls*64)+21,BLTSIZE(a5)	; BLTSIZE
+	move.l	#$00000000,bltamod(a5)	; bltamod + bltdmod 
+	move.w	#(FONT_HEIGHT*bpls*64)+21,bltsize(a5)	; bltsize
 	rts					
 
 	
@@ -289,7 +290,8 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 	
 FONT:
-	incbin  "/resources/fonts/16X16-F2_944_16_2.blt.raw"
+	INCDIR	"RESOURCES:"
+	incbin  "fonts/16X16-F2_944_16_2.blt.raw"
 	
 *****************************************************************************
 
@@ -326,7 +328,7 @@ SCREEN:
 ; +--------------------------+---------------------------+
 ; | AREA MODE ("normal")     | LINE MODE (line draw)     |
 ; +------+---------+---------+------+---------+----------+
-; | BIT# | BLTCON0 | BLTCON1 | BIT# | BLTCON0 | BLTCON1  |
+; | BIT# | bltcon0 | bltcon1 | BIT# | bltcon0 | bltcon1  |
 ; +------+---------+---------+------+---------+----------+
 ; | 15   | ASH3    | BSH3    | 15   | ASH3    | BSH3     |
 ; | 14   | ASH2    | BSH2    | 14   | ASH2    | BSH2     |
@@ -348,7 +350,7 @@ SCREEN:
 
 ;BLITTER KEY POINTS
 
-; - Write BLTSIZE last; writing this register starts the blit.
+; - Write bltsize last; writing this register starts the blit.
 
 ; - Modulos  and  pointers  are in  bytes;  width is  in  words and  height is  in pixels.  
 ;	The least  significant bit of all pointers and  modules is ignored.

@@ -115,12 +115,12 @@ START:
 PREPARE_SAMPLES:
 
 	MOVE.L  #SAMPLE_1,$A0(A6)		; table beginning
-	MOVE.W  #SAMPLE_1_LEN,$A4(A6)		; table length in word
+	MOVE.W  #SAMPLE_1_LEN/2,$A4(A6)		; table length in word
 	MOVE.W  #424,$A6(A6)			; period (C)
 	MOVE.W  #64,$A8(A6)			; loudness level (volume)
 
 	MOVE.L  #SAMPLE_2,$B0(A6)		; table beginning
-	MOVE.W  #SAMPLE_2_LEN,$B4(A6)		; table length in word
+	MOVE.W  #SAMPLE_2_LEN/2,$B4(A6)		; table length in word
 	MOVE.W  #424,$B6(A6)			; period (C)
 	MOVE.W  #64,$B8(A6)			; loudness level (volume)
 
@@ -211,7 +211,7 @@ INTER:
 	LSR.W	#7,D1			; shift right 7 positions
 	MOVE.W	D1,D2
 	AND.W	Flag,D2
-	BNE.B	.END			; if flag is on branch end
+	BNE.B	.END			; if flag is ON skip to the end
 	MOVE.W	D0,$9A(A6)		; disable interrupt
 	MOVE.W	D1,$96(A6)		; stop dma
 .END
@@ -259,25 +259,21 @@ Count
 
 	CNOP	0,2		; align data on a word boundary
 
-	INCDIR	"dh2:amiga-playground/resources/sounds/"
+	INCDIR	"RESOURCES:sounds/"
 SAMPLE_1:
 	INCBIN	"Alien"
-SAMPLE_1_LEN=(*-SAMPLE_1)/2
+SAMPLE_1_LEN=*-SAMPLE_1
 
 SAMPLE_2:
 	INCBIN	"SyntheBass"
-SAMPLE_2_LEN=(*-SAMPLE_2)/2
-
-SAMPLE_E:
-	DCB.B	40
-SAMPLE_E_LEN=(*-SAMPLE_E)/2
+SAMPLE_2_LEN=*-SAMPLE_2
 
 
-	IF (SAMPLE_1_LEN*2)<>7800
+	IF SAMPLE_1_LEN<>7800
 	FAIL "SAMPLE NOT VALID"
 	ENDC
 
-	IF (SAMPLE_2_LEN*2)<>7900
+	IF SAMPLE_2_LEN<>7900
 	FAIL "SAMPLE NOT VALID"
 	ENDC
 

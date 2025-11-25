@@ -36,9 +36,10 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:amiga-playground"
+	incdir	"dh2:amiga-playground"
 	include	"/startup/borchen/startup.s"	; 
-	include "/shared/hardware/custom.i"
+	INCDIR	INCLUDE:
+	include hardware/custom.i
 *****************************************************************************
 
 
@@ -96,7 +97,7 @@ RMOUSE	MACRO
 	bne.s	\1
 	ENDM
 
-START:
+Start:
     	move.l  #SCREEN,d0  ; point to bitplane
     	lea BPLPOINTERS,a1  ; 
    	MOVEQ   #bpls-1,d1  ; 2 BITPLANE
@@ -131,7 +132,7 @@ POINTBP:
 	lea	$dff000,a5
 	lea	TEXT(PC), a0
 
-Main:
+Main
 	WAITVB  Main
 	
 	bsr.s	print_char
@@ -178,9 +179,9 @@ noreset:
 	BLTWAIT BWT1
 	
 	moveq	#-1,d1
-	move.l	d1,BLTAFWM(a5)	 	; BLTALWM, BLTAFWM
-	move.l	#$09F00000,BLTCON0(a5)	; BLTCON0/1 ; A-D
-	move.l	#$00240028,BLTAMOD(a5)	; BLTAMOD = 36, BLTDMOD = 40
+	move.l	d1,bltafwm(a5)	 	; BLTALWM, BLTAFWM
+	move.l	#$09F00000,bltcon0(a5)	; BLTCON0/1 ; A-D
+	move.l	#$00240028,bltamod(a5)	; BLTAMOD = 36, BLTDMOD = 40
 
 	lea	SCREEN+SCREEN_VOFFSET+40,a1	; Destination
 
@@ -189,16 +190,16 @@ CopyCharL:
 
 	BLTWAIT BWT2
 
-	move.l	a2,BLTAPT(a5)		; BLTAPT (carattere in font)
-	move.l	a1,BLTDPT(a5)		; BLTDPT (bitplane)
-	move.w	#FONT_HEIGHT*64+(FONT_WIDTH/16),BLTSIZE(a5)	; BLTSIZE
+	move.l	a2,bltapt(a5)		; BLTAPT (carattere in font)
+	move.l	a1,bltdpt(a5)		; BLTDPT (bitplane)
+	move.w	#FONT_HEIGHT*64+(FONT_WIDTH/16),bltsize(a5)	; BLTSIZE
 	
 	;add.w	#ScrBpl*h,a1
 	lea	ScrBpl*h(a1),a1
 	;add.w	#44*32,a1			; NEXT BITPLANE SCREEN
 	lea	40*FONTSET_HEIGHT(a2),a2	; NEXT BITPLANE FONTSET
 
-	dbra	d7,copycharL
+	dbra	d7,CopyCharL
 
 no_print:
 	rts
@@ -228,23 +229,23 @@ scroll_loop:
 
 	BLTWAIT BWT3
 
-	move.w	#$19f0,BLTCON0(a5)	; BLTCON0 copy from A to D ($F) 
+	move.w	#$19f0,bltcon0(a5)	; BLTCON0 copy from A to D ($F) 
 					; 1 pixel shift, LF = F0
-	move.w	#$0002,BLTCON1(a5)	; BLTCON1 use blitter DESC mode
+	move.w	#$0002,bltcon1(a5)	; BLTCON1 use blitter DESC mode
 					
 
-	move.l	#$ffffffff,BLTAFWM(a5)	; BLTAFWM / BLTALWM
+	move.l	#$ffffffff,bltafwm(a5)	; BLTAFWM / BLTALWM
 					; BLTAFWM = $ffff - 
 					; BLTALWM = $ffff 
 
 
-	move.l	d0,BLTAPT(a5)			; BLTAPT - source
-	move.l	d0,BLTDPT(a5)			; BLTDPT - dest
+	move.l	d0,bltapt(a5)			; BLTAPT - source
+	move.l	d0,bltdpt(a5)			; BLTDPT - dest
 
 	; scroll an image of the full screen width * FONT_HEIGHT
 
-	move.l	#$00000000,BLTAMOD(a5)	; BLTAMOD + BLTDMOD 
-	move.w	#(FONT_HEIGHT*64)+22,BLTSIZE(a5)	; BLTSIZE
+	move.l	#$00000000,bltamod(a5)	; BLTAMOD + BLTDMOD 
+	move.w	#(FONT_HEIGHT*64)+22,bltsize(a5)	; BLTSIZE
 
 	add.l	#ScrBpl*h,d0
 
@@ -344,7 +345,8 @@ BPLPOINTERS:
 	SECTION	Data,DATA_C
 	
 FONT:
-	incbin  "/resources/fonts/32x32-FH.raw"
+	INCDIR	RESOURCES:
+	incbin  "fonts/32x32-FH.raw"
 	
 *****************************************************************************
 

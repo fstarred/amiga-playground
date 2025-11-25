@@ -35,9 +35,10 @@ INTENASET=     %1010000000000000
 
 	
 *****************************************************************************
-	incdir	"dh1:amiga-playground"
+	incdir	"dh2:amiga-playground"
 	include	"/startup/borchen/startup.s"	 
-	include "/shared/hardware/custom.i"
+	INCDIR	"INCLUDE:"
+	include "hardware/custom.i"
 *****************************************************************************
 
 
@@ -59,14 +60,14 @@ bpls = 1
 wbl = 303
 
 WAITVB MACRO
-   	move.l  VPOSR(a5),d0      ; wait
+   	move.l  vposr(a5),d0      ; wait
  	and.l   #$0001ff00,d0   ; for
    	cmp.l   #wbl<<8,d0      ; rasterline 303
 	bne.s   \1
 	ENDM
 
 WAITVB2 MACRO
-	move.l  VPOSR(a5),d0      ; wait
+	move.l  vposr(a5),d0      ; wait
  	and.l   #$0001ff00,d0   ; for
 	cmp.l   #wbl<<8,d0      ; rasterline 303
 	beq.s   \1
@@ -89,7 +90,7 @@ RMOUSE	MACRO
 	beq.s	\1
 	ENDM
 
-START:
+Start:
     	move.l  #SCREEN_H,d0  ; point to bitplane
     	lea BPLPOINTERS_H,a1  ; 
    	moveq   #bpls-1,d1  ; 2 BITPLANE
@@ -292,7 +293,8 @@ BPLPOINTERS_L:
 
 
 FONT:
-	incbin	"/resources/fonts/nice-8x8.fnt"
+	INCDIR	"RESOURCES:"
+	incbin	"fonts/nice-8x8.fnt"
 	
 *****************************************************************************
 

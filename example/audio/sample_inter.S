@@ -116,7 +116,7 @@ START:
 
 MAIN:
 	MOVE.L  #SAMPLE_1,$A0(A6)			; table beginning
-	MOVE.W  #SAMPLE_1_LEN,$A4(A6)	; table length in word
+	MOVE.W  #SAMPLE_1_LEN/2,$A4(A6)	; table length in word
 	MOVE.W  #424,$A6(A6)			; period (C)
 	MOVE.W  #64,$A8(A6)			; loudness level (volume)
 	MOVE.W  #DMASET,$96(A6)   		; start DMA (Sound)
@@ -163,7 +163,7 @@ INTER:
 	BEQ.W	EXIT_INTER
 
 	MOVE.L  #SAMPLE_E,$A0(A6)	; table beginning
-	MOVE.W  #SAMPLE_E_LEN,$A4(A6)	; table length in word	
+	MOVE.W  #SAMPLE_E_LEN/2,$A4(A6)	; table length in word	
 	
 CANCEL_INTER:
 	MOVE.W	#$0080,D0
@@ -188,18 +188,18 @@ OldInter:
 
 	CNOP	0,2		; align data on a word boundary
 
-	INCDIR	"dh2:amiga-playground/resources/sounds/"
+	INCDIR	"RESOURCES:sounds/"
 SAMPLE_1:
 	INCBIN	"Alien"
-SAMPLE_1_LEN=(*-SAMPLE_1)/2
+SAMPLE_1_LEN=*-SAMPLE_1
 
 SAMPLE_E
 	DCB.B	20
-SAMPLE_E_LEN=(*-SAMPLE_E)/2
+SAMPLE_E_LEN=*-SAMPLE_E
 
 
 
-	IF (SAMPLE_1_LEN*2)<>7800
+	IF SAMPLE_1_LEN<>7800
 	FAIL "SAMPLE NOT VALID"
 	ENDC
 
