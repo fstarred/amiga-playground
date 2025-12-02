@@ -15,9 +15,10 @@ Amiga assembly code playground, it includes examples, simple demos, trainers, et
 ## How to run 
 
 1. Download and run your favourite version of Asm-One; all the demo and examples here were tested with **1.02** and **1.20**
-2. Select the workspace memory (100 KB is good)
-3. Load the source (command 'R')
-4. Type 'a' (assemble) and then type 'j' (jump)
+2. [Setup the environment](#setup-env) properly
+3. Select the workspace memory (100 KB is good)
+4. Load the source (command 'R')
+5. Type 'a' (assemble) and then type 'j' (jump)
 
 ## Links
 
@@ -26,6 +27,27 @@ Amiga assembly code playground, it includes examples, simple demos, trainers, et
 * http://www.pjhutchison.org/emulation/AmigaAsmTutorial.txt
 * http://coppershade.org/
 * https://flashtro.com/category/source/ctsource/amigasources/
+
+<a id="setup-env"></a>
+## Setup environment
+
+Before diving into any assembler, in order to succesfully assemble the sources of this repository you need to assign volumes with the following commands:
+
+```
+assign SOURCES: <your_drawer>:amiga-playground/sources
+assign RESOURCES: <your_drawer>:amiga-playground/resources
+assign INCLUDE: <your_drawer>:asm-one/asm-one1.02/Include
+```
+
+Notice that for the **INCLUDE:** volume, you can use the **Asm-One 1.02** disk with the already included "Include" directory or the **NDK39.lha** package
+
+**Prior Workbench 2.04**
+
+You can use the ASSIGN commands from **s:StartupII** file
+
+**From Workbench 2.04 and newer**
+
+You can use the ASSIGN commands from **s:User-Startup** file
 
 ## Asm-One
 
