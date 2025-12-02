@@ -261,7 +261,7 @@ RMOVE
 
 CHECKSPIN
 	SUB.B	#1,CurrentSpinFrameRate
-	BNE.W	PLAY_SOUND
+	BNE.W	CHECK_AUDIO
 
 	MOVE.B	#SPIN_FRAME_RATE, CurrentSpinFrameRate
 CHECKFRAME
@@ -269,41 +269,41 @@ CHECKFRAME
 	BNE.B	.NEXTFRAME
 	MOVE.B	#SPIN_FRAME_COUNT, SpinFrameCounter
 	MOVE.L	#FRAME1,CurrentSpinFrameOffset
-	BRA.B	PLAY_SOUND
+	BRA.B	CHECK_AUDIO
 .NEXTFRAME		
 	ADD.L	#BALL_FRAME_SIZE*2,CurrentSpinFrameOffset
-PLAY_SOUND
+CHECK_AUDIO
 	SUB.B	#1,SoundCountRasters
-	BNE.B	LOAD_SOUNDFLAG
-	MOVE.W	#1,$96(A6)
-LOAD_SOUNDFLAG
+	BNE.B	.LOAD_SOUNDFLAG
+	MOVE.W	#1,$96(A6)			; stop DMA
+.LOAD_SOUNDFLAG
+	TST.W	D2				; if empty, y did not change
+	BEQ.B	EXIT
 	LEA	SoundFlag(PC),A0
-	CMPI.W	#$125,D2
+	CMPI.W	#$125,D2			; $105 (y) + $20 (ball height)
 	BEQ.B	.CHECK_FLAG
-	CLR.B	(A0)
-	BRA.B	EXIT
+	CLR.B	(A0)				; position < $105,
+	BRA.B	EXIT				; clear SoundFlag and exit
 .CHECK_FLAG
-	TST.B	(A0)
-	BNE.B	EXIT
+	TST.B	(A0)				; check SoundFlag
+	BNE.B	EXIT				; if set, exit
 	
-	ST.B	(A0)
+	ST.B	(A0)				; set SoundFlag
 	MOVE.L  #AUDIO_SAMPLE,$A0(A6)		; table beginning
 	MOVE.W  #AUDIO_SAMPLE_LEN/2,$A4(A6)	; table length in word
 	MOVE.W  #400,$A6(A6)			; period (C)
 	MOVE.W  #40,$A8(A6)			; loudness level (volume)
-BURP
-	MOVE.W	$02(A6),D0
-	ORI.W	#$8001,D0
-	MOVE.W  D0,$96(A6)   		; start DMA (Sound)
+
+	MOVE.W	#$8001,$96(A6)			; start DMA
 	MOVE.B	#AUDIO_FRAMES_DURATION,SoundCountRasters
 
 	MOVE.L	$04(A6),D0
-	ANDI.L	#$1FF00,D0
-	ADDI.L	#$2<<8,D0
+	ANDI.L	#$1FF00,D0			; read VPOS
+	ADDI.L	#2<<8,D0			; add 2 to current VPOS
 .WAITRASTER
 	MOVE.L	$04(A6),D1
 	ANDI.L	#$1FF00,D1
-	CMP.L	D0,D1
+	CMP.L	D0,D1				; wait 2 rasters
 	BNE.B	.WAITRASTER
 	MOVE.L  #EMPTY_SAMPLE,$A0(A6)		; table beginning
 	MOVE.W  #EMPTY_SAMPLE_LEN/2,$A4(A6)	; table length in word	
@@ -326,10 +326,10 @@ OldDma:
 OldInter:
 	DC.L	0
 
-SoundFlag
+SoundFlag			; if 0, play sound, otherwise do nothing
 	DC.B	0
 SoundCountRasters
-	DC.B	AUDIO_FRAMES_DURATION
+	DC.B	AUDIO_FRAMES_DURATION	; if 0, stop DMA
 CurrentSpinFrameRate
 	DC.B	1
 SpinFrameCounter

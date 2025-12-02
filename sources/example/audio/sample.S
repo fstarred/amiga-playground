@@ -74,8 +74,8 @@ START:
 	LEA	$DFF000,A6
 
 MAIN:
-	MOVE.L  #SAMPLE_1,$A0(A6)			; table beginning
-	MOVE.W  #SAMPLE_1_LEN/2,$A4(A6)	; table length in word
+	MOVE.L  #SAMPLE_1,$A0(A6)		; table beginning
+	MOVE.W  #SAMPLE_1_LEN/2,$A4(A6)		; table length in word
 	MOVE.W  #424,$A6(A6)			; period (C)
 	MOVE.W  #64,$A8(A6)			; loudness level (volume)
 	MOVE.W  #DMASET,$96(A6)   		; start DMA (Sound)

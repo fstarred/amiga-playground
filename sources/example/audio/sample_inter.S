@@ -115,8 +115,8 @@ START:
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
 
 MAIN:
-	MOVE.L  #SAMPLE_1,$A0(A6)			; table beginning
-	MOVE.W  #SAMPLE_1_LEN/2,$A4(A6)	; table length in word
+	MOVE.L  #SAMPLE_1,$A0(A6)		; table beginning
+	MOVE.W  #SAMPLE_1_LEN/2,$A4(A6)		; table length in word
 	MOVE.W  #424,$A6(A6)			; period (C)
 	MOVE.W  #64,$A8(A6)			; loudness level (volume)
 	MOVE.W  #DMASET,$96(A6)   		; start DMA (Sound)
@@ -165,7 +165,7 @@ INTER:
 	MOVE.L  #SAMPLE_E,$A0(A6)	; table beginning
 	MOVE.W  #SAMPLE_E_LEN/2,$A4(A6)	; table length in word	
 	
-CANCEL_INTER:
+.CANCEL_INTER:
 	MOVE.W	#$0080,D0
 	MOVE.W	D0,$9A(A6)		; disable interrupt 
 	MOVE.W	D0,$9C(A6)		; clear interrupt request	
