@@ -5,12 +5,7 @@ Amiga assembly code playground, it includes examples, simple demos, trainers, et
 ## Native tools
 
 * Asm-One (v1.02 / v1.20)
-* IFF-Converter (many versions were produced, they are more or less all good)
-
-## External tools
-
-* [XnConvert](https://www.xnview.com/en/xnconvert) - an image converter to multiple formats
-* [Amigeconv](https://github.com/tditlu/amigeconv) - a graphics converter for different Amiga bitplanes, chunky & palette formats
+* IFF-Converter (many versions were produced, they are more or less all good but I personally prefer the 1.35 for the way it handle the sprite code generation)
 
 ## How to run 
 
@@ -77,6 +72,11 @@ If you want to use _reqtools.library_, search for reqtools13.library, then:
 ```
 copy reqtools13.library to dh0:Libs/reqtools.library
 ```
+
+## External tools
+
+* [XnConvert](https://www.xnview.com/en/xnconvert) - an image converter to multiple formats
+* [Amigeconv](https://github.com/tditlu/amigeconv) - a graphics converter for different Amiga bitplanes, chunky & palette formats
 
 ## External links
 
