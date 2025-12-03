@@ -20,15 +20,6 @@ Amiga assembly code playground, it includes examples, simple demos, trainers, et
 4. Load the source (command 'R')
 5. Type 'a' (assemble) and then type 'j' (jump)
 
-## Links
-
-* http://corsodiassembler.ramjam.it/index_en.htm
-* http://amigadev.elowar.com/
-* https://invidious.grimore.org/
-* http://www.pjhutchison.org/emulation/AmigaAsmTutorial.txt
-* http://coppershade.org/
-* https://flashtro.com/category/source/ctsource/amigasources/
-
 <a id="setup-env"></a>
 ## Setup environment
 
@@ -86,3 +77,13 @@ If you want to use _reqtools.library_, search for reqtools13.library, then:
 ```
 copy reqtools13.library to dh0:Libs/reqtools.library
 ```
+
+## External links
+
+* http://corsodiassembler.ramjam.it/index_en.htm
+* http://amigadev.elowar.com/
+* https://invidious.grimore.org/
+* http://www.pjhutchison.org/emulation/AmigaAsmTutorial.txt
+* http://coppershade.org/
+* https://flashtro.com/category/source/ctsource/amigasources/
+
