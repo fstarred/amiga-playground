@@ -28,10 +28,10 @@ PAL 	=	28.375160 MHz
 
 ### CIA Timer A / Timer B Tick Duration
 
-|Amiga Video Standard|CIA Clock Frequency (E-Clock)|Tick Duration (μs)  |
-|--------------------|-----------------------------|--------------------|
-|NTSC                |0.715909 MHz                 |≈1.3968 μs          |
-|PAL                 |0.709379 MHz                 |≈1.4097 μs          |
+| Standard | CIA Clock Frequency (E-Clock) | Tick Duration (μs)  |
+|----------|-------------------------------|---------------------|
+|NTSC      | 0.715909 MHz                  | ≈1.3968 μs          |
+|PAL       | 0.709379 MHz                  | ≈1.4097 μs          |
 
 ### CIAA TOD (Vertical Sync)
 
@@ -47,4 +47,11 @@ PAL 	=	28.375160 MHz
 |NTSC    |≈15.734 kHz                  |≈63.56 μs    |
 |PAL     |≈15.625 kHz                  |≈64.00 μs    |
 
+
+### CIA Timer A / Timer B equivalent ticks occurred for an horizontal raster 
+
+|Standard|Raster duration              |Ticks        |
+|--------|-----------------------------|-------------|
+|NTSC    |≈63.5555 μs                  |≈45.50 μs    |
+|PAL     |≈63.9996 μs                  |≈45.40 μs    |
 
