@@ -6,7 +6,7 @@ NTSC = 3579545 ticks per second
 PAL  = 3546895 ticks per second
 ```
 
-###VBLANK duration
+### VBLANK duration
 ```
 NTSC = ~0.0166s
 PAL  = ~0.0199s
