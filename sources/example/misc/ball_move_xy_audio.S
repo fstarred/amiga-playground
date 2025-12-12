@@ -122,7 +122,7 @@ START:
 	MOVE.L	#INTER,$6C.W		; set interrupt pointer
 	MOVE.W	#INTENA,$9A(A6)		; set bit of INTENA
 	
-INIT
+.INIT
 	MOVE.L	#BITPLANE,D0		; point to bitplane data
 	LEA	BPLPOINTERS,A1		; point to BPL1PT register
 	MOVE.W	D0,6(A1)		; BPL1PTL
@@ -132,6 +132,11 @@ INIT
 	MOVEQ	#0,D0
 	MOVE.W	D0,$88(A6)
 	MOVE.W	D0,$1FC(A6)		; force ECS compatibility
+
+	; init sound
+	MOVE.W  #400,$A6(A6)		; period (C)
+	MOVE.W  #40,$A8(A6)		; loudness level (volume)
+
 
 LEFTMOUSE
 	BTST	#6,$BFE001
@@ -280,7 +285,7 @@ CHECK_AUDIO
 	TST.W	D2				; if empty, y did not change
 	BEQ.B	EXIT
 	LEA	SoundFlag(PC),A0
-	CMPI.W	#$125,D2			; $105 (y) + $20 (ball height)
+	CMPI.W	#($105+BALL_HEIGHT),D2		; bottom y + ball height
 	BEQ.B	.CHECK_FLAG
 	CLR.B	(A0)				; position < $105,
 	BRA.B	EXIT				; clear SoundFlag and exit
@@ -291,8 +296,6 @@ CHECK_AUDIO
 	ST.B	(A0)				; set SoundFlag
 	MOVE.L  #AUDIO_SAMPLE,$A0(A6)		; table beginning
 	MOVE.W  #AUDIO_SAMPLE_LEN/2,$A4(A6)	; table length in word
-	MOVE.W  #400,$A6(A6)			; period (C)
-	MOVE.W  #40,$A8(A6)			; loudness level (volume)
 
 	MOVE.W	#$8001,$96(A6)			; start DMA
 	MOVE.B	#AUDIO_FRAMES_DURATION,SoundCountRasters

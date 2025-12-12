@@ -1,7 +1,7 @@
 *************************************************
 *						*
 *						*
-*	System OFF with VBLANK Interrupt	*
+*	Blitter copy memory area		*
 *						*
 *						*
 *************************************************
@@ -18,7 +18,6 @@
 ; MOVE.W #INTENA,$9A(A6)	; set bit of INTENA
 
 
-
 OldOpenLibrary = -408
 CloseLibrary = -414
 
@@ -26,7 +25,7 @@ CloseLibrary = -414
 
 ;DMACON     096      W     A D P   DMA control write (clear or set)
 ;DMACONR    002      R     A   P   DMA control (and blitter status) read
-DMASET=	%1000001110100000
+DMASET=	%1000001111000000
 ;	 fedcba9876543210
 
 ;	f: Set/Clear control bit
@@ -116,10 +115,48 @@ INIT
 	MOVEQ	#0,D0
 	MOVE.W	D0,$88(A6)
 	MOVE.W	D0,$1FC(A6)
+MAIN
+.DRAWSQUARE			;32*32
+	MOVEQ	#-1,D0
+	LEA	BITPLANE,A0
 
-LEFTMOUSE
+	MOVEQ	#8-1,D1
+.LOOP
+	MOVE.L	D0,(A0)
+	MOVE.L	D0,40(A0)
+	MOVE.L	D0,80(A0)
+	MOVE.L	D0,120(A0)
+	ADDI.L	#160,A0
+	DBF	D1,.LOOP
+
+.LMPRESS
 	BTST	#6,$BFE001
-	BNE.S	LEFTMOUSE
+	BNE.S	.LMPRESS
+.LMRELEASE
+	BTST	#6,$BFE001
+	BEQ.S	.LMRELEASE
+
+
+	LEA	$DFF000,A1
+.WAITBLIT1.
+	BTST.B	#6,$02(A1)
+.WAITBLIT2:
+	BTST.B	#6,$02(A1)
+	BNE.B	.WAITBLIT2
+COPYREGION
+	MOVE.W	#$09F0,$40(A1)		; BLTCON0 - USEA+USED LF=$F0 (D=A)
+	CLR.W	$42(A1)			; BLTCON1
+	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
+	MOVE.W	#$FFFF,$46(A1)		; BLTALWM - full copy
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE+8,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.W	#36,$64(A1)		; BLTAMOD - 40-4 bytes of modulo
+	MOVE.W	#36,$66(A1)		; BLTDMOD - 40-4 bytes of modulo
+	MOVE.W	#(32<<6)+2,$58(A1)	; BLTSIZE 32 height * 2 words width
+
+.LMPRESS
+	BTST	#6,$BFE001
+	BNE.S	.LMPRESS
 
 **** EXIT - RESTORE OLD REG SETTINGS ****
 
@@ -160,14 +197,14 @@ WAITVB:
 
 INTER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)
-	LEA	$DFF000,A6	
+	LEA	$DFF000,A1
 
 	BTST.B	#5,$01F(A6)
-	BEQ.B	EXIT
+	BEQ.B	.EXIT			
 
 	NOP
 
-EXIT
+.EXIT
 	MOVE.W	#$0020,$9C(A6)		; clear interrupt request
 	MOVEM.L	(SP)+,D0-D7/A0-A6
 	RTE
@@ -186,7 +223,7 @@ OldInter:
 	DC.L	0
 
 
-	SECTION COPPER,DATA_C
+	SECTION DATA,DATA_C
 
 COPPERLIST:
 
@@ -199,12 +236,6 @@ COPPERLIST:
 	DC.W	$108,0		; Bpl1Mod
 	DC.W	$10A,0		; Bpl2Mod
 
-SPRITEPOINTERS:
-	DC.W    $120,0,$122,0,$124,0,$126,0 ; SPR0/1PT
-	DC.W	$128,0,$12A,0,$12C,0,$12E,0 ; SPR2/3PT
-	DC.W	$130,0,$132,0,$134,0,$136,0 ; SPR4/5PT
-	DC.W	$138,0,$13A,0,$13C,0,$13E,0 ; SPR6/7PT
-
 BPLPOINTERS:
 	DC.W	$E0,0,$E2,0	; BPL1PT
 	
@@ -214,10 +245,111 @@ BPLPOINTERS:
 	DC.W	$0182,$FFF	; COLOR1
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
 	
-	SECTION	BITPLANES,BSS_C
-	
 BITPLANE:
 	DS.B	40*256		; blank bitplane
 	
-END
+	END
+
+
+
+
+
+	
+       Truth table
+
+A B C D BLTCONO position
+0 0 0 ?        0
+0 0 1 ?        1
+0 1 0 ?        2
+0 1 1 ?        3
+1 0 0 ?        4
+1 0 1 ?        5
+1 1 0 ?        6
+1 1 1 ?        7
+
+			Table of Common Minterm Values
+
+
+	  Selected      BLTCON0            Selected      BLTCON0 
+	  Equation      LF Code            Equation      LF Code
+	  --------      -------            --------      -------
+	  D = A           $F0              D =  AB         $C0
+	      _                                  _
+	  D = A           $0F              D =  AB         $30
+	  					_
+	  D = B           $CC              D =  AB         $0C
+	      _                                 __
+	  D = B           $33              D =  AB         $03
+
+	  D = C           $AA              D =  BC         $88
+	      _                                  _
+	  D = C           $55              D =  BC         $44
+	  					_
+	  D = AC          $A0              D =  BC         $22
+	       _                                __
+	  D = AC          $50              D =  AC         $11
+	      _                                     _
+	  D = AC          $0A              D =  A + B      $F3
+	      _                                 _   _
+	  D = AC          $05              D =  A + B      $3F
+				         	    _
+	  D = A + B       $FC              D =  A + C      $F5
+	      _                                 _   _
+	  D = A + B       $CF              D =  A + C      $5F
+						    _
+	  D = A + C       $FA              D =  B + C      $DD
+	      _                                 _   _
+	  D = A + C       $AF              D =  B + C      $77
+						     _
+	  D = B + C       $EE              D =  AB + AC    $CA
+	      _
+	  D = B + C       $BB	
+	  
+	  
+
+                          Agnus/
+                  Read/   Denise/
+Register Address  Write   Paula         Function
+-------- -------  -----   -------       --------
+BLTCON0    040      W       A      Blitter control register 0
+BLTCON1    042      W      A( E )  Blitter control register 1
+
+ These two control registers are used together to
+ control blitter operations.  There are two basic
+ modes, area and line, which are selected by bit
+ 0 of BLTCON1, as shown below.
+
+		AREA MODE ("normal")
+	 -------------------------
+	 BIT# BLTCON0     BLTCON1
+	 ---- -------     -------
+	 15   ASH3        BSH3
+	 14   ASH2        BSH2
+	 13   ASH1        BSH1
+	 12   ASA0        BSH0
+	 11   USEA         X
+	 10   USEB         X
+	 09   USEC         X
+	 08   USED         X
+	 07   LF7          DOFF
+	 06   LF6          X
+	 05   LF5          X
+	 04   LF4         EFE
+	 03   LF3         IFE
+	 02   LF2         FCI
+	 01   LF1         DESC
+	 00   LF0         LINE(=0)
+
+	 ASH3-0  Shift value of A source
+	 BSH3-0  Shift value of B source
+	 USEA    Mode control bit to use source A
+	 USEB    Mode control bit to use source B
+	 USEC    Mode control bit to use source C
+	 USED    Mode control bit to use destination D
+	 LF7-0   Logic function minterm select lines
+	 EFE     Exclusive fill enable
+	 IFE     Inclusive fill enable
+	 FCI     Fill carry input
+	 DESC    Descending (decreasing address) control bit
+	 LINE    Line mode control bit (set to 0)	
 
