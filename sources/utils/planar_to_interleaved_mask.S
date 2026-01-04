@@ -1,9 +1,8 @@
-************************************
-*				   *
-*  Create a rawblit mask starting  *
-*       from a standard one	   *
-*				   *
-************************************
+*****************************************
+*                                       *
+*	planar to interleaved mask          *
+*                                       *
+*****************************************
 
 ; Before running, you must set: 
 ; DEPTH (normal value is between 1 to 6) 
@@ -46,6 +45,7 @@ START
 SOURCE
 	DC.W	%1100000011110000
 	DC.W	%0000110000110000
+;	incbin
 SOURCE_LEN=*-SOURCE
 DEST
 	DS.B		SOURCE_LEN*DEPTH
