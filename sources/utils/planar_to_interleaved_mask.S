@@ -1,6 +1,6 @@
 *****************************************
 *                                       *
-*	planar to interleaved mask          *
+*	planar to interleaved mask      *
 *                                       *
 *****************************************
 
