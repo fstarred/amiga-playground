@@ -3,32 +3,166 @@
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
+;--- Amiga DOS Library Offsets ---
+_LVOOpen      EQU -30
+_LVOClose     EQU -36
+_LVORead      EQU -42
+_LVOWrite     EQU -48
+_LVOOutput    EQU -60
+_LVOReadArgs  EQU -158
+_LVOFreeArgs  EQU -164
+
 Main:
-    ; --- Step 1: Load IFF to Chunky Buffer ---
-    lea     Source(pc),a0       ; IFF File
-    lea     WorkBuffer,a1   ; 80KB Temp Buffer
-    bsr     Module_LoadIFF      ; Returns D1=Width, D2=Height
+;    lea     fakeArgs(pc),a0
+;    moveq   #fakeArgsEnd,d0
+
+    ; --- Kickstart 1.3 Argument Parsing ---
+    ; On startup: A0 = ptr to argument string, D0 = length
+    tst.l   d0                  ; Any arguments?
+    beq     .UsageError
     
-    ; --- Step 2: Analyze & Create Optimization Table ---
-    ; Inputs: A0 points to IFF (for CMAP), A1 has Pixels
-    lea     Source(pc),a0
+    move.l  a0,a2               ; A2 = Arg String
+    move.l  d0,d2               ; D2 = Arg Length
+
+    move.l  4.w,a6
+    lea     dosname(pc),a1
+    moveq   #0,d0               ; Any version
+    jsr     -408(a6)            ; OldOpenLibrary
+    move.l  d0,dosbase
+    beq     .NoDos	
+
+    ; 1. Find the start of the first argument (skip leading spaces)
+.skip1:
+    cmp.b   #' ',(a2)
+    bne.s   .found1
+    addq.l  #1,a2
+    subq.l  #1,d2
+    bne.s   .skip1
+    bra     .UsageError
+.found1:
+    move.l  a2,in_file_ptr      ; Save pointer to "FROM" filename
+
+    ; 2. Find the space between arguments
+.find_space:
+    cmp.b   #' ',(a2)+
+    beq.s   .found_space
+    subq.l  #1,d2
+    bne.s   .find_space
+    bra     .UsageError          ; Only one argument found!
+.found_space:
+    clr.b   -1(a2)              ; NULL terminate the first filename string
+
+    ; 3. Skip spaces until the second argument
+.skip2:
+    cmp.b   #' ',(a2)
+    bne.s   .found2
+    addq.l  #1,a2
+    subq.l  #1,d2
+    bne.s   .skip2
+    bra     .UsageError
+.found2:
+    move.l  a2,out_file_ptr     ; Save pointer to "TO" filename
+
+    ; 4. Find end of second argument and NULL terminate
+.find_end:
+    cmp.b   #10,(a2)            ; Check for NewLine (LineFeed)
+    beq.s   .terminate
+    cmp.b   #13,(a2)            ; Check for Carriage Return
+    beq.s   .terminate
+    addq.l  #1,a2
+    subq.l  #1,d2
+    bne.s   .find_end
+.terminate:
+    clr.b   (a2)                ; NULL terminate the second filename
+
+    ; --- Arguments are now in in_file_ptr and out_file_ptr ---
+    
+   ; --- Step 2: Load Source File ---
+    move.l  dosbase(pc),a6      ; Ensure A6 is DOSBase
+    move.l  in_file_ptr(pc),d1  ; <--- Use the pointer from the parser!
+    move.l  #1005,d2            ; MODE_OLDFILE
+    jsr     _LVOOpen(a6)
+    move.l  d0,file_handle
+    beq     .Close
+
+    ; Read file into SourceBuffer
+    move.l  file_handle(pc),d1
+    move.l  #SourceBuffer,d2
+    move.l  #150000,d3          ; Max size to read
+    jsr     _LVORead(a6)
+    
+    move.l  file_handle(pc),d1
+    jsr     _LVOClose(a6)
+
+    ; --- Step 3: Run Your Modular Logic ---
+    lea     SourceBuffer,a0     ; Point A0 to the loaded file
+    lea     WorkBuffer,a1
+    bsr     Module_LoadIFF      
+    
+    lea     SourceBuffer,a0
     lea     WorkBuffer,a1
     bsr     Module_AnalyzeColors 
-    ; Returns: D0 = New Depth
     
-    ; --- Step 3: Remap Pixel Data ---
-    ; Inputs: A1 (Pixels), RemapTable (Internal)
     lea     WorkBuffer,a1
     bsr     Module_RemapPixels
     
-    ; --- Step 4: Save as Interleaved ---
-    ; Inputs: A1 (Optimized Pixels), A2 (Dest)
-    lea     WorkBuffer,a1   ; Source
-    lea     DestBuffer,a2   ; Destination
-    move.w  NewDepth(pc),d5     ; Depth to save
+    lea     WorkBuffer,a1   
+    lea     DestBuffer,a2   
     bsr     Module_SaveInterleaved
 
+    ; --- Step 4: Save Output File ---
+    move.l  dosbase(pc),a6      ; Ensure A6 is DOSBase
+    move.l  out_file_ptr(pc),d1 ; <--- Use the pointer from the parser!
+    move.l  #1006,d2            ; MODE_NEWFILE
+    jsr     _LVOOpen(a6)    
+    move.l  d0,file_handle
+    beq     .Close
+
+    ; Calculate Save Size: (Width/8) * Height * NewDepth
+    moveq   #0,d3
+    move.w  ImgWidth(pc),d3
+    lsr.w   #3,d3               ; Width in bytes
+    move.w  ImgHeight(pc),d0
+    mulu.w  d0,d3               ; Size of 1 plane
+    move.w  NewDepth(pc),d0
+    mulu.w  d0,d3               ; Total size for all planes
+
+    move.l  file_handle(pc),d1
+    move.l  #DestBuffer,d2
+    jsr     _LVOWrite(a6)
+
+    move.l  file_handle(pc),d1
+    jsr     _LVOClose(a6)
+
+.Close:
+    move.l  dosbase(pc),a6
+    move.l  arg_result(pc),d1
+
+.ArgsError:
+    move.l  4.w,a6
+    move.l  dosbase(pc),a1
+    jsr     -414(a6)            ; CloseLibrary
+
+.NoDos:
+    moveq   #0,d0
     rts
+
+; --- Logic for Printing Usage ---
+.UsageError:
+    move.l  dosbase(pc),a6
+    jsr     _LVOOutput(a6)      ; Get current CLI window handle in D0
+    move.l  d0,d1               ; D1 = Output Handle
+    beq.s   .NoDos              ; Safety check
+
+    lea     usage_msg(pc),a2
+    move.l  a2,d2               ; D2 = Pointer to string
+    moveq   #0,d3
+    move.b  (a2)+,d3            ; Read the first byte (length)
+    ; Note: Alternatively, use a fixed length:
+    move.l  #usage_msg_end-usage_msg,d3 
+    
+    jsr     _LVOWrite(a6)       ; Print it!
+    bra.s   .Close              ; Exit gracefully
 
 ;===========================================================================
 ; MODULE 1: Load IFF -> Chunky
@@ -146,7 +280,7 @@ Module_AnalyzeColors:
     movem.l d2-d7/a2-a6,-(sp)
 
     ; 1. Load Palette from CMAP
-    lea     Source(pc),a0
+    lea     SourceBuffer,a0
     move.l  a0,a4
     bsr     Helper_FindCMAP     ; A0 points to CMAP Data
     lea     Palette(pc),a2
@@ -502,6 +636,15 @@ Helper_DecompressRaw:
     rts
 
 ; DATA
+in_file_ptr:  dc.l 0
+out_file_ptr: dc.l 0
+
+dosname:      dc.b "dos.library",0
+arg_template: dc.b "FROM/A,TO/A",0  ; FROM and TO are required [/A]
+    even
+usage_msg:    dc.b "Usage: depth_reducer FROM TO",10
+usage_msg_end:
+    even	
 ImgWidth:   dc.w 0
 ImgHeight:  dc.w 0
 NewDepth:   dc.w 0
@@ -510,11 +653,19 @@ Histogram:  ds.w 32         ; Usage
 RemapTable: ds.b 32
 RowTempBuffer: ds.b 512   ; Safe buffer for one row of bitplanes (max 8 planes * 64 bytes)
 
-Source:     
-	incbin "image.iff"
+dosbase:    dc.l 0	
+file_handle: dc.l 0
+arg_result:  dc.l 0
+arg_array:   dc.l 0,0           ; Stores pointers to FROM and TO strings
 
+fakeArgs:
+;	dc.b "ball001002.iff output.raw",10,0 ; linefeed + null
+	dc.b "  ",10,0
+fakeArgsEnd=*-fakeArgs
+	
 	SECTION	DATABSS, BSS_C
 
+SourceBuffer: ds.b 150000   ; Input data
 WorkBuffer: ds.b 320*256    ; 80KB Chunky
-DestBuffer: ds.b 40*256*8   ; Final Output
+DestBuffer: ds.b 40*256*5   ; Final Output
 	END
