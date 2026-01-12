@@ -3,22 +3,15 @@
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
+	incdir "INCLUDE:"
+	INCLUDE "exec/exec.i"
+	INCLUDE "exec/exec_lib.i"
+	INCLUDE "libraries/dos.i"
+	INCLUDE "libraries/dos_lib.i"
+
 ;--- Amiga Library Offsets ---
-_LVOOpen      EQU -30
-_LVOClose     EQU -36
-_LVORead      EQU -42
-_LVOWrite     EQU -48
-_LVOOutput    EQU -60
-_LVOLock      EQU -84
-_LVOUnLock    EQU -90
-_LVOExamine   EQU -102
-_LVOAllocMem  EQU -198
-_LVOFreeMem   EQU -210
 
-MEMF_PUBLIC   EQU 1
-MEMF_CLEAR    EQU 65536
-
-DEBUG         EQU 0
+DEBUG         EQU 1
 
 Main:
     IF DEBUG
@@ -29,11 +22,10 @@ Main:
     move.l  a0,a2               ; Save original arg pointer
     move.l  d0,d2               ; Save original length
 
-    move.l  4.w,a6
     lea     dosname(pc),a1
     moveq   #0,d0
-    jsr     -408(a6)            ; OldOpenLibrary
-    move.l  d0,dosbase          ; WRITE: Absolute
+    CALLEXEC OldOpenLibrary                    ; OldOpenLibrary
+    move.l  d0,_DOSBase                        ; WRITE: Absolute
     beq     .NoDos
 
     move.l  a2,a0
@@ -42,18 +34,17 @@ Main:
     bcs     .UsageError
 	
     ; --- Step 1: Check if file exists ---
-    move.l  dosbase(pc),a6
     move.l  in_file_ptr(pc),d1
     move.l  #-2,d2              ; ACCESS_READ
-    jsr     _LVOLock(a6)
+    CALLDOS Lock
     move.l  d0,d1               ; BPTR Lock
-    beq.s   .FileNotFound       ; If lock is 0, file doesn't exist
+    beq.w   .FileNotFound       ; If lock is 0, file doesn't exist
     
     move.l  d0,d1               ; BPTR Lock
     move.l  d1,-(sp)
     lea     MyFIB,a2
     move.l  a2,d2
-    jsr     _LVOExamine(a6)
+    CALLDOS Examine
     
     move.l  (sp)+,d1
     move.l  d1,-(sp)
@@ -62,13 +53,11 @@ Main:
     move.l  d0,SourceSize
     
     move.l  #MEMF_PUBLIC,d1
-    move.l  4.w,a6
-    jsr     _LVOAllocMem(a6)
+    CALLEXEC AllocMem
     move.l  d0,SourcePtr
     
-    move.l  dosbase(pc),a6
     move.l  (sp)+,d1
-    jsr     _LVOUnLock(a6)
+    CALLDOS UnLock
     
     move.l  SourcePtr(pc),a0
     cmpa.l  #0,a0
@@ -76,18 +65,18 @@ Main:
 
     ; --- Step 2: Load Source File ---
     move.l  in_file_ptr(pc),d1
-    move.l  #1005,d2
-    jsr     _LVOOpen(a6)
+    move.l  #MODE_OLDFILE,d2
+    CALLDOS Open
     move.l  d0,file_handle
     beq     .Cleanup
 
     move.l  file_handle(pc),d1
     move.l  SourcePtr(pc),d2
     move.l  SourceSize(pc),d3
-    jsr     _LVORead(a6)
+    CALLDOS Read
     
     move.l  file_handle(pc),d1
-    jsr     _LVOClose(a6)
+    CALLDOS Close
 
     ; --- Step 3: Peek Dimensions & Allocate WorkBuffer ---
     move.l  SourcePtr(pc),a0
@@ -102,8 +91,7 @@ Main:
     
     move.l  d2,d0
     move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
-    move.l  4.w,a6
-    jsr     _LVOAllocMem(a6)
+    CALLEXEC AllocMem
     move.l  d0,WorkPtr
     beq     .Cleanup
 
@@ -128,8 +116,7 @@ Main:
 
     move.l  d3,d0
     move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
-    move.l  4.w,a6
-    jsr     _LVOAllocMem(a6)
+    CALLEXEC AllocMem
     move.l  d0,DestPtr
     beq     .Cleanup
 
@@ -141,45 +128,43 @@ Main:
     bsr     Module_SaveInterleaved
 
     ; --- Step 6: Save ---
-    move.l  dosbase(pc),a6
     move.l  out_file_ptr(pc),d1
-    move.l  #1006,d2
-    jsr     _LVOOpen(a6)
+    move.l  #MODE_NEWFILE,d2
+    CALLDOS Open
     move.l  d0,file_handle
     beq     .Cleanup
 
     move.l  file_handle(pc),d1
     move.l  DestPtr(pc),d2
     move.l  DestSize(pc),d3
-    jsr     _LVOWrite(a6)
+    CALLDOS Write
 
     move.l  file_handle(pc),d1
-    jsr     _LVOClose(a6)
+    CALLDOS Close
 
 .Cleanup:
-    move.l  4.w,a6
     move.l  SourcePtr(pc),a1
     cmpa.l  #0,a1
     beq.s   .noSrc
     move.l  SourceSize(pc),d0
-    jsr     _LVOFreeMem(a6)
+    CALLEXEC FreeMem
 .noSrc:
     move.l  WorkPtr(pc),a1
     cmpa.l  #0,a1
     beq.s   .noWork
     move.l  WorkSize(pc),d0
-    jsr     _LVOFreeMem(a6)
+    CALLEXEC FreeMem
 .noWork:
     move.l  DestPtr(pc),a1
     cmpa.l  #0,a1
     beq.s   .noDest
     move.l  DestSize(pc),d0
-    jsr     _LVOFreeMem(a6)
+    CALLEXEC FreeMem
 .noDest:
-    move.l  dosbase(pc),a1
+    move.l  _DOSBase(pc),a1
     cmpa.l  #0,a1
     beq.s   .NoDos
-    jsr     -414(a6)            ; CloseLibrary
+    CALLEXEC CloseLibrary            ; CloseLibrary
 .NoDos:
     rts
 	
@@ -193,16 +178,15 @@ Main:
     move.l  #usage_msg_end-usage_msg,d3
 
 .PrintCustomError:
-    move.l  dosbase(pc),a6
-    jsr     _LVOOutput(a6)      ; Get handle in D0
+    CALLDOS Output              ; Get handle in D0
     tst.l   d0                  ; Is there a valid CLI window?
-    beq.s   .Cleanup            ; If 0, we can't print, just exit
+    beq.w   .Cleanup            ; If 0, we can't print, just exit
     
     move.l  d0,d1               ; D1 = Output Handle
     move.l  a2,d2               ; D2 = Buffer
     ; D3 already contains length
-    jsr     _LVOWrite(a6)
-    bra.s   .Cleanup
+    CALLDOS Write
+    bra.w   .Cleanup
 
 ;--- CLI Utility ---
 ParseCommandLine:
@@ -256,7 +240,8 @@ ParseCommandLine:
 ;--- Variables ---
 in_file_ptr:  dc.l 0
 out_file_ptr: dc.l 0
-dosbase:      dc.l 0
+_DOSBase:     dc.l 0
+;dosbase:      dc.l 0
 file_handle:  dc.l 0
 SourcePtr:    dc.l 0
 SourceSize:   dc.l 0
@@ -264,7 +249,7 @@ WorkPtr:      dc.l 0
 WorkSize:     dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
-dosname:      dc.b "dos.library",0
+dosname:      DOSNAME
 usage_msg:    dc.b "Usage: depth_reducer FROM TO",10
 usage_msg_end:
 file_err_msg: dc.b "Error: Source file not found.",10
@@ -279,7 +264,8 @@ fakeArgsEnd=*-fakeArgs
     even
 
 ;--- Include Core Logic ---
-    INCLUDE "SOURCES:utils/depth_reducer_core.S"
+    INCDIR  "SOURCES:"
+    INCLUDE "utils/depth_reducer_core.S"
 
 ;--- BSS ---
     SECTION DATABSS, BSS_C
