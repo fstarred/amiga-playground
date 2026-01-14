@@ -226,7 +226,7 @@ fakeArgsEnd=*-fakeArgs
 
     ;--- Include Core Logic ---
     INCDIR  "SOURCES:"
-    INCLUDE "utils/image_iff_to_interleaved_image_core.S"
+    INCLUDE "utils/iff_to_interleaved_core.S"
 
     SECTION DATABSS, BSS_C
     
