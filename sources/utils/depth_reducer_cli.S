@@ -241,7 +241,6 @@ ParseCommandLine:
 in_file_ptr:  dc.l 0
 out_file_ptr: dc.l 0
 _DOSBase:     dc.l 0
-;dosbase:      dc.l 0
 file_handle:  dc.l 0
 SourcePtr:    dc.l 0
 SourceSize:   dc.l 0
