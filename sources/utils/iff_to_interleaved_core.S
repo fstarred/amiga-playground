@@ -1,37 +1,53 @@
 ;---------------------------------------------------------------------------
-; Main Routine
+; IFF Interleaved Saver (core)
+; input: A0 (Source)
 ;---------------------------------------------------------------------------
-Main:
-    lea     Source(PC),a0
+ImgWidth:    dc.w 0
+ImgHeight:   dc.w 0
+ImgDepth:    dc.b 0
+Compression: dc.b 0
+ImgSize:     dc.l 0
+
+Module_LoadIFF:
+    move.l  a0,a4
     bsr     FindBmhd        ; A0 points to BMHD data (after Size)
     
-    ; Check compression byte at offset 10 of BMHD data
-    move.b  10(a0),d3       ; D3 = compression type (0=None, 1=ByteRun1)
-    
     bsr     GetImageSize    ; D0 = Total Buffer Size
-    move.l  d0,d4           ; Save size for copy/decompression
-    
-    lea     Source(PC),a0
-    bsr     FindBody        ; A0 points to actual BODY data
-    lea     Dest(PC),a1     ; Destination buffer
-    
-    tst.b   d3              ; Is compression 0?
-    beq.s   .RawCopy        ; If 0, do a simple copy
-    
-    move.l  d4,d0           ; Restore size to D0 for decompressor
-    bsr     DecompressILBM  ; Else, decompress
+    move.l  d0,ImgSize
+	
     rts
+
+
+;---------------------------------------------------------------------------
+; Extract_Raw
+;
+; Inputs:
+;   A0 = Source Address (Compressed IFF BODY data)
+;   A1 = Dest   Address
+;---------------------------------------------------------------------------
+Extract_Raw:
+    bsr     FindBody        ; A0 points to actual BODY data
+    
+    move.l  ImgSize(pc),d0  ; Restore size to D0 for decompressor 
+    
+    tst.b  Compression      ; compression type (0=None, 1=ByteRun1)
+    beq.s   .RawCopy        ; If 0, do a simple copy
+    	
+    bsr     DecompressILBM  ; Else, decompress
+    rts	
 	
 .RawCopy:
-    lsr.l   #2,d4           ; Divide size by 4 for longword copy
-    subq.l  #1,d4           ; Adjust for DBRA
+    lsr.l   #2,d0           ; Divide size by 4 for longword copy
+    subq.l  #1,d0           ; Adjust for DBRA
 .CopyLoop:
     move.l  (a0)+,(a1)+     ; Copy 4 bytes at a time
-    dbra    d4,.CopyLoop    ; Loop until done
+    dbra    d0,.CopyLoop    ; Loop until done
     rts
 ;---------------------------------------------------------------------------
 ; FindBody
 ; Ensures we skip both the TAG (4 bytes) and SIZE (4 bytes).
+; Modified registers:
+; a0,d0,d1,d2
 ;---------------------------------------------------------------------------
 FindBody:
     move.l  #'BODY',d0
@@ -44,13 +60,13 @@ FindBody:
 ;---------------------------------------------------------------------------
 ; FindBmhd
 ; Ensures we skip both the TAG (4 bytes) and SIZE (4 bytes).
+; a0,d0,d1,d2
 ;---------------------------------------------------------------------------
 FindBmhd:
     move.l  #'BMHD',d0
     bsr     FindSection
     ; A0 points to 'BMHD'.
-    ; We skip 'BMHD' (4) + Size (4) = 8 bytes
-    ; GetImageSize expects A0 to point to Size.
+    ; We skip 'BMHD' (4) + Size (4) = 8 bytes    
     addq.l  #8,a0           
     rts
 
@@ -116,6 +132,8 @@ DecompressILBM:
 ; FindSection
 ; Inputs:
 ;   A0 = Source Address (IFF data)
+; Modified registers:
+;   A0,D1,D2
 ;---------------------------------------------------------------------------
 FindSection:
     move.l  4(a0),d1        ; File Size
@@ -139,13 +157,19 @@ FindSection:
 ;---------------------------------------------------------------------------
 ; GetImageSize
 ; Inputs:
-;   A0 = Source Address (points to BMHD data)
+;   A0 = Source Address (points to BMHD data after size)
+; Output
+;   D0 = Total size
 ;---------------------------------------------------------------------------
 GetImageSize:
-    move.w  (a0),d0        ; Width
-    move.w  2(a0),d1        ; Height
+    move.w  (a0),d0           ; Width
+    move.w  d0,ImgWidth
+    move.w  2(a0),d1          ; Height
+    move.w  d1,ImgHeight
     moveq   #0,d2
-    move.b  8(a0),d2       ; Depth
+    move.b  8(a0),d2           ; Depth
+    move.w  d2,ImgDepth
+    move.b  10(a0),Compression ; Compression
 
     add.w   #15,d0
     lsr.w   #4,d0
@@ -153,11 +177,4 @@ GetImageSize:
 
     mulu.w  d1,d0           ; PlaneSize
     mulu.w  d2,d0           ; Total Size
-    rts
-
-Source:   
-    incbin  "image.iff" 
-Dest:
-    dcb.b   40*256*5
-Dest_end
-
+    rts	
