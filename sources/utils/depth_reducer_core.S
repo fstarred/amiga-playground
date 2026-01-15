@@ -1,9 +1,8 @@
 ;---------------------------------------------------------------------------
-; Core IFF Processing Modules (Standalone-Ready Version)
+; IFF Optimizer & Interleaved Saver (Core)
 ;---------------------------------------------------------------------------
 
 ;===========================================================================
-; DATA VARIABLES (Moved from CLI to Core)
 ; These are placed in the CODE section for PC-relative reading.
 ;===========================================================================
 ImgWidth:     dc.w 0

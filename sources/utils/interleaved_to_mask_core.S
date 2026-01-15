@@ -1,5 +1,5 @@
 ;---------------------------------------------------------------------------
-; Create Interleaved Mask
+; Create Interleaved Mask from Interleaved image
 ;
 ; Converts an Interleaved Image into an Interleaved Mask suitable for
 ; single-pass Blitter operations (Cookie Cutter).
@@ -18,25 +18,12 @@
 ;
 ;---------------------------------------------------------------------------
 
-WIDTH=128
-HEIGHT=128
-DEPTH=2
-
-Main:
-	LEA	Source(PC),A0
-	LEA	Dest(PC),A1
-	MOVE.L	#WIDTH,D0
-	MOVE.L	#HEIGHT,D1
-	MOVEQ	#DEPTH,D2
-	BSR	CreateInterleavedMask
-	RTS
-
 CreateInterleavedMask:
     movem.l d2-d7/a2-a4,-(sp)
 
     ; --- 1. Calculate Row Width (Bytes) ---
     ; RowBytes = ((Width + 15) / 16) * 2
-    move.l  d0,d3
+    move.w  d0,d3
     add.l   #15,d3
     lsr.l   #4,d3
     lsl.l   #1,d3               ; D3 = RowBytes (e.g., 40 for 320px)
@@ -110,9 +97,4 @@ CreateInterleavedMask:
     add.l   d4,sp               ; Restore stack
     movem.l (sp)+,d2-d7/a2-a4
     rts
-
-Source:
-	incbin	image.raw
-Dest:
-	ds.b	WIDTH/8*HEIGHT*DEPTH
 
