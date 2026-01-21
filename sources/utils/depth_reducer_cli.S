@@ -35,7 +35,7 @@ Main:
 	
     ; --- Step 1: Check if file exists ---
     move.l  in_file_ptr(pc),d1
-    move.l  #-2,d2              ; ACCESS_READ
+    move.l  #ACCESS_READ,d2              ; ACCESS_READ
     CALLDOS Lock
     move.l  d0,d1               ; BPTR Lock
     beq.w   .FileNotFound       ; If lock is 0, file doesn't exist

@@ -1,5 +1,5 @@
 ;---------------------------------------------------------------------------
-; IFF Interleaved Saver (CLI Wrapper)
+; Crop interleaved image (CLI Wrapper)
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ Main:
 	
     ; --- Step 1: Check if file exists ---
     move.l  in_file_ptr(pc),d1
-    move.l  #ACCESS_READ,d2              ; ACCESS_READ
+    move.l  #ACCESS_READ,d2     ; ACCESS_READ
     CALLDOS Lock
     move.l  d0,d1               ; BPTR Lock
     beq.w   .FileNotFound       ; If lock is 0, file doesn't exist
@@ -51,7 +51,7 @@ Main:
     move.l  MyFIB+124,d0        ; fib_Size
     move.l  d0,SourceSize
     
-    move.l  #MEMF_PUBLIC,d1
+    move.l  #MEMF_CHIP!MEMF_PUBLIC,d1
     CALLEXEC AllocMem
     move.l  d0,SourcePtr
     
@@ -76,22 +76,31 @@ Main:
     
     move.l  file_handle(pc),d1
     CALLDOS Close
+	
+    ; --- Step 3: Calculate Size ---
+    move.w  Width(pc),d0
+    bsr     WorkWidth    	
+    move.w  Height(pc),d1
+    move.w  Depth(pc),d2
+    mulu.w  d2,d0
+    mulu.w  d1,d0
+    move.l  d0,DestSize
 
-    ; --- Step 3: Process ---
-    move.l  SourcePtr(pc),a0
-    bsr     Module_LoadIFF      
-
-    ; --- Step 4: Allocate Destination ---
-    move.l  ImgSize(pc),d0
-    move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
+    ; --- Step 4: Allocate Destination ---    
+    move.l  #MEMF_CHIP!MEMF_PUBLIC!MEMF_CLEAR,d1
     CALLEXEC AllocMem
     move.l  d0,WorkPtr
     beq     .Cleanup
 	
-    ; --- Step 5: Extract raw ---
+    ; --- Step 5: Crop ---
     move.l  SourcePtr(pc),a0
     move.l  WorkPtr(pc),a1
-    bsr     Extract_Raw
+    move.w  X(pc),d0
+    move.w  Y(pc),d1
+    move.w  Width(pc),d2
+    move.w  Height(pc),d3
+    move.w  Depth(pc),d4
+    bsr     Crop
 
     ; --- Step 6: Save ---
     move.l  out_file_ptr(pc),d1
@@ -101,7 +110,15 @@ Main:
     beq     .Cleanup
 	
     move.l  WorkPtr(pc),DestPtr
-    move.l  ImgSize(pc),DestSize
+
+    ; --- Step 6b: Calculate New Size ---
+    move.w  Width(pc),d0
+    bsr     DestWidth    	
+    move.w  Height(pc),d1
+    move.w  Depth(pc),d2
+    mulu.w  d2,d0
+    mulu.w  d1,d0
+    move.l  d0,DestSize
 
     move.l  file_handle(pc),d1
     move.l  DestPtr(pc),d2
@@ -150,55 +167,164 @@ Main:
     ; D3 already contains length
     CALLDOS Write
     bra.w   .Cleanup
+	
+WorkWidth:
+    move.w  d0,d6
+    lsr.w   #3,d0
+    andi.w  #$000f,d6
+    beq.b   .isWordAligned
+    addq.w  #1,d0
+.isWordAligned
+    addq.w  #2,d0
+    rts
 
-;--- CLI Utility ---
+
+DestWidth:
+    move.w  d0,d6
+    lsr.w   #3,d0
+    andi.w  #$000f,d6
+    beq.b   .alreadyAligned
+    addq.w  #1,d0
+.alreadyAligned    
+    rts
+
+; Returns: Carry Clear = Success, Carry Set = Error
 ParseCommandLine:
-    movem.l d0-d2/a2,-(sp)
+    movem.l d0-d7/a0-a3,-(sp)
     move.l  a0,a2
     move.l  d0,d2
-.skip1:
-    cmp.b   #' ',(a2)
-    bne.s   .found1
-    addq.l  #1,a2
-    subq.l  #1,d2
-    bne.s   .skip1
-    bra     .ParseError
-.found1:
+    moveq   #0,d3
+
+    ; --- Arg 1: Input File ---
+    bsr.w   .SkipSpaces
+    tst.l   d2
+    beq.w   .CheckCount
     move.l  a2,in_file_ptr
-.find_space:
-    cmp.b   #' ',(a2)+
-    beq.s   .found_space
-    subq.l  #1,d2
-    bne.s   .find_space
-    bra     .ParseError
-.found_space:
-    clr.b   -1(a2)
-.skip2:
-    cmp.b   #' ',(a2)
-    bne.s   .found2
-    addq.l  #1,a2
-    subq.l  #1,d2
-    bne.s   .skip2
-    bra     .ParseError
-.found2:
+    addq.w  #1,d3
+    bsr.w   .FindSpaceOrEnd
+    
+    ; --- Arg 2: Output File ---
+    bsr.w   .SkipSpaces
+    tst.l   d2
+    beq.s   .CheckCount
     move.l  a2,out_file_ptr
-.find_end:
-    cmp.b   #10,(a2)
-    beq.s   .terminate
-    cmp.b   #13,(a2)
-    beq.s   .terminate
+    addq.w  #1,d3
+    bsr.w   .FindSpaceOrEnd
+	
+	; --- Arg 3: X ---
+    bsr.s   .SkipSpaces
+    tst.l   d2
+    beq.s   .CheckCount
+    move.l  a2,a0
+    bsr.w   AsciiToInt
+    move.w  d1,X
+    addq.w  #1,d3
+    bsr.s   .FindSpaceOrEnd
+	
+	; --- Arg 4: Y ---
+    bsr.s   .SkipSpaces
+    tst.l   d2
+    beq.s   .CheckCount
+    move.l  a2,a0
+    bsr.w   AsciiToInt
+    move.w  d1,Y
+    addq.w  #1,d3
+    bsr.s   .FindSpaceOrEnd
+
+    ; --- Arg 5: Width ---
+    bsr.s   .SkipSpaces
+    tst.l   d2
+    beq.s   .CheckCount
+    move.l  a2,a0
+    bsr.s   AsciiToInt
+    move.w  d1,Width
+    addq.w  #1,d3
+    bsr.s   .FindSpaceOrEnd
+
+    ; --- Arg 6: Height ---
+    bsr.s   .SkipSpaces
+    tst.l   d2
+    beq.s   .CheckCount
+    move.l  a2,a0
+    bsr.s   AsciiToInt
+    move.w  d1,Height
+    addq.w  #1,d3
+    bsr.s   .FindSpaceOrEnd
+
+    ; --- Arg 7: Depth ---
+    bsr.s   .SkipSpaces
+    tst.l   d2
+    beq.s   .CheckCount
+    move.l  a2,a0
+    bsr.s   AsciiToInt
+    move.w  d1,Depth
+    addq.w  #1,d3
+
+.CheckCount:
+    cmp.w   #7,d3       ; Did we find exactly 5 arguments?
+    beq.s   .Success
+    
+    ; If we fall through, it's an error
+    movem.l (sp)+,d0-d7/a0-a3
+    or.b    #%00000001,ccr  ; Set Carry (Fail)
+    rts
+
+.Success:
+    movem.l (sp)+,d0-d7/a0-a3
+    and.b   #%11111110,ccr  ; Clear Carry (Success)
+    rts
+
+; --- Subroutines for Parsing ---
+
+.SkipSpaces:
+    tst.l   d2
+    beq.s   .doneSkip       ; Just return if empty, parent handles d3 count
+    cmp.b   #' ',(a2)
+    bne.s   .doneSkip
     addq.l  #1,a2
     subq.l  #1,d2
-    bne.s   .find_end
-.terminate:
-    clr.b   (a2)
-    movem.l (sp)+,d0-d2/a2
-    and.b   #%11111110,ccr
+    bra.s   .SkipSpaces
+.doneSkip:
     rts
-.ParseError:
-    movem.l (sp)+,d0-d2/a2
-    or.b    #%00000001,ccr
+
+.FindSpaceOrEnd:
+    tst.l   d2
+    beq.s   .doneFind
+    cmp.b   #' ',(a2)
+    beq.s   .foundBreak
+    cmp.b   #10,(a2)
+    beq.s   .foundBreak
+    cmp.b   #13,(a2)
+    beq.s   .foundBreak
+    addq.l  #1,a2
+    subq.l  #1,d2
+    bra.s   .FindSpaceOrEnd
+.foundBreak:
+    clr.b   (a2)+       ; Null terminate
+    subq.l  #1,d2
+.doneFind:
     rts
+	
+; Input: a0 = pointer to null-terminated string
+; Output: d1 = resulting integer
+AsciiToInt:
+    movem.l d0/d2/a0,-(sp)
+    moveq   #0,d1           ; Clear result
+.loop:
+    moveq   #0,d0
+    move.b  (a0)+,d0        ; Get character
+    beq.s   .done           ; If null, we are done
+    sub.b   #'0',d0         ; Convert ASCII to digit
+    blt.s   .done           ; Safety check: less than '0'?
+    cmp.b   #9,d0           ; Safety check: greater than '9'?
+    bgt.s   .done
+    
+    mulu.w  #10,d1          ; Result = Result * 10
+    add.l   d0,d1           ; Result = Result + Digit
+    bra.s   .loop
+.done:
+    movem.l (sp)+,d0/d2/a0
+    rts	
 
 ;--- Variables ---
 in_file_ptr:  dc.l 0
@@ -211,31 +337,39 @@ WorkPtr:      dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
 dosname:      DOSNAME
-usage_msg:    dc.b "Usage: iff_to_interleaved <FROM> <TO>",10
+usage_msg:    dc.b "Usage: crop_interleaved <FROM> <TO> <X> <Y> "
+	      dc.b "<WIDTH> <HEIGHT> <DEPTH>",10	     
 usage_msg_end:
+	even
 file_err_msg: dc.b "Error: Source file not found.",10
 file_err_msg_end:
+X:            dc.w 0
+Y:            dc.w 0
+Width:        dc.w 0
+Height:       dc.w 0
+Depth:        dc.w 0
 
     IF DEBUG
 fakeArgs:
-	dc.b "ball001002.iff output.raw",10,0
+	dc.b "ball_anarky.raw ball_anarky_crop.raw 104 81 61 61 5",10,0
 fakeArgsEnd=*-fakeArgs    
-    ENDIF
+    ENDIF 
 	
     even
 
     ;--- Include Core Logic ---
     INCDIR  "SOURCES:"
-    INCLUDE "utils/iff_to_interleaved_core.S"
+    INCLUDE "utils/crop_image_interleaved_core.S"
 
     SECTION DATABSS, BSS_C
     
     even
 MyFIB:         ds.b 260
     even
-	
+
     END
 	
+
 struct FileInfoBlock {
 	LONG fib_DiskKey;
 	LONG fib_DirEntryType;
@@ -256,3 +390,4 @@ struct DateStamp {
 	LONG ds_Minute;
 	LONG ds_Tick;
 };
+	
