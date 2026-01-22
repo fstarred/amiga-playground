@@ -1,5 +1,5 @@
 ;---------------------------------------------------------------------------
-; IFF Optimizer & Interleaved Saver (CLI Wrapper)
+; IFF Optimizer & Interleaved Saver (ReDepth) (CLI Wrapper)
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
@@ -263,7 +263,7 @@ WorkSize:     dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
 dosname:      DOSNAME
-usage_msg:    dc.b "Usage: depth_reducer FROM TO",10
+usage_msg:    dc.b "Usage: iff_depth_reducer <FROM> <TO>",10
 usage_msg_end:
 mem_err_msg:  dc.b "Error: Out of memory.",10
 mem_err_msg_end:
@@ -281,7 +281,7 @@ fakeArgsEnd=*-fakeArgs
 
 ;--- Include Core Logic ---
     INCDIR  "SOURCES:"
-    INCLUDE "utils/depth_reducer_core.S"
+    INCLUDE "utils/iff_depth_reducer_core.S"
 
 ;--- BSS ---
     SECTION DATABSS, BSS_C

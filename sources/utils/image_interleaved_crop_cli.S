@@ -1,5 +1,5 @@
 ;---------------------------------------------------------------------------
-; Crop interleaved image (CLI Wrapper)
+; Crop interleaved image - CropInt - (CLI Wrapper)
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
@@ -358,7 +358,7 @@ WorkPtr:      dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
 dosname:      DOSNAME
-usage_msg:    dc.b "Usage: crop_interleaved <FROM> <TO> <X> <Y> "
+usage_msg:    dc.b "Usage: image_interleaved_crop <FROM> <TO> <X> <Y> "
 	      dc.b "<WIDTH> <HEIGHT> <DEPTH>",10	     
 usage_msg_end:
 mem_err_msg:  dc.b "Error: Out of memory.",10
@@ -384,7 +384,7 @@ fakeArgsEnd=*-fakeArgs
 
     ;--- Include Core Logic ---
     INCDIR  "SOURCES:"
-    INCLUDE "utils/crop_image_interleaved_core.S"
+    INCLUDE "utils/image_interleaved_crop_core.S"
 
     SECTION DATABSS, BSS_C
     

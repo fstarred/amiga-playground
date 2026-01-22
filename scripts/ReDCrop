@@ -1,0 +1,20 @@
+.KEY FROM/A,X/A,Y/A,WIDTH/A,HEIGHT/A,DEPTH/A
+; this script execute the following programs:
+; 1. ReDepth
+; 2. CropInt
+; 
+; ReDepth - optimize image depth and convert to raw blit image
+; CropInt - crop an interleaved raw blit image
+; Params: <SOURCE> <X> <Y> <WIDTH> <HEIGHT> <DEPTH>
+ReDepth <FROM> ram:<FROM>_temp.raw
+IF NOT WARN
+    ; If ReDepth was 0, run CropInt
+    CropInt ram:<FROM>_temp.raw <FROM>.raw <X> <Y> <WIDTH> <HEIGHT> <DEPTH>
+    IF NOT WARN
+		Echo "All tasks completed successfully."
+	ELSE
+        Echo "CropInt failed. Stopping."
+    ENDIF
+ELSE
+    Echo "ReDepth failed. Stopping."
+ENDIF
