@@ -21,6 +21,7 @@ w:      dc.w 0
 h:      dc.w 0       
 
 Crop:
+    movem.l d0-d7/a0-a6,-(sp)
     lea     $dff000, a6
 	
     move.l  a0,a2	    ; backup Source/Dest address
@@ -174,6 +175,7 @@ Crop:
 
     bsr.w   WaitBlit
 	
+	movem.l (sp)+, d0-d7/a0-a6
     rts
 
 NextWordAlign:
