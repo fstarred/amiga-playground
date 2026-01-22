@@ -13,6 +13,8 @@
 DEBUG         EQU 1
 
 Main:
+    movem.l d1-d7/a0-a6,-(sp)
+    moveq   #0,d7          
     IF DEBUG
     lea     fakeArgs(pc),a0
     moveq   #fakeArgsEnd,d0
@@ -39,15 +41,12 @@ Main:
     move.l  d0,d1               ; BPTR Lock
     beq.w   .FileNotFound       ; If lock is 0, file doesn't exist
     
-    move.l  d0,d1               ; BPTR Lock
-    move.l  d1,-(sp)
+    move.l  d0,-(sp)            ; Save Lock
     lea     MyFIB,a2
     move.l  a2,d2
     CALLDOS Examine
     
-    move.l  (sp)+,d1
-    move.l  d1,-(sp)
-    
+    move.l  (sp),d1             ; Restore Lock for UnLock later
     move.l  MyFIB+124,d0        ; fib_Size
     move.l  d0,SourceSize
     
@@ -55,19 +54,18 @@ Main:
     CALLEXEC AllocMem
     move.l  d0,SourcePtr
     
-    move.l  (sp)+,d1
+    move.l  (sp)+,d1            ; Pop Lock from stack
     CALLDOS UnLock
     
-    move.l  SourcePtr(pc),a0
-    cmpa.l  #0,a0
-    beq     .Cleanup
+    tst.l   SourcePtr           ; CHECK: Did AllocMem fail?
+    beq.w   .NoMemError
 
     ; --- Step 2: Load Source File ---
     move.l  in_file_ptr(pc),d1
     move.l  #MODE_OLDFILE,d2
     CALLDOS Open
     move.l  d0,file_handle
-    beq     .Cleanup
+    beq     .ReadError
 
     move.l  file_handle(pc),d1
     move.l  SourcePtr(pc),d2
@@ -86,7 +84,7 @@ Main:
     move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
     CALLEXEC AllocMem
     move.l  d0,WorkPtr
-    beq     .Cleanup
+    beq     .NoMemError
 	
     ; --- Step 5: Extract raw ---
     move.l  SourcePtr(pc),a0
@@ -98,7 +96,7 @@ Main:
     move.l  #MODE_NEWFILE,d2
     CALLDOS Open
     move.l  d0,file_handle
-    beq     .Cleanup
+    beq     .WriteError
 	
     move.l  WorkPtr(pc),DestPtr
     move.l  ImgSize(pc),DestSize
@@ -110,6 +108,41 @@ Main:
 
     move.l  file_handle(pc),d1
     CALLDOS Close
+    bra.s   .Cleanup            ; Success! D7 is still 0.
+
+; --- Error Handlers ---
+
+.UsageError:
+    lea     usage_msg(pc),a2
+    move.l  #usage_msg_end-usage_msg,d3
+    moveq   #10,d7              ; RETURN_ERROR
+    bra.s   .PrintCustomError
+
+.FileNotFound:
+    lea     file_err_msg(pc),a2
+    move.l  #file_err_msg_end-file_err_msg,d3
+    moveq   #5,d7               ; RETURN_WARN
+    bra.s   .PrintCustomError
+
+.NoMemError:
+    lea     mem_err_msg(pc),a2
+    move.l  #mem_err_msg_end-mem_err_msg,d3
+    moveq   #20,d7              ; RETURN_FAIL
+    bra.s   .PrintCustomError
+
+.ReadError:
+.WriteError:
+    lea     io_err_msg(pc),a2
+    move.l  #io_err_msg_end-io_err_msg,d3
+    moveq   #20,d7              ; RETURN_FAIL
+
+.PrintCustomError:
+    CALLDOS Output      ; identify program's initial output file handle        
+    tst.l   d0                  
+    beq.s   .Cleanup   	; check if the program was launched from console 
+    move.l  d0,d1       ; set Window Handle
+    move.l  a2,d2       ; point to text string
+    CALLDOS Write	; write bytes of data to a file
 
 .Cleanup:
     move.l  SourcePtr(pc),a1
@@ -118,7 +151,7 @@ Main:
     move.l  SourceSize(pc),d0
     CALLEXEC FreeMem
 .noSrc:
-    move.l  DestPtr(pc),a1
+    move.l  WorkPtr(pc),a1
     cmpa.l  #0,a1
     beq.s   .noDest
     move.l  DestSize(pc),d0
@@ -126,30 +159,17 @@ Main:
 .noDest:
     move.l  _DOSBase(pc),a1
     cmpa.l  #0,a1
-    beq.s   .NoDos
-    CALLEXEC CloseLibrary            ; CloseLibrary
-.NoDos:
+    beq.s   .Exit
+    CALLEXEC CloseLibrary            
+
+.Exit:
+    move.l  d7,d0               ; Final Return Code into D0
+    movem.l (sp)+,d1-d7/a0-a6
     rts
-	
-.FileNotFound:
-    lea     file_err_msg(pc),a2
-    move.l  #file_err_msg_end-file_err_msg,d3
-    bra.s   .PrintCustomError
 
-.UsageError:
-    lea     usage_msg(pc),a2
-    move.l  #usage_msg_end-usage_msg,d3
-
-.PrintCustomError:
-    CALLDOS Output              ; Get handle in D0
-    tst.l   d0                  ; Is there a valid CLI window?
-    beq.w   .Cleanup            ; If 0, we can't print, just exit
-    
-    move.l  d0,d1               ; D1 = Output Handle
-    move.l  a2,d2               ; D2 = Buffer
-    ; D3 already contains length
-    CALLDOS Write
-    bra.w   .Cleanup
+.NoDos:
+    moveq   #20,d0              ; Can't even open DOS
+    rts	
 
 ;--- CLI Utility ---
 ParseCommandLine:
@@ -213,6 +233,10 @@ DestSize:     dc.l 0
 dosname:      DOSNAME
 usage_msg:    dc.b "Usage: iff_to_interleaved <FROM> <TO>",10
 usage_msg_end:
+mem_err_msg:  dc.b "Error: Out of memory.",10
+mem_err_msg_end:
+io_err_msg:   dc.b "Error: I/O failure.",10
+io_err_msg_end:    
 file_err_msg: dc.b "Error: Source file not found.",10
 file_err_msg_end:
 

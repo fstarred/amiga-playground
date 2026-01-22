@@ -365,9 +365,9 @@ mem_err_msg:  dc.b "Error: Out of memory.",10
 mem_err_msg_end:
 io_err_msg:   dc.b "Error: I/O failure.",10
 io_err_msg_end:    
-	even
 file_err_msg: dc.b "Error: Source file not found.",10
 file_err_msg_end:
+	even
 X:            dc.w 0
 Y:            dc.w 0
 Width:        dc.w 0
