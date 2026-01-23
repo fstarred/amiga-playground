@@ -1,5 +1,5 @@
 ;---------------------------------------------------------------------------
-; IFF Interleaved to mask (IntMask) (CLI Wrapper)
+; Interleaved to Planar Mask Converter (IntPlanMask) (CLI Wrapper)
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
@@ -14,7 +14,8 @@ DEBUG         EQU 1
 
 Main:
     movem.l d1-d7/a0-a6,-(sp)
-    moveq   #0,d7      
+    moveq   #0,d7  
+
     IF DEBUG
     lea     fakeArgs(pc),a0
     moveq   #fakeArgsEnd,d0
@@ -36,7 +37,7 @@ Main:
 	
     ; --- Step 1: Check if file exists ---
     move.l  in_file_ptr(pc),d1
-    move.l  #ACCESS_READ,d2              ; ACCESS_READ
+    move.l  #ACCESS_READ,d2     ; ACCESS_READ
     CALLDOS Lock
     move.l  d0,d1               ; BPTR Lock
     beq.w   .FileNotFound       ; If lock is 0, file doesn't exist
@@ -59,7 +60,7 @@ Main:
     
     tst.l   SourcePtr           ; CHECK: Did AllocMem fail?
     beq.w   .NoMemError
-
+    
     ; --- Step 2: Load Source File ---
     move.l  in_file_ptr(pc),d1
     move.l  #MODE_OLDFILE,d2
@@ -74,21 +75,27 @@ Main:
     
     move.l  file_handle(pc),d1
     CALLDOS Close
+	
+    ; --- Step 3: Calculate Dest Size ---    
+    move.w  Width(pc),d0
+    lsr.w   #3,d0
+    move.w  Height(pc), d1
+    mulu.w  d1,d0
+    move.l  d0,DestSize
 
-    ; --- Step 4: Allocate Destination ---
-    move.l  SourceSize(pc),d0
+    ; --- Step 4: Allocate Destination ---    
     move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
     CALLEXEC AllocMem
     move.l  d0,WorkPtr
     beq     .NoMemError
 	
-    ; --- Step 5: Extract raw ---
+    ; --- Step 5: InterleavedToPlanarMask ---
     move.l  SourcePtr(pc),a0
     move.l  WorkPtr(pc),a1
     move.w  Width(pc),d0
     move.w  Height(pc),d1
     move.w  Depth(pc),d2
-    bsr     CreateInterleavedMask
+    bsr     InterleavedToPlanarMask
 
     ; --- Step 6: Save ---
     move.l  out_file_ptr(pc),d1
@@ -98,7 +105,6 @@ Main:
     beq     .WriteError
 	
     move.l  WorkPtr(pc),DestPtr
-    move.l  SourceSize(pc),DestSize
 
     move.l  file_handle(pc),d1
     move.l  DestPtr(pc),d2
@@ -160,6 +166,7 @@ Main:
     cmpa.l  #0,a1
     beq.s   .Exit
     CALLEXEC CloseLibrary            
+
 .Exit:
     move.l  d7,d0               ; Final Return Code into D0
     movem.l (sp)+,d1-d7/a0-a6
@@ -168,7 +175,7 @@ Main:
 .NoDos:
     moveq   #20,d0              ; Can't even open DOS
     rts
-
+	
 ; Returns: Carry Clear = Success, Carry Set = Error
 ParseCommandLine:
     movem.l d0-d7/a0-a3,-(sp)
@@ -177,21 +184,21 @@ ParseCommandLine:
     moveq   #0,d3
 
     ; --- Arg 1: Input File ---
-    bsr.s   .SkipSpaces
+    bsr.w   .SkipSpaces
     tst.l   d2
-    beq.s   .CheckCount
+    beq.w   .CheckCount
     move.l  a2,in_file_ptr
     addq.w  #1,d3
-    bsr.s   .FindSpaceOrEnd
+    bsr.w   .FindSpaceOrEnd
     
     ; --- Arg 2: Output File ---
-    bsr.s   .SkipSpaces
+    bsr.w   .SkipSpaces
     tst.l   d2
     beq.s   .CheckCount
     move.l  a2,out_file_ptr
     addq.w  #1,d3
-    bsr.s   .FindSpaceOrEnd
-
+    bsr.w   .FindSpaceOrEnd
+	
     ; --- Arg 3: Width ---
     bsr.s   .SkipSpaces
     tst.l   d2
@@ -298,7 +305,7 @@ WorkPtr:      dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
 dosname:      DOSNAME
-usage_msg:    dc.b "Usage: interleaved_to_mask <FROM> <TO> <WIDTH> <HEIGHT> <DEPTH>",10
+usage_msg:    dc.b "Usage: IntPlanMask <SOURCE> <WIDTH> <HEIGHT> <DEPTH>",10
 usage_msg_end:
 mem_err_msg:  dc.b "Error: Out of memory.",10
 mem_err_msg_end:
@@ -306,14 +313,14 @@ io_err_msg:   dc.b "Error: I/O failure.",10
 io_err_msg_end:    
 file_err_msg: dc.b "Error: Source file not found.",10
 file_err_msg_end:
-    even
+	even
 Width:        dc.w 0
 Height:       dc.w 0
 Depth:        dc.w 0
 
     IF DEBUG
 fakeArgs:
-	dc.b "interleaved.raw interleaved_mask.raw 320 256 5",10,0
+	dc.b "ball001002_mask.raw ball001002_mask_plan.raw 128 128 5",10,0
 fakeArgsEnd=*-fakeArgs    
     ENDIF 
 	
@@ -321,8 +328,7 @@ fakeArgsEnd=*-fakeArgs
 
     ;--- Include Core Logic ---
     INCDIR  "SOURCES:"
-    INCLUDE "utils/interleaved_to_mask_core.S"
-
+    INCLUDE "utils/mask_interleaved_to_planar_core.S"
 
     SECTION DATABSS, BSS_C
     

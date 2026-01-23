@@ -1,18 +1,12 @@
-;---------------------------------------------------------------------------
-; CreatePlanarMask
-;
-; Converts an Interleaved Image into a single Planar Mask (Cookie Cutter).
-; The result is a single bitplane that represents the silhouette of the image.
-;
-; Inputs:
-;   A0 = Source Buffer (Interleaved Image Data)
-;   A1 = Destination Buffer (Single Bitplane Mask)
-;   D0 = Width (Pixels)
-;   D1 = Height (Lines)
-;   D2 = Depth (Bitplanes)
-;
-; Modifies: D0-D7, A0-A2
-;---------------------------------------------------------------------------
+; -------------------------------------------------------------------------
+; Convert Interleaved Mask to Planar
+; -------------------------------------------------------------------------
+; A0 - Source (Planar)
+; A1 - Destination (Interleaved)
+; D0 - Width in words (e.g., 20 for 320px)
+; D1 - Height in lines
+; D2 - Depth (Number of bitplanes)
+; -------------------------------------------------------------------------
 
 Main:
 	LEA	Source(PC),A0
@@ -20,10 +14,10 @@ Main:
 	MOVE.L	#128,D0
 	MOVE.L	#128,D1
 	MOVEQ	#2,D2
-	BSR	CreatePlanarMask
+	BSR	ConvertInterleavedToPlanar
 	RTS	
 
-CreatePlanarMask:
+ConvertInterleavedToPlanar:
     movem.l d2-d7/a2-a3,-(sp)   ; Save registers
 
     ; --- 1. Calculate Row Width (Bytes) ---
