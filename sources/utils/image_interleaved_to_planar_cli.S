@@ -1,5 +1,5 @@
 ;---------------------------------------------------------------------------
-; Crop interleaved image - CropInt - (CLI Wrapper)
+; Crop interleaved image - IntPlan - (CLI Wrapper)
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ Main:
     move.l  MyFIB+124,d0        ; fib_Size
     move.l  d0,SourceSize
     
-    move.l  #MEMF_CHIP!MEMF_PUBLIC,d1
+    move.l  #MEMF_PUBLIC,d1
     CALLEXEC AllocMem
     move.l  d0,SourcePtr
     
@@ -76,32 +76,24 @@ Main:
     move.l  file_handle(pc),d1
     CALLDOS Close
 	
-    ; --- Step 3: Calculate Size ---
-    move.w  Width(pc),d0
-    bsr     WorkWidth    	
-    move.w  Height(pc),d1
-    move.w  Depth(pc),d2
-    mulu.w  d2,d0
-    mulu.w  d1,d0
-    move.l  d0,DestSize
+    move.l  SourceSize(pc),d0
+    move.l  d0, DestSize
 
-    ; --- Step 4: Allocate Destination ---    
-    move.l  #MEMF_CHIP!MEMF_PUBLIC!MEMF_CLEAR,d1
+    ; --- Step 3: Allocate Destination ---    
+    move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
     CALLEXEC AllocMem
     move.l  d0,WorkPtr
     beq     .NoMemError
 	
-    ; --- Step 5: Crop ---
+    ; --- Step 4: InterleavedToPlanar ---
     move.l  SourcePtr(pc),a0
     move.l  WorkPtr(pc),a1
-    move.w  X(pc),d0
-    move.w  Y(pc),d1
-    move.w  Width(pc),d2
-    move.w  Height(pc),d3
-    move.w  Depth(pc),d4
-    bsr     Crop
+    move.w  Width(pc),d0
+    move.w  Height(pc),d1
+    move.w  Depth(pc),d2
+    bsr     InterleavedToPlanar
 
-    ; --- Step 6: Save ---
+    ; --- Step 5: Save ---
     move.l  out_file_ptr(pc),d1
     move.l  #MODE_NEWFILE,d2
     CALLDOS Open
@@ -109,15 +101,6 @@ Main:
     beq     .WriteError
 	
     move.l  WorkPtr(pc),DestPtr
-
-    ; --- Step 6b: Calculate New Size ---
-    move.w  Width(pc),d0
-    bsr     DestWidth    	
-    move.w  Height(pc),d1
-    move.w  Depth(pc),d2
-    mulu.w  d2,d0
-    mulu.w  d1,d0
-    move.l  d0,DestSize
 
     move.l  file_handle(pc),d1
     move.l  DestPtr(pc),d2
@@ -189,26 +172,6 @@ Main:
     moveq   #20,d0              ; Can't even open DOS
     rts
 	
-WorkWidth:
-    move.w  d0,d6
-    lsr.w   #3,d0
-    andi.w  #$000f,d6
-    beq.b   .isWordAligned
-    addq.w  #1,d0
-.isWordAligned
-    addq.w  #2,d0
-    rts
-
-
-DestWidth:
-    move.w  d0,d6
-    lsr.w   #3,d0
-    andi.w  #$000f,d6
-    beq.b   .alreadyAligned
-    addq.w  #1,d0
-.alreadyAligned    
-    rts
-
 ; Returns: Carry Clear = Success, Carry Set = Error
 ParseCommandLine:
     movem.l d0-d7/a0-a3,-(sp)
@@ -232,27 +195,7 @@ ParseCommandLine:
     addq.w  #1,d3
     bsr.w   .FindSpaceOrEnd
 	
-	; --- Arg 3: X ---
-    bsr.s   .SkipSpaces
-    tst.l   d2
-    beq.s   .CheckCount
-    move.l  a2,a0
-    bsr.w   AsciiToInt
-    move.w  d1,X
-    addq.w  #1,d3
-    bsr.s   .FindSpaceOrEnd
-	
-	; --- Arg 4: Y ---
-    bsr.s   .SkipSpaces
-    tst.l   d2
-    beq.s   .CheckCount
-    move.l  a2,a0
-    bsr.w   AsciiToInt
-    move.w  d1,Y
-    addq.w  #1,d3
-    bsr.s   .FindSpaceOrEnd
-
-    ; --- Arg 5: Width ---
+    ; --- Arg 3: Width ---
     bsr.s   .SkipSpaces
     tst.l   d2
     beq.s   .CheckCount
@@ -262,7 +205,7 @@ ParseCommandLine:
     addq.w  #1,d3
     bsr.s   .FindSpaceOrEnd
 
-    ; --- Arg 6: Height ---
+    ; --- Arg 4: Height ---
     bsr.s   .SkipSpaces
     tst.l   d2
     beq.s   .CheckCount
@@ -272,7 +215,7 @@ ParseCommandLine:
     addq.w  #1,d3
     bsr.s   .FindSpaceOrEnd
 
-    ; --- Arg 7: Depth ---
+    ; --- Arg 5: Depth ---
     bsr.s   .SkipSpaces
     tst.l   d2
     beq.s   .CheckCount
@@ -282,7 +225,7 @@ ParseCommandLine:
     addq.w  #1,d3
 
 .CheckCount:
-    cmp.w   #7,d3       ; Did we find exactly 5 arguments?
+    cmp.w   #5,d3       ; Did we find exactly 5 arguments?
     beq.s   .Success
     
     ; If we fall through, it's an error
@@ -358,8 +301,7 @@ WorkPtr:      dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
 dosname:      DOSNAME
-usage_msg:    dc.b "Usage: image_interleaved_crop <FROM> <TO> <X> <Y> "
-	      dc.b "<WIDTH> <HEIGHT> <DEPTH>",10	     
+usage_msg:    dc.b "Usage: IntPlan <SOURCE> <WIDTH> <HEIGHT> <DEPTH>",10
 usage_msg_end:
 mem_err_msg:  dc.b "Error: Out of memory.",10
 mem_err_msg_end:
@@ -368,15 +310,13 @@ io_err_msg_end:
 file_err_msg: dc.b "Error: Source file not found.",10
 file_err_msg_end:
 	even
-X:            dc.w 0
-Y:            dc.w 0
 Width:        dc.w 0
 Height:       dc.w 0
 Depth:        dc.w 0
 
     IF DEBUG
 fakeArgs:
-	dc.b "ball001002.raw ball001002_crop.raw 0 11 128 128 5",10,0
+	dc.b "ball001002_crop.raw ball001002_crop_plan.raw 128 128 5",10,0
 fakeArgsEnd=*-fakeArgs    
     ENDIF 
 	
@@ -384,7 +324,7 @@ fakeArgsEnd=*-fakeArgs
 
     ;--- Include Core Logic ---
     INCDIR  "SOURCES:"
-    INCLUDE "utils/image_interleaved_crop_core.S"
+    INCLUDE "utils/image_interleaved_to_planar_core.S"
 
     SECTION DATABSS, BSS_C
     
