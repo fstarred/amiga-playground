@@ -301,7 +301,7 @@ WorkPtr:      dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
 dosname:      DOSNAME
-usage_msg:    dc.b "Usage: IntPlan <SOURCE> <WIDTH> <HEIGHT> <DEPTH>",10
+usage_msg:    dc.b "Usage: IntPlan <SOURCE> <DEST> <WIDTH> <HEIGHT> <DEPTH>",10
 usage_msg_end:
 mem_err_msg:  dc.b "Error: Out of memory.",10
 mem_err_msg_end:

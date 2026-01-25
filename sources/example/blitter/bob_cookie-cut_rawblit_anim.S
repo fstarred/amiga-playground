@@ -1,14 +1,15 @@
 *************************************************
 *						*
-*						*
-*	Blitter copy memory area		*
-*						*
+*    Blitter copy memory area with cookie-cut	*
+*            using interleaved mode		*
 *						*
 *************************************************
 
 
 OldOpenLibrary = -408
 CloseLibrary = -414
+
+BALL_SIZE = 128/8*128*2
 
 ; A = AGNUS, D = DENISE, P = PAULA
 
@@ -108,12 +109,12 @@ INIT
 	LEA	BPLPOINTERS,A1		; point to BPL1PT register
 	MOVEQ	#1,D7
 .POINTBPL	
-	MOVE.W	D0,6(A1)		; BPL1PTL
+	MOVE.W	D0,6(A1)		; BPLxPTL
 	SWAP	D0
-	MOVE.W	D0,2(A1)		; BPL1PTH
+	MOVE.W	D0,2(A1)		; BPLxPTH
 	SWAP	D0
 
-	ADDI.L	#40*256,D0
+	ADDI.L	#40,D0
 	ADDQ.W	#8,A1
 	DBRA	D7,.POINTBPL
 
@@ -124,9 +125,10 @@ INIT
 
 	LEA	$DFF000,A1
 
+.COPY_FROM_IMAGE
+
 	WAITBLIT
 
-.COPY_FROM_IMAGE
 	MOVE.W	#$09F0,$40(A1)		; BLTCON0 - USEA+USED LF=$F0 (D=A)
 	CLR.W	$42(A1)			; BLTCON1
 	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
@@ -134,54 +136,52 @@ INIT
 	MOVE.L	#Brick,$50(A1)		; BLTAPT  channel A point to bitplane
 	MOVE.L	#BITPLANE,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
-	MOVE.W	#38,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
+	MOVE.W	#38+40,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
 	MOVE.W	#(8<<6)+1,$58(A1)	; BLTSIZE 8 height * 1 words width
 
+.COPY_HORIZONTALLY
+
 	WAITBLIT
 
-.COPY_HORIZONTALLY
 	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
 	MOVE.L	#BITPLANE+2,$54(A1)	; BLTDPT  channel D point to bitplane
-	MOVE.W	#40-2,$64(A1)		; BLTAMOD - 40-2 bytes of modulo
-	MOVE.W	#40-2,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
+	MOVE.W	#40-2+40,$64(A1)		; BLTAMOD - 40-2 bytes of modulo
+	MOVE.W	#40-2+40,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
 	MOVE.W	#(8<<6)+1,$58(A1)	; BLTSIZE 
 
+.COMPLETE_HORIZONTAL_COPY
+
 	WAITBLIT
 
-.COMPLETE_HORIZONTAL_COPY
 	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
 	MOVE.L	#BITPLANE+4,$54(A1)	; BLTDPT  channel D point to bitplane
-	MOVE.W	#4,$64(A1)		; BLTAMOD - 40-36 bytes of modulo
-	MOVE.W	#4,$66(A1)		; BLTDMOD - 40-36 bytes of modulo
+	MOVE.W	#4+40,$64(A1)		; BLTAMOD - 40-36 bytes of modulo
+	MOVE.W	#4+40,$66(A1)		; BLTDMOD - 40-36 bytes of modulo
 	MOVE.W	#(8<<6)+18,$58(A1)	; BLTSIZE
 
+.EXTENDED_COPY_HORIZONTALLY
+
 	WAITBLIT
 
-.COMPLETE_VERTICAL_COPY
 	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE+(40*8),$54(A1); BLTDPT  channel D point to bitplane
-	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
-	MOVE.W	#0,$66(A1)		; BLTDMOD - 0 bytes of modulo
+	MOVE.L	#BITPLANE+(80*8),$54(A1); BLTDPT  channel D point to bitplane
+	MOVE.W	#40,$64(A1)		; BLTAMOD - 0 bytes of modulo
+	MOVE.W	#40,$66(A1)		; BLTDMOD - 0 bytes of modulo
 	MOVE.W	#((8*31)<<6)+20,$58(A1)	; BLTSIZE 
 
+.COPY_BG_TO_BUFFER
+
 	WAITBLIT
 
-DRAWBALL
 	MOVE.W	#$09F0,$40(A1)		; BLTCON0 - USEA+USED LF=$F0 (D=A)
 	CLR.W	$42(A1)			; BLTCON1
 	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
 	MOVE.W	#$FFFF,$46(A1)		; BLTALWM - full copy
-	MOVE.L	#Ball,$50(A1)		; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE,$54(A1)	; BLTDPT  channel D point to bitplane
-	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
-	MOVE.W	#24,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
-	MOVE.W	#(128<<6)+8,$58(A1)	; BLTSIZE 
-
-	WAITBLIT
-
-	MOVE.L	#Ball+2048,$50(A1)		; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2,$54(A1)	; BLTDPT  channel D point to bitplane
-	MOVE.W	#(128<<6)+8,$58(A1)	; BLTSIZE 
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BGBuffer,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.W	#24,$64(A1)		; BLTAMOD - 40-16 bytes of modulo
+	MOVE.W	#0,$66(A1)		; BLTDMOD - 0 bytes of modulo
+	MOVE.W	#((128*2)<<6)+8,$58(A1)	; BLTSIZE 
 
 
 EXIT
@@ -227,14 +227,46 @@ WAITVB:
 	BNE.S	.LOOP
 	RTS
 
+ANIMATION_SPEED = 5
+
 INTER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 	LEA	$DFF000,A1
 
-	BTST.B	#5,$01F(A6)
-	BEQ.B	.EXIT			
+.DRAWBALL
 
-	NOP
+	BTST.B	#5,$01F(A6)
+	BEQ.W	.EXIT			
+
+.SPIN
+	SUB.B	#1,AnimCtr
+	BNE.W	.EXIT
+	MOVE.B 	#ANIMATION_SPEED,AnimCtr	; reset counter
+
+	MOVE.L	BallPtr(PC),D0		
+	ADDI.L	#BALL_SIZE,D0
+	CMPI.L	#BallEnd,D0
+	BNE.B	.DRAW
+	MOVE.L	#Ball,D0
+
+.DRAW
+	MOVE.L	D0,BallPtr
+
+	WAITBLIT
+
+	MOVE.W	#$0FCA,$40(A1)		; BLTCON0 - USEA+B+D LF=$C0 (AB)
+	CLR.W	$42(A1)			; BLTCON1
+	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
+	MOVE.W	#$FFFF,$46(A1)		; BLTALWM - full copy
+	MOVE.L	#BallMask,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	BallPtr,  $4C(A1)	; BLTBPT  channel B point to ball
+	MOVE.L	#BGBuffer,$48(A1)	; BLTCPT  channel C point to background
+	MOVE.L	#BITPLANE,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
+	MOVE.W	#0,$62(A1)		; BLTBMOD - 0 bytes of modulo
+	MOVE.W	#0,$60(A1)		; BLTCMOD - 0 bytes of modulo
+	MOVE.W	#24,$66(A1)		; BLTDMOD - 40-16 bytes of modulo
+	MOVE.W	#((128*2)<<6)+8,$58(A1)	; BLTSIZE 
 
 .EXIT
 	MOVE.W	#$0020,$9C(A6)		; clear interrupt request
@@ -253,6 +285,10 @@ OldDma:
 	DC.W	0
 OldInter:
 	DC.L	0
+BallPtr:	
+	DC.L	BallEnd-BALL_SIZE
+AnimCtr:
+	DC.B	ANIMATION_SPEED
 
 	SECTION DATA,DATA_C
 
@@ -265,11 +301,28 @@ Brick:
 	DC.W	%0100001110000010
 	DC.W	%0100000000000010
 	DC.W	%0111111111111110
-
 Ball:
-	incbin	"RESOURCES:graphics/ball/ball001rawnorm"
+	incbin	"RESOURCES:graphics/ballblit/ball001001.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001002.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001003.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001004.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001005.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001006.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001007.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001008.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001009.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001010.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001011.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001012.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001013.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001014.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001015.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001016.raw"
+BallEnd	
 BallMask:
-	incbin	"RESOURCES:graphics/ball/ball0014colmask"
+	incbin	"RESOURCES:graphics/ballblit/ballmask.raw"
+BGBuffer:
+	DS.B	16*128*2
 
 
 COPPERLIST:
@@ -280,8 +333,8 @@ COPPERLIST:
 	DC.W	$94,$D0		; DdfStop
 	DC.W	$102,0		; BplCon1
 	DC.W	$104,0		; BplCon2
-	DC.W	$108,0		; Bpl1Mod
-	DC.W	$10A,0		; Bpl2Mod
+	DC.W	$108,40		; Bpl1Mod
+	DC.W	$10A,40		; Bpl2Mod
 
 BPLPOINTERS:
 	DC.W	$E0,0,$E2,0	; BPL1PT
@@ -289,17 +342,20 @@ BPLPOINTERS:
 	
 	DC.W	$100,$2200	; BPLCON0
 
-	DC.W	$0180,$000	; COLOR0
-	DC.W	$0182,$0F0	; COLOR1
-	DC.W	$0184,$FFF	; COLOR2
-	DC.W	$0186,$F00	; COLOR3
+	DC.W	$0180,$000	; COLOR0	; Background (transparent)
+	DC.W	$0182,$0F0	; COLOR1 	; Background (green)
+	DC.W	$0184,$FFF	; COLOR2	; Ball (Color 0)
+	DC.W	$0186,$F00	; COLOR3	; Ball (Color 1)
 
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
-	
+
+
 BITPLANE:
-	DS.B	40*256		; blank bitplane
+	DS.B	40
 BITPLANE2:
-	DS.B	40*256		; blank bitplane
+	DS.B	40
+.INTERLEAVED
+	DS.B	40*256*2-80
 	
 	END
 

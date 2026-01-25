@@ -5,6 +5,8 @@
 *						*
 *************************************************
 
+ANIMATION_SPEED=5
+BALL_SIZE=128/8*128*2
 
 OldOpenLibrary = -408
 CloseLibrary = -414
@@ -142,7 +144,6 @@ INIT
 .INIT_BG
 
 	MOVE.L	DrawBuffer,A0
-	ADDI.L	#40,A0
 	MOVE.L	A0,A2
 	ADDQ.L	#4,A2
 
@@ -230,6 +231,7 @@ WAITVB:
 	BNE.S	.LOOP
 	RTS
 
+
 INTER:
 	MOVEM.L	D0-D7/A0-A6,-(SP)
 	LEA	$DFF000,A1
@@ -247,7 +249,7 @@ INTER:
 	LEA	Context2,A5
 .CTX_READY
 	MOVE.L	CtxObjCoord(A5),D0
-	BEQ.S	.SKIP_RESTORE		; Skip if first run (addr is 0)
+	BEQ.W	.SKIP_RESTORE		; Skip if first run (addr is 0)
 	MOVE.L	D0,A0			; Destination Address (Screen)
 	LEA	CtxBGBuffer(A5),A2
 
@@ -265,12 +267,24 @@ INTER:
 	MOVE.W	#22,$66(A1)		; BLTDMOD - 40-18 bytes of modulo
 	MOVE.W	#((128*2)<<6)+8+1,$58(A1)	; BLTSIZE
 
+.SPIN
+	SUB.B	#1,AnimCtr
+	BNE.W	.CALCCOORD
+	MOVE.B 	#ANIMATION_SPEED,AnimCtr	; reset counter
+
+	MOVE.L	BallPtr(PC),D0		
+	ADDI.L	#BALL_SIZE,D0
+	CMPI.L	#BallEnd,D0
+	BNE.B	.SETBALLPTR
+	MOVE.L	#Ball,D0
+.SETBALLPTR
+	MOVE.L	D0,BallPtr
 .CALCCOORD
 	MOVEQ	#0,D0
 	MOVE.W	CoordX(PC),D0
 	CMPI.B	#320-128,D0
 	BEQ.B	.RESETX
-	ADDQ.B	#8,D0
+	ADDQ.B	#1,D0
 	BRA.B	.SETCOORDX	
 .RESETX
 	MOVE.W	CoordY(PC),D0
@@ -335,7 +349,7 @@ INTER:
 	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
 	MOVE.W	#$0000,$46(A1)		; BLTALWM - full copy
 	MOVE.L	#BallMask,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#Ball,    $4C(A1)	; BLTBPT  channel B point to ball
+	MOVE.L	BallPtr,  $4C(A1)	; BLTBPT  channel B point to ball
 	MOVE.L	A0,$48(A1)		; BLTCPT  channel C point to background
 	MOVE.L	A0,$54(A1)		; BLTDPT  channel D point to bitplane
 	MOVE.W	#-2,$64(A1)		; BLTAMOD - -2 bytes of modulo
@@ -390,12 +404,16 @@ CoordX
 	DC.W	0
 CoordY
 	DC.W	0
+BallPtr:	
+	DC.L	BallEnd-BALL_SIZE
+AnimCtr:
+	DC.B	ANIMATION_SPEED
+	EVEN
 
 ViewBuffer	DC.L	BITPLANE
 DrawBuffer	DC.L	BITPLANE_ALT
 
 	SECTION DATA,DATA_C
-
 
 Brick:							; 32px * 8 bytes
 	DC.W	%0000000000000000,%0000000000000000
@@ -407,9 +425,25 @@ Brick:							; 32px * 8 bytes
 	DC.W	%0100000000000010,%0000001110000000
 	DC.W	%0111111111111110,%0000000000000000
 Ball:
-	incbin	"RESOURCES:graphics/ball/ball0014colblit"
+	incbin	"RESOURCES:graphics/ballblit/ball001001.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001002.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001003.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001004.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001005.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001006.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001007.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001008.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001009.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001010.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001011.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001012.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001013.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001014.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001015.raw"
+	incbin	"RESOURCES:graphics/ballblit/ball001016.raw"
+BallEnd	
 BallMask:
-	incbin	"RESOURCES:graphics/ball/ball0014maskblit"
+	incbin	"RESOURCES:graphics/ballblit/ballmask.raw"
 
 
 COPPERLIST:
@@ -429,10 +463,10 @@ BPLPOINTERS:
 	
 	DC.W	$100,$2200	; BPLCON0
 
-	DC.W	$0180,$000	; COLOR0
-	DC.W	$0182,$FFF	; COLOR1
-	DC.W	$0184,$0F0	; COLOR2
-	DC.W	$0186,$F00	; COLOR3
+	DC.W	$0180,$000	; COLOR0	; Background (transparent)
+	DC.W	$0182,$0F0	; COLOR1 	; Background (green)
+	DC.W	$0184,$FFF	; COLOR2	; Ball (Color 0)
+	DC.W	$0186,$F00	; COLOR3	; Ball (Color 1)
 
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
 

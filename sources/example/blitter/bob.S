@@ -132,7 +132,7 @@ INIT
 	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
 	MOVE.W	#$FFFF,$46(A1)		; BLTALWM - full copy
 	MOVE.L	#Brick,$50(A1)		; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
 	MOVE.W	#38,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
 	MOVE.W	#(8<<6)+1,$58(A1)	; BLTSIZE 8 height * 1 words width
@@ -140,8 +140,8 @@ INIT
 	WAITBLIT
 
 .COPY_HORIZONTALLY
-	MOVE.L	#BITPLANE2,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2+2,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE+2,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#40-2,$64(A1)		; BLTAMOD - 40-2 bytes of modulo
 	MOVE.W	#40-2,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
 	MOVE.W	#(8<<6)+1,$58(A1)	; BLTSIZE 
@@ -149,8 +149,8 @@ INIT
 	WAITBLIT
 
 .COMPLETE_HORIZONTAL_COPY
-	MOVE.L	#BITPLANE2,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2+4,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE+4,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#4,$64(A1)		; BLTAMOD - 40-36 bytes of modulo
 	MOVE.W	#4,$66(A1)		; BLTDMOD - 40-36 bytes of modulo
 	MOVE.W	#(8<<6)+18,$58(A1)	; BLTSIZE
@@ -158,8 +158,8 @@ INIT
 	WAITBLIT
 
 .COMPLETE_VERTICAL_COPY
-	MOVE.L	#BITPLANE2,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2+(40*8),$54(A1); BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE+(40*8),$54(A1); BLTDPT  channel D point to bitplane
 	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
 	MOVE.W	#0,$66(A1)		; BLTDMOD - 0 bytes of modulo
 	MOVE.W	#((8*31)<<6)+20,$58(A1)	; BLTSIZE 
@@ -267,9 +267,9 @@ Brick:
 	DC.W	%0111111111111110
 
 Ball:
-	incbin	"RESOURCES:graphics/ball/ball0014colstnd"
+	incbin	"RESOURCES:graphics/ballblit/ball001001plan.raw"
 BallMask:
-	incbin	"RESOURCES:graphics/ball/ball0014colmask"
+	incbin	"RESOURCES:graphics/ballblit/ballmask_plan.raw"
 
 
 COPPERLIST:
@@ -290,8 +290,8 @@ BPLPOINTERS:
 	DC.W	$100,$2200	; BPLCON0
 
 	DC.W	$0180,$000	; COLOR0
-	DC.W	$0182,$FFF	; COLOR1
-	DC.W	$0184,$0F0	; COLOR2
+	DC.W	$0182,$0F0	; COLOR1
+	DC.W	$0184,$FFF	; COLOR2
 	DC.W	$0186,$F00	; COLOR3
 
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
