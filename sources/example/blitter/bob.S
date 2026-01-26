@@ -295,6 +295,8 @@ BPLPOINTERS:
 	DC.W	$0186,$F00	; COLOR3
 
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
+
+	SECTION SCREEN, BSS_C
 	
 BITPLANE:
 	DS.B	40*256		; blank bitplane

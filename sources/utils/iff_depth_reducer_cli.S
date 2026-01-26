@@ -184,6 +184,12 @@ Main:
 .noSrc:
     move.l  WorkPtr(pc),a1
     cmpa.l  #0,a1
+    beq.s   .noWork
+    move.l  WorkSize(pc),d0
+    CALLEXEC FreeMem
+.noWork:
+    move.l  DestPtr(pc),a1
+    cmpa.l  #0,a1
     beq.s   .noDest
     move.l  DestSize(pc),d0
     CALLEXEC FreeMem

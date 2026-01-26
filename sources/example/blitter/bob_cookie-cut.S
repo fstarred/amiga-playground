@@ -133,7 +133,7 @@ INIT
 	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
 	MOVE.W	#$FFFF,$46(A1)		; BLTALWM - full copy
 	MOVE.L	#Brick,$50(A1)		; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
 	MOVE.W	#38,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
 	MOVE.W	#(8<<6)+1,$58(A1)	; BLTSIZE 8 height * 1 words width
@@ -142,8 +142,8 @@ INIT
 
 	WAITBLIT
 
-	MOVE.L	#BITPLANE2,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2+2,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE+2,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#40-2,$64(A1)		; BLTAMOD - 40-2 bytes of modulo
 	MOVE.W	#40-2,$66(A1)		; BLTDMOD - 40-2 bytes of modulo
 	MOVE.W	#(8<<6)+1,$58(A1)	; BLTSIZE 
@@ -152,8 +152,8 @@ INIT
 
 	WAITBLIT
 
-	MOVE.L	#BITPLANE2,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2+4,$54(A1)	; BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE+4,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#4,$64(A1)		; BLTAMOD - 40-36 bytes of modulo
 	MOVE.W	#4,$66(A1)		; BLTDMOD - 40-36 bytes of modulo
 	MOVE.W	#(8<<6)+18,$58(A1)	; BLTSIZE
@@ -162,8 +162,8 @@ INIT
 
 	WAITBLIT
 
-	MOVE.L	#BITPLANE2,$50(A1)	; BLTAPT  channel A point to bitplane
-	MOVE.L	#BITPLANE2+(40*8),$54(A1); BLTDPT  channel D point to bitplane
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE+(40*8),$54(A1); BLTDPT  channel D point to bitplane
 	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
 	MOVE.W	#0,$66(A1)		; BLTDMOD - 0 bytes of modulo
 	MOVE.W	#((8*31)<<6)+20,$58(A1)	; BLTSIZE 
@@ -176,7 +176,7 @@ INIT
 	CLR.W	$42(A1)			; BLTCON1
 	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
 	MOVE.W	#$FFFF,$46(A1)		; BLTALWM - full copy
-	MOVE.L	#BITPLANE2,$50(A1)	; BLTAPT  channel A point to bitplane
+	MOVE.L	#BITPLANE,$50(A1)	; BLTAPT  channel A point to bitplane
 	MOVE.L	#BGBuffer,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#24,$64(A1)		; BLTAMOD - 40-16 bytes of modulo
 	MOVE.W	#0,$66(A1)		; BLTDMOD - 0 bytes of modulo
@@ -186,26 +186,26 @@ INIT
 
 	WAITBLIT
 								    
-	MOVE.W	#$0DC0,$40(A1)		; BLTCON0 - USEA+B+D LF=$C0 (AB)
+	MOVE.W	#$0FCA,$40(A1)		; BLTCON0 - USEALL LF=$CA (AB+nAB)
 	CLR.W	$42(A1)			; BLTCON1
 	MOVE.W	#$FFFF,$44(A1)		; BLTAFWM - full copy
 	MOVE.W	#$FFFF,$46(A1)		; BLTALWM - full copy
 	MOVE.L	#BallMask,$50(A1)	; BLTAPT  channel A point to bitplane
 	MOVE.L	#Ball,    $4C(A1)	; BLTBPT  channel B point to ball
+	MOVE.L	#BGBuffer,$48(A1)	; BLTCPT  chennel C point to background
 	MOVE.L	#BITPLANE,$54(A1)	; BLTDPT  channel D point to bitplane
 	MOVE.W	#0,$64(A1)		; BLTAMOD - 0 bytes of modulo
 	MOVE.W	#0,$62(A1)		; BLTBMOD - 0 bytes of modulo
+	MOVE.W	#0,$60(A1)		; BLTCMOD - 0 bytes of modulo
 	MOVE.W	#24,$66(A1)		; BLTDMOD - 40-16 bytes of modulo
 	MOVE.W	#(128<<6)+8,$58(A1)	; BLTSIZE 
 
 	WAITBLIT
 
-	MOVE.W	#$0FCA,$40(A1)		; BLTCON0 - USEALL LF=$CA (AB+nAB)
+	MOVE.W	#$0DC0,$40(A1)		; BLTCON0 - USEA+B+D LF=$C0 (AB)
 	MOVE.L	#BallMask,  $50(A1)	; BLTAPT  channel A point to bitplane
 	MOVE.L	#Ball+2048, $4C(A1)	; BLTBPT  channel B point to ball
-	MOVE.L	#BGBuffer,  $48(A1)	; BLTCPT  channel C point to background
 	MOVE.L	#BITPLANE2, $54(A1)	; BLTDPT  channel D point to bitplane
-	MOVE.W	#0,$60(A1)		; BLTCMOD - 0 bytes of modulo
 	MOVE.W	#(128<<6)+8,$58(A1)	; BLTSIZE 
 
 
@@ -292,9 +292,9 @@ Brick:
 	DC.W	%0100000000000010
 	DC.W	%0111111111111110
 Ball:
-	incbin	"RESOURCES:graphics/ball/ball0014colstnd"
+	incbin	"RESOURCES:graphics/ballblit/ball001001plan.raw"
 BallMask:
-	incbin	"RESOURCES:graphics/ball/ball0014colmask"
+	incbin	"RESOURCES:graphics/ballblit/ballmask_plan.raw"
 BGBuffer:
 	DS.B	16*128	
 
@@ -317,12 +317,14 @@ BPLPOINTERS:
 	DC.W	$100,$2200	; BPLCON0
 
 	DC.W	$0180,$000	; COLOR0
-	DC.W	$0182,$FFF	; COLOR1
-	DC.W	$0184,$0F0	; COLOR2
+	DC.W	$0182,$0F0	; COLOR1
+	DC.W	$0184,$FFF	; COLOR2
 	DC.W	$0186,$F00	; COLOR3
 
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
 
+
+	SECTION SCREEN,BSS_C
 
 BITPLANE:
 	DS.B	40*256		; blank bitplane

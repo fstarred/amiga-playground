@@ -473,12 +473,12 @@ BPLPOINTERS:
 	SECTION	DYNAMIC, BSS_C	
 
 	RSRESET
-CtxObjCoord	RS.L	1
-CtxBGBuffer	RS.B	18*128*2
+CtxObjCoord	RS.L	1		; store ball address position
+CtxBGBuffer	RS.B	18*128*2	; store backgrund buffer
 CtxSize		RS.B	0
 
-Context1	DS.B	CtxSize
-Context2	DS.B	CtxSize
+Context1	DS.B	CtxSize		; store context parameters (frame1)
+Context2	DS.B	CtxSize		; store context parameters (frame2)
 
 BITPLANE	DS.B	40*256*2
 BITPLANE_ALT	DS.B	40*256*2

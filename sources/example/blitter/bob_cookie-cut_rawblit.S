@@ -314,6 +314,7 @@ BPLPOINTERS:
 
 	DC.L	$FFFFFFFE	; stop copper instructions until next vblank
 
+	SECTION	SCREEN, BSS_C
 
 BITPLANE:
 	DS.B	40
