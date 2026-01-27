@@ -5,7 +5,8 @@
 *						*
 *************************************************
 
-ANIMATION_SPEED=5
+SPIN_SPEED = 5	; Higher = Slower spin. 1 = every frame.
+MOVE_SPEED = 2	; Higher = Slower movement. 1 = every frame.
 BALL_SIZE=128/8*128*2
 
 OldOpenLibrary = -408
@@ -270,7 +271,7 @@ INTER:
 .SPIN
 	SUB.B	#1,AnimCtr
 	BNE.W	.CALCCOORD
-	MOVE.B 	#ANIMATION_SPEED,AnimCtr	; reset counter
+	MOVE.B 	#SPIN_SPEED,AnimCtr	; reset counter
 
 	MOVE.L	BallPtr(PC),D0		
 	ADDI.L	#BALL_SIZE,D0
@@ -279,30 +280,35 @@ INTER:
 	MOVE.L	#Ball,D0
 .SETBALLPTR
 	MOVE.L	D0,BallPtr
-.CALCCOORD
-	MOVEQ	#0,D0
-	MOVE.W	CoordX(PC),D0
-	CMPI.B	#320-128,D0
-	BEQ.B	.RESETX
-	ADDQ.B	#1,D0
-	BRA.B	.SETCOORDX	
-.RESETX
-	MOVE.W	CoordY(PC),D0
-	CMPI.B	#256-128,D0
-	BEQ.B	.RESETY
-	ADDQ.W	#8,D0
-	BRA.B	.SETCOORDY
-.RESETY
-	MOVEQ	#0,D0
-.SETCOORDY
-	MOVE.W	D0,CoordY
-	MOVEQ	#0,D0
-.SETCOORDX
-	MOVE.W	D0,CoordX
-.SKIP_RESTORE
-	MOVEQ	#0,D0
-	MOVE.W	CoordX(PC),D0		; pixel coordinate X
-	LSR.W	#3,D0
+	
+; TO REPLACE	
+.CALCCOORD:
+    SUBQ.B  #1,MoveCtr          ; Check movement timer
+    BNE.S   .SKIP_TABLE_UPDATE  ; Skip update if counter > 0
+    MOVE.B  #MOVE_SPEED,MoveCtr ; Reset movement timer
+
+    LEA     COORDX,A0           ; X table address
+    LEA     COORDY,A2           ; Y table address
+    MOVE.W  CurCoord(PC),D0     ; Get current index
+    
+    ADD.W   D0,D0               ; Word offset (Index * 2)
+    MOVE.W  (A0,D0.W),CoordX    ; Update X coordinate variable
+    MOVE.W  (A2,D0.W),CoordY    ; Update Y coordinate variable
+    
+    MOVE.W  CurCoord(PC),D0     ; Increment index
+    ADDQ.W  #1,D0               
+    CMPI.W  #COORD_COUNT,D0     ; Check for end of table
+    BNE.S   .SAVE_IDX
+    MOVEQ   #0,D0               ; Reset to 0 for a seamless loop
+.SAVE_IDX:
+    MOVE.W  D0,CurCoord         ; Store index
+
+.SKIP_TABLE_UPDATE:
+.SKIP_RESTORE:
+    MOVEQ   #0,D0
+    MOVE.W  CoordX(PC),D0       ; Retrieve X for blitter
+    LSR.W   #3,D0               ; Convert to byte offset
+; END TO REPLACE
 
 	MOVE.L	DrawBuffer,A0
 	ADD.L	D0,A0
@@ -407,8 +413,41 @@ CoordY
 BallPtr:	
 	DC.L	BallEnd-BALL_SIZE
 AnimCtr:
-	DC.B	ANIMATION_SPEED
+	DC.B	SPIN_SPEED
 	EVEN
+	
+; NEW CODE
+MoveCtr:
+    DC.B    1  ; The actual counter
+    EVEN
+CurCoord:
+	DC.W	0               ; Table index
+	EVEN
+
+COORDX:
+    ; Linear horizontal sweep: 0 -> 192 -> 0 (128 steps)
+    ; Forward 0 to 192 (64 steps, approx 3 pixels each)
+    DC.W  0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93
+    DC.W  96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150,153,156,159,162,165,168,171,174,177,180,183,186,189
+    ; Backward 192 to 3 (64 steps)
+    DC.W  192,189,186,183,180,177,174,171,168,165,162,159,156,153,150,147,144,141,138,135,132,129,126,123,120,117,114,111,108,105,102,99
+    DC.W  96,93,90,87,84,81,78,75,72,69,66,63,60,57,54,51,48,45,42,39,36,33,30,27,24,21,18,15,12,9,6,3
+ECOORDX:
+
+COORDY:
+    ; Parabolic vertical bounce (Floor 128 <-> Peak 10)
+    ; 4 mini-bounces per X-cycle to keep the movement energetic
+    ; Bounce 1 (32 steps)
+    DC.W  62,54,44,32,27,34,48,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66,73,81,89,98,108,118
+    ; Bounce 2 (32 steps)
+    DC.W  128,118,108,98,89,81,73,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66,73,81,89,98,108,118
+    ; Bounce 3 (32 steps)
+    DC.W  128,118,108,98,89,81,73,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66,73,81,89,98,108,118
+    ; Bounce 4 (29 steps to align with 128 total)
+    DC.W  128,118,108,98,89,81,73,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66
+ECOORDY:
+
+COORD_COUNT = (ECOORDX-COORDX)/2
 
 ViewBuffer	DC.L	BITPLANE
 DrawBuffer	DC.L	BITPLANE_ALT
