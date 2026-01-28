@@ -1,13 +1,15 @@
 *************************************************
 *						*
 *    Blitter copy memory area with cookie-cut	*
-*            using interleaved mode		*
+*    and ball movement using interleaved mode	*
 *						*
 *************************************************
 
-SPIN_SPEED = 5	; Higher = Slower spin. 1 = every frame.
-MOVE_SPEED = 2	; Higher = Slower movement. 1 = every frame.
-BALL_SIZE=128/8*128*2
+SPIN_SPEED = 2	; Higher = Slower spin. 1 = every frame.
+MOVE_SPEED = 1	; Higher = Slower movement. 1 = every frame.
+STEP_X      = 2		; Change this to adjust horizontal speed
+STEP_Y      = 3		; Change this to adjust vertical speed 
+			; (different values = better angles)
 
 OldOpenLibrary = -408
 CloseLibrary = -414
@@ -281,34 +283,56 @@ INTER:
 .SETBALLPTR
 	MOVE.L	D0,BallPtr
 	
-; TO REPLACE	
 .CALCCOORD:
-    SUBQ.B  #1,MoveCtr          ; Check movement timer
-    BNE.S   .SKIP_TABLE_UPDATE  ; Skip update if counter > 0
-    MOVE.B  #MOVE_SPEED,MoveCtr ; Reset movement timer
+	SUBQ.B  #1,MoveCtr          ; check move timer
+	BNE.S   .SKIP_TABLE_UPDATE  ; if not 0, skip the update
+	MOVE.B  #MOVE_SPEED,MoveCtr ; reset timer
 
-    LEA     COORDX,A0           ; X table address
-    LEA     COORDY,A2           ; Y table address
-    MOVE.W  CurCoord(PC),D0     ; Get current index
+    	; --- X AXIS LOGIC ---
+	MOVE.W  CoordX(PC),D0
+	ADD.W   X_Dir(PC),D0        ; Apply STEP_X (positive or negative)
     
-    ADD.W   D0,D0               ; Word offset (Index * 2)
-    MOVE.W  (A0,D0.W),CoordX    ; Update X coordinate variable
-    MOVE.W  (A2,D0.W),CoordY    ; Update Y coordinate variable
-    
-    MOVE.W  CurCoord(PC),D0     ; Increment index
-    ADDQ.W  #1,D0               
-    CMPI.W  #COORD_COUNT,D0     ; Check for end of table
-    BNE.S   .SAVE_IDX
-    MOVEQ   #0,D0               ; Reset to 0 for a seamless loop
-.SAVE_IDX:
-    MOVE.W  D0,CurCoord         ; Store index
+	; Check Right Boundary
+	CMP.W   #MAX_X,D0
+	BLT.S   .CHECK_X_LEFT
+	MOVE.W  #MAX_X,D0           ; Clamp to right edge
+	NEG.W   X_Dir               ; Reverse direction (e.g., 2 becomes -2)
+	BRA.S   .DONE_X
+
+.CHECK_X_LEFT:
+	CMP.W   #0,D0
+	BGT.S   .DONE_X
+	CLR.W   D0                  ; Clamp to left edge
+	NEG.W   X_Dir               ; Reverse direction (e.g., -2 becomes 2)
+
+.DONE_X:
+	MOVE.W  D0,CoordX           ; Save updated X
+	
+	; --- Y AXIS LOGIC ---
+	MOVE.W  CoordY(PC),D0
+	ADD.W   Y_Dir(PC),D0        ; Apply STEP_Y
+	
+	; Check Bottom Boundary
+	CMP.W   #MAX_Y,D0
+	BLT.S   .CHECK_Y_TOP
+	MOVE.W  #MAX_Y,D0           ; Clamp to bottom
+	NEG.W   Y_Dir               ; Reverse direction
+	BRA.S   .DONE_Y
+
+.CHECK_Y_TOP:
+	CMP.W   #0,D0
+	BGT.S   .DONE_Y
+	CLR.W   D0                  ; Clamp to top
+	NEG.W   Y_Dir               ; Reverse direction
+
+.DONE_Y:
+	MOVE.W  D0,CoordY           ; Save updated Y
 
 .SKIP_TABLE_UPDATE:
 .SKIP_RESTORE:
-    MOVEQ   #0,D0
-    MOVE.W  CoordX(PC),D0       ; Retrieve X for blitter
-    LSR.W   #3,D0               ; Convert to byte offset
-; END TO REPLACE
+	MOVEQ   #0,D0
+	MOVE.W  CoordX(PC),D0
+	LSR.W   #3,D0               ; convert to byte offset
 
 	MOVE.L	DrawBuffer,A0
 	ADD.L	D0,A0
@@ -406,48 +430,30 @@ OldDma:
 	DC.W	0
 OldInter:
 	DC.L	0
-CoordX
-	DC.W	0
-CoordY
-	DC.W	0
 BallPtr:	
 	DC.L	BallEnd-BALL_SIZE
 AnimCtr:
 	DC.B	SPIN_SPEED
 	EVEN
+
+BALL_SIZE=128/8*128*2
 	
-; NEW CODE
-MoveCtr:
-    DC.B    1  ; The actual counter
-    EVEN
-CurCoord:
-	DC.W	0               ; Table index
-	EVEN
+; Constants for the boundaries
+; Max X = 320 - 128 = 192
+; Max Y = 256 - 128 = 128
+MAX_X       = 192
+MAX_Y       = 128
 
-COORDX:
-    ; Linear horizontal sweep: 0 -> 192 -> 0 (128 steps)
-    ; Forward 0 to 192 (64 steps, approx 3 pixels each)
-    DC.W  0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93
-    DC.W  96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150,153,156,159,162,165,168,171,174,177,180,183,186,189
-    ; Backward 192 to 3 (64 steps)
-    DC.W  192,189,186,183,180,177,174,171,168,165,162,159,156,153,150,147,144,141,138,135,132,129,126,123,120,117,114,111,108,105,102,99
-    DC.W  96,93,90,87,84,81,78,75,72,69,66,63,60,57,54,51,48,45,42,39,36,33,30,27,24,21,18,15,12,9,6,3
-ECOORDX:
+; Variables
+X_Dir:      DC.W    STEP_X  
+Y_Dir:      DC.W    STEP_Y  
 
-COORDY:
-    ; Parabolic vertical bounce (Floor 128 <-> Peak 10)
-    ; 4 mini-bounces per X-cycle to keep the movement energetic
-    ; Bounce 1 (32 steps)
-    DC.W  62,54,44,32,27,34,48,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66,73,81,89,98,108,118
-    ; Bounce 2 (32 steps)
-    DC.W  128,118,108,98,89,81,73,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66,73,81,89,98,108,118
-    ; Bounce 3 (32 steps)
-    DC.W  128,118,108,98,89,81,73,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66,73,81,89,98,108,118
-    ; Bounce 4 (29 steps to align with 128 total)
-    DC.W  128,118,108,98,89,81,73,66,59,53,48,43,39,35,32,30,28,27,27,28,30,32,35,39,43,48,53,59,66
-ECOORDY:
+; Initial positions
+CoordX:     DC.W    0
+CoordY:     DC.W    0
 
-COORD_COUNT = (ECOORDX-COORDX)/2
+MoveCtr:    DC.B    MOVE_SPEED
+            EVEN
 
 ViewBuffer	DC.L	BITPLANE
 DrawBuffer	DC.L	BITPLANE_ALT
