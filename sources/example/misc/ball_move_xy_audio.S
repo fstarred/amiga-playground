@@ -133,10 +133,6 @@ START:
 	MOVE.W	D0,$88(A6)
 	MOVE.W	D0,$1FC(A6)		; force ECS compatibility
 
-	; init sound
-	MOVE.W  #400,$A6(A6)		; period (C)
-	MOVE.W  #40,$A8(A6)		; loudness level (volume)
-
 
 LEFTMOUSE
 	BTST	#6,$BFE001
@@ -277,13 +273,13 @@ CHECKFRAME
 	BRA.B	CHECK_AUDIO
 .NEXTFRAME		
 	ADD.L	#BALL_FRAME_SIZE*2,CurrentSpinFrameOffset
-CHECK_AUDIO
+CHECK_AUDIO:
 	SUB.B	#1,SoundCountRasters
 	BNE.B	.LOAD_SOUNDFLAG
-	MOVE.W	#1,$96(A6)			; stop DMA
+	MOVE.W	#$0003,$96(A6)			; Stop DMA for BOTH Ch 0 and 1
 .LOAD_SOUNDFLAG
 	TST.W	D2				; if empty, y did not change
-	BEQ.B	EXIT
+	BEQ.W	EXIT
 	LEA	SoundFlag(PC),A0
 	CMPI.W	#($105+BALL_HEIGHT),D2		; bottom y + ball height
 	BEQ.B	.CHECK_FLAG
@@ -293,23 +289,52 @@ CHECK_AUDIO
 	TST.B	(A0)				; check SoundFlag
 	BNE.B	EXIT				; if set, exit
 	
-	ST.B	(A0)				; set SoundFlag
-	MOVE.L  #AUDIO_SAMPLE,$A0(A6)		; table beginning
-	MOVE.W  #AUDIO_SAMPLE_LEN/2,$A4(A6)	; table length in word
+	ST.B	(A0)				; Set SoundFlag
+	
+	; --- ALTERNATING LOGIC ---
+	LEA     AudioSideFlag(PC),A1
+	MOVEQ   #0,D3
+	MOVE.B  (A1),D3		; Get 0 or 1
+	
+	; Calculate register offset: Ch0 is $DFF0A0, Ch1 is $DFF0B0. 
+	ASL.W   #4,D3           ; D3 becomes 0 or $10 (16 bytes)
+	
+	LEA     $A0(A6),A4      ; Start at AUD0 register base ($DFF0A0)
+	ADDA.W  D3,A4		; Add the offset ($0 or $10) to the address ptr
+	
+	; Now A4 points correctly to $DFF0A0 (Left) or $DFF0B0 (Right)
+	MOVE.L  #AUDIO_SAMPLE,(A4)      ; Set Pointer (AUDxLCH/L)
+	MOVE.W  #AUDIO_SAMPLE_LEN/2,4(A4) ; Set Length (AUDxLEN)
+	MOVE.W  #400,6(A4)              ; Set Period (AUDxPER)
+	MOVE.W  #64,8(A4)               ; Set Volume (AUDxVOL)
 
-	MOVE.W	#$8001,$96(A6)			; start DMA
+	; Trigger the correct DMA bit for start
+	MOVE.W  #$8001,D4           ; Assume Ch 0 bit (Left)
+	TST.B   (A1)                ; Was the flag 1?
+	BEQ.S   .trigger
+	MOVE.W  #$8002,D4           ; If so, use Ch 1 bit (Right)
+.trigger:
+	MOVE.W	D4,$96(A6)	    ; Write to DMACON
+	
+	; Flip the flag for next time
+	NOT.B   (A1)
+	ANDI.B  #1,(A1)
+	
+	; -----------------------------
+
 	MOVE.B	#AUDIO_FRAMES_DURATION,SoundCountRasters
 
+	; (Keep your Wait Raster logic here to point to EMPTY_SAMPLE)
 	MOVE.L	$04(A6),D0
-	ANDI.L	#$1FF00,D0			; read VPOS
-	ADDI.L	#2<<8,D0			; add 2 to current VPOS
+	ANDI.L	#$1FF00,D0		; read VPOS
+	ADDI.L	#2<<8,D0		; add 2 to current VPOS
 .WAITRASTER
 	MOVE.L	$04(A6),D1
 	ANDI.L	#$1FF00,D1
-	CMP.L	D0,D1				; wait 2 rasters
+	CMP.L	D0,D1			; wait 2 rasters
 	BNE.B	.WAITRASTER
-	MOVE.L  #EMPTY_SAMPLE,$A0(A6)		; table beginning
-	MOVE.W  #EMPTY_SAMPLE_LEN/2,$A4(A6)	; table length in word	
+	MOVE.L  #EMPTY_SAMPLE,(A4)	; Use the same dynamic pointer A4
+	MOVE.W  #EMPTY_SAMPLE_LEN/2,4(A4)
 	
 EXIT
 	MOVE.W	#$0020,$9C(A6)		; clear interrupt request
@@ -328,7 +353,6 @@ OldDma:
 	DC.W	0
 OldInter:
 	DC.L	0
-
 SoundFlag			; if 0, play sound, otherwise do nothing
 	DC.B	0
 SoundCountRasters
@@ -343,7 +367,9 @@ CurrCoord
 	DC.B	COORD_COUNT-2
 MoveSpeedCounter
 	DC.B	MOVE_SPEED_RATE
-
+AudioSideFlag:
+	DC.B    0    ; 0 = Left, 1 = Right
+	EVEN
 ;0
 ;15
 ;20
