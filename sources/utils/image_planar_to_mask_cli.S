@@ -1,5 +1,5 @@
 ;---------------------------------------------------------------------------
-; Interleaved to mask (IntMask) (CLI Wrapper)
+; Image planar to Mask (PlanMask) (CLI Wrapper)
 ; Target: Amiga 68000
 ;---------------------------------------------------------------------------
 
@@ -74,9 +74,16 @@ Main:
     
     move.l  file_handle(pc),d1
     CALLDOS Close
-
+	
+    ; --- Step 3: Calculate Destination Size ---	
+    moveq   #0,d0
+    move.w  Width(pc),d0
+    move.w  Height(pc),d1
+    lsr.w   #3,d1
+    mulu.w  d1,d0
+    move.l  d0,DestSize
+	
     ; --- Step 4: Allocate Destination ---
-    move.l  SourceSize(pc),d0
     move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
     CALLEXEC AllocMem
     move.l  d0,WorkPtr
@@ -88,7 +95,7 @@ Main:
     move.w  Width(pc),d0
     move.w  Height(pc),d1
     move.w  Depth(pc),d2
-    bsr     CreateInterleavedMask
+    bsr     CreatePlanarMask
 
     ; --- Step 6: Save ---
     move.l  out_file_ptr(pc),d1
@@ -98,7 +105,6 @@ Main:
     beq     .WriteError
 	
     move.l  WorkPtr(pc),DestPtr
-    move.l  SourceSize(pc),DestSize
 
     move.l  file_handle(pc),d1
     move.l  DestPtr(pc),d2
@@ -298,7 +304,7 @@ WorkPtr:      dc.l 0
 DestPtr:      dc.l 0
 DestSize:     dc.l 0
 dosname:      DOSNAME
-usage_msg:    dc.b "Usage: IntMask <FROM> <TO> <WIDTH> <HEIGHT> <DEPTH>",10
+usage_msg:    dc.b "Usage: PlanMask <FROM> <TO> <WIDTH> <HEIGHT> <DEPTH>",10
 usage_msg_end:
 mem_err_msg:  dc.b "Error: Out of memory.",10
 mem_err_msg_end:
@@ -313,7 +319,7 @@ Depth:        dc.w 0
 
     IF DEBUG
 fakeArgs:
-	dc.b "ball001002_crop.raw ball001002_mask.raw 128 128 5",10,0
+	dc.b "ball001001plan.raw ball001001plan_mask.raw 128 128 2",10,0
 fakeArgsEnd=*-fakeArgs    
     ENDIF 
 	
@@ -321,7 +327,7 @@ fakeArgsEnd=*-fakeArgs
 
     ;--- Include Core Logic ---
     INCDIR  "SOURCES:"
-    INCLUDE "utils/image_interleaved_to_mask_core.S"
+    INCLUDE "utils/image_planar_to_mask_core.S"
 
 
     SECTION DATABSS, BSS_C
